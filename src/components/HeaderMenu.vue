@@ -47,14 +47,17 @@ const navigateTo = (path: string) => {
 
 // Set a default image if available
 watch(() => props.images, (newImages) => {
-  if (newImages.length > 0 && !activeImage.value) {
-    activeImage.value = newImages[0].url;
+  if (newImages && newImages.length > 0 && !activeImage.value) {
+    const firstImg = newImages[0];
+    if (firstImg) activeImage.value = firstImg.url;
   }
 }, { immediate: true });
 
 const handleMenuHover = (index: number) => {
-  if (props.images.length > index) {
-    activeImage.value = props.images[index].url;
+  const imgs = props.images;
+  if (imgs && imgs.length > index) {
+    const targetImg = imgs[index];
+    if (targetImg) activeImage.value = targetImg.url;
   }
 };
 

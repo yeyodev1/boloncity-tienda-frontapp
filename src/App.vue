@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { gsap } from 'gsap';
 
-const onLeave = (el: Element, done: () => void) => {
+const onLeave = (_el: Element, done: () => void) => {
   gsap.to('.global-curtain', {
     y: '0%',
     duration: 1.0,

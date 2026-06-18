@@ -20,7 +20,8 @@ const props = defineProps({
 
 // use the last image for the CTA background
 const getCtaImage = () => {
-  return props.images.length > 0 ? props.images[props.images.length - 1].url : '';
+  const imgs = props.images;
+  return imgs && imgs.length > 0 ? imgs[imgs.length - 1]?.url || '' : '';
 };
 
 onMounted(() => {

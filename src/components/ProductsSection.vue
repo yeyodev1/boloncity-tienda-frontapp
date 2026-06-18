@@ -20,11 +20,10 @@ const props = defineProps({
 });
 
 const getImages = (count: number, startIndex: number = 0) => {
-  if (!props.images.length) return [];
+  if (!props.images || !props.images.length) return [];
   return props.images.slice(startIndex, startIndex + count);
 };
 
-let horizontalScroll: ScrollTrigger | null = null;
 const sliderRef = ref<HTMLElement | null>(null);
 
 onMounted(() => {
