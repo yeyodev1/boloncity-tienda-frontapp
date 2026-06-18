@@ -4,6 +4,7 @@ import CustomCursor from '../components/CustomCursor.vue';
 import HeaderMenu from '../components/HeaderMenu.vue';
 import HeroSection from '../components/HeroSection.vue';
 import MarqueeBanner from '../components/MarqueeBanner.vue';
+import HistorySection from '../components/HistorySection.vue';
 import ExperienceSection from '../components/ExperienceSection.vue';
 import ProductsSection from '../components/ProductsSection.vue';
 import CallToActionSection from '../components/CallToActionSection.vue';
@@ -34,6 +35,7 @@ onMounted(async () => {
     <HeaderMenu :images="images" />
     <HeroSection :images="images" />
     <MarqueeBanner />
+    <HistorySection :images="images" />
     <ExperienceSection :images="images" />
     <ProductsSection :images="images" />
     <CallToActionSection :images="images" />

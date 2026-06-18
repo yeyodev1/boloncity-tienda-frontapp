@@ -22,6 +22,29 @@ const toggleMenu = () => {
   isMenuOpen.value = !isMenuOpen.value;
 };
 
+import { useRouter } from 'vue-router';
+const router = useRouter();
+
+const navigateTo = (path: string) => {
+  toggleMenu();
+  if (path.startsWith('#')) {
+    // Basic hash scrolling if on home
+    if (router.currentRoute.value.path !== '/') {
+      router.push('/').then(() => {
+        setTimeout(() => {
+          const el = document.querySelector(path);
+          if (el) el.scrollIntoView({ behavior: 'smooth' });
+        }, 500);
+      });
+    } else {
+      const el = document.querySelector(path);
+      if (el) el.scrollIntoView({ behavior: 'smooth' });
+    }
+  } else {
+    router.push(path);
+  }
+};
+
 // Set a default image if available
 watch(() => props.images, (newImages) => {
   if (newImages.length > 0 && !activeImage.value) {
@@ -61,7 +84,7 @@ watch(isMenuOpen, (isOpen) => {
           <i class="fa-solid fa-bars" v-if="!isMenuOpen"></i>
           <i class="fa-solid fa-times" v-else></i>
         </button>
-        <button class="btn-solid hover-target"><i class="fa-solid fa-shopping-bag"></i> Pedir Ahora</button>
+        <button class="btn-solid hover-target" @click="$router.push('/catalogo')"><i class="fa-solid fa-shopping-bag"></i> Pedir Ahora</button>
       </div>
     </nav>
 
@@ -73,16 +96,16 @@ watch(isMenuOpen, (isOpen) => {
       <div class="menu-content">
         <ul class="menu-list">
           <li class="menu-item" @mouseenter="handleMenuHover(0)">
-            <a href="#inicio" class="menu-item-link hover-target" @click="toggleMenu">01. Inicio</a>
+            <a href="javascript:void(0)" class="menu-item-link hover-target" @click="navigateTo('/')">01. Inicio</a>
           </li>
           <li class="menu-item" @mouseenter="handleMenuHover(1)">
-            <a href="#nosotros" class="menu-item-link hover-target" @click="toggleMenu">02. Nosotros</a>
+            <a href="javascript:void(0)" class="menu-item-link hover-target" @click="navigateTo('#historia')">02. Historia</a>
           </li>
           <li class="menu-item" @mouseenter="handleMenuHover(2)">
-            <a href="#menu" class="menu-item-link hover-target" @click="toggleMenu">03. Monumentos</a>
+            <a href="javascript:void(0)" class="menu-item-link hover-target" @click="navigateTo('/catalogo')">03. Catálogo</a>
           </li>
           <li class="menu-item" @mouseenter="handleMenuHover(3)">
-            <a href="#contacto" class="menu-item-link hover-target" @click="toggleMenu">04. Contacto</a>
+            <a href="javascript:void(0)" class="menu-item-link hover-target" @click="navigateTo('#contacto')">04. Contacto</a>
           </li>
         </ul>
       </div>

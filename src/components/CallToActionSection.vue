@@ -73,7 +73,7 @@ onUnmounted(() => {
     
     <div class="cta-content">
       <h2 class="cta-text-massive">VISÍTANOS</h2>
-      <button class="btn-solid-large hover-target">Haz tu Reserva</button>
+      <button class="btn-solid-large hover-target" @click="$router.push('/catalogo')">Haz tu Reserva</button>
     </div>
   </section>
 </template>

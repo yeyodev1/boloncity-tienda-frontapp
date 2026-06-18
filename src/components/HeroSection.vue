@@ -83,7 +83,7 @@ const getImages = (count: number, startIndex: number = 0) => {
       </div>
 
       <h1 class="main-title word-reveal">
-        <div class="line"><span>Vas a</span> <span>querer</span></div>
+        <div class="line"><span>Vas a querer</span></div>
         <div class="line"><span>vivir</span> <span class="highlight">aquí.</span></div>
       </h1>
       
@@ -181,6 +181,7 @@ $text-dark: #1A1A1A;
       overflow: hidden;
       display: flex;
       gap: 2vw;
+      flex-wrap: wrap;
       
       span {
         display: inline-block;
