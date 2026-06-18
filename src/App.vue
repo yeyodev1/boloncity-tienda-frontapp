@@ -39,14 +39,14 @@ const onEnter = (el: Element, done: () => void) => {
     <div class="global-curtain">
       <div class="curtain-logo">BOLONCITY</div>
     </div>
-    <RouterView v-slot="{ Component }">
+    <RouterView v-slot="{ Component, route }">
       <transition 
         @enter="onEnter" 
         @leave="onLeave" 
         :css="false" 
         mode="out-in"
       >
-        <component :is="Component" />
+        <component :is="Component" :key="route.path" />
       </transition>
     </RouterView>
   </div>
