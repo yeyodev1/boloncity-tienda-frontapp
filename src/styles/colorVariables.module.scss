@@ -1,12 +1,18 @@
-// Brand colors - customize per project
-$primary: #2094D2;
-$primary-dark: #010D27;
-$primary-light: #fefefe;
-$secondary: #2BBB92;
+// Brand colors - Boloncity
+$green-gastronomic: #00a523;
+$green-urban: #235931;
+$yellow-metropolitan: #efd537;
 
-$white: #fefefe;
-$text-light: #fefefe;
-$text-secondary: #6b7280;
+$primary: $green-gastronomic;
+$primary-dark: $green-urban;
+$secondary: $yellow-metropolitan;
+
+$white: #ffffff;
+$black: #000000;
+$text-dark: #1f2937;
+$text-light: #ffffff;
+$text-secondary: #4b5563;
+$bg-light: #f9fafb;
 
 // Alert colors
 $alert-warning: #f59e0b;
