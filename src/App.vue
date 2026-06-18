@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { gsap } from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+gsap.registerPlugin(ScrollTrigger);
 
 const onLeave = (_el: Element, done: () => void) => {
   gsap.to('.global-curtain', {
@@ -29,7 +32,16 @@ const onEnter = (el: Element, done: () => void) => {
   // Slide up the new content
   gsap.fromTo(el, 
     { y: 50, opacity: 0 }, 
-    { y: 0, opacity: 1, duration: 1.2, delay: 0.8, ease: 'power3.out' }
+    { 
+      y: 0, 
+      opacity: 1, 
+      duration: 1.2, 
+      delay: 0.8, 
+      ease: 'power3.out',
+      onComplete: () => {
+        ScrollTrigger.refresh();
+      }
+    }
   );
 };
 </script>
