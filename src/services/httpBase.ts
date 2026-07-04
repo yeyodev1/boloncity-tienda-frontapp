@@ -6,7 +6,7 @@ class APIBase {
   private axiosInstance = axios.create()
 
   constructor() {
-    const raw = (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:8100/api'
+    const raw = (import.meta.env.VITE_API_BASE_URL as string) || 'https://testing-storybrand-backapp.bakano.ec/api'
     const trimmed = raw.replace(/\/+$/, '')
     this.baseUrl = trimmed.endsWith('/api') || /\/api\//.test(trimmed)
       ? trimmed
@@ -18,6 +18,11 @@ class APIBase {
     this.axiosInstance.interceptors.request.use(
       (config) => {
         config.timeout = config.timeout || 15000
+        const branchId = localStorage.getItem('selected_branch')
+        if (branchId) {
+          config.headers = config.headers || {}
+          config.headers['X-Branch-Id'] = branchId
+        }
         return config
       },
       (error) => Promise.reject(error),

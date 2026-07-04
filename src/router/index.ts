@@ -13,6 +13,97 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import('../views/CatalogView.vue'),
     meta: { title: 'Catálogo | Boloncity' },
   },
+  {
+    path: '/producto/:slug',
+    name: 'ProductDetail',
+    component: () => import('../views/ProductDetailView.vue'),
+    meta: { title: 'Producto | Boloncity' },
+  },
+  {
+    path: '/carrito',
+    name: 'Cart',
+    component: () => import('../views/CartView.vue'),
+    meta: { title: 'Carrito | Boloncity' },
+  },
+  {
+    path: '/checkout',
+    name: 'Checkout',
+    component: () => import('../views/CheckoutView.vue'),
+    meta: { title: 'Checkout | Boloncity' },
+  },
+  {
+    path: '/checkout/response',
+    name: 'CheckoutResponse',
+    component: () => import('../views/CheckoutResponseView.vue'),
+    meta: { title: 'Confirmando pago | Boloncity' },
+  },
+  {
+    path: '/pedido',
+    name: 'TrackOrder',
+    component: () => import('../views/TrackOrderView.vue'),
+    meta: { title: 'Seguir pedido | Boloncity' },
+  },
+  {
+    path: '/login',
+    name: 'Login',
+    component: () => import('../views/LoginView.vue'),
+    meta: { title: 'Ingresar | Boloncity' },
+  },
+  {
+    path: '/registro',
+    alias: '/register',
+    name: 'Register',
+    component: () => import('../views/RegisterView.vue'),
+    meta: { title: 'Registro | Boloncity' },
+  },
+  {
+    path: '/admin',
+    name: 'AdminDashboard',
+    component: () => import('../views/admin/AdminDashboard.vue'),
+    meta: { title: 'Admin | Boloncity', requiresAuth: true, requiresAdmin: true },
+  },
+  {
+    path: '/admin/categorias',
+    name: 'AdminCategories',
+    component: () => import('../views/admin/AdminCategories.vue'),
+    meta: { title: 'Categorias | Boloncity', requiresAuth: true, requiresAdmin: true },
+  },
+  {
+    path: '/admin/productos',
+    name: 'AdminProducts',
+    component: () => import('../views/admin/AdminProducts.vue'),
+    meta: { title: 'Productos | Boloncity', requiresAuth: true, requiresAdmin: true },
+  },
+  {
+    path: '/admin/ordenes',
+    name: 'AdminOrdersKanban',
+    component: () => import('../views/admin/AdminOrdersKanban.vue'),
+    meta: { title: 'Ordenes | Boloncity', requiresAuth: true, requiresAdmin: true },
+  },
+  {
+    path: '/admin/ordenes/:id',
+    name: 'AdminOrderDetail',
+    component: () => import('../views/admin/AdminOrderDetail.vue'),
+    meta: { title: 'Detalle orden | Boloncity', requiresAuth: true, requiresAdmin: true },
+  },
+  {
+    path: '/admin/sucursales',
+    name: 'AdminBranches',
+    component: () => import('../views/admin/AdminBranches.vue'),
+    meta: { title: 'Sucursales | Boloncity', requiresAuth: true, requiresAdmin: true },
+  },
+  {
+    path: '/admin/usuarios',
+    name: 'AdminUsers',
+    component: () => import('../views/admin/AdminUsers.vue'),
+    meta: { title: 'Usuarios | Boloncity', requiresAuth: true, requiresAdmin: true },
+  },
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'NotFound',
+    component: () => import('../views/NotFoundView.vue'),
+    meta: { title: 'Pagina no encontrada | Boloncity' },
+  },
 ]
 
 const router = createRouter({
@@ -23,19 +114,37 @@ const router = createRouter({
   },
 })
 
+function getAuthenticatedLanding(role: string | null) {
+  if (['admin', 'branch_admin'].includes(role || '')) {
+    return '/admin'
+  }
+
+  return '/pedido'
+}
+
 router.beforeEach((to, _from, next) => {
   const hasToken = !!localStorage.getItem('access_token')
+  const role = localStorage.getItem('user_account_type')
   const requiresAuth = to.matched.some((record) => record.meta?.requiresAuth)
+  const requiresAdmin = to.matched.some((record) => record.meta?.requiresAdmin)
 
   if (requiresAuth && !hasToken) {
     return next({ path: '/login', replace: true })
   }
 
-  if (to.path === '/login' && hasToken) {
-    return next({ path: '/', replace: true })
+  if ((to.name === 'Login' || to.name === 'Register') && hasToken) {
+    return next({ path: getAuthenticatedLanding(role), replace: true })
+  }
+
+  if (requiresAdmin && !['admin', 'branch_admin'].includes(role || '')) {
+    return next({ path: getAuthenticatedLanding(role), replace: true })
   }
 
   next()
+})
+
+router.afterEach((to) => {
+  document.title = (to.meta?.title as string) || 'Boloncity'
 })
 
 export default router

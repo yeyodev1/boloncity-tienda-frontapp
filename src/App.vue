@@ -1,63 +1,14 @@
 <script setup lang="ts">
-import { gsap } from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
-
-gsap.registerPlugin(ScrollTrigger);
-
-const onLeave = (_el: Element, done: () => void) => {
-  gsap.to('.global-curtain', {
-    y: '0%',
-    duration: 1.0,
-    ease: 'expo.inOut',
-    onComplete: done
-  });
-};
-
-const onEnter = (el: Element, done: () => void) => {
-  // Reveal the new page by sliding curtain out
-  gsap.fromTo('.global-curtain', 
-    { y: '0%' },
-    {
-      y: '100%',
-      duration: 1.0,
-      delay: 0.3, // Hold the curtain on screen slightly before it goes down
-      ease: 'expo.inOut',
-      onComplete: () => {
-        gsap.set('.global-curtain', { y: '-100%' }); // reset for next time
-        done();
-      }
-    }
-  );
-  
-  // Slide up the new content
-  gsap.fromTo(el, 
-    { y: 50, opacity: 0 }, 
-    { 
-      y: 0, 
-      opacity: 1, 
-      duration: 1.2, 
-      delay: 0.8, 
-      ease: 'power3.out',
-      onComplete: () => {
-        ScrollTrigger.refresh();
-      }
-    }
-  );
-};
+import ToastNotification from '@/components/global/ToastNotification.vue'
+import ConfirmModal from '@/components/global/ConfirmModal.vue'
 </script>
 
 <template>
   <div class="app-container">
-    <div class="global-curtain">
-      <div class="curtain-logo">BOLONCITY</div>
-    </div>
+    <ToastNotification />
+    <ConfirmModal />
     <RouterView v-slot="{ Component, route }">
-      <transition 
-        @enter="onEnter" 
-        @leave="onLeave" 
-        :css="false" 
-        mode="out-in"
-      >
+      <transition name="page-fade" mode="out-in">
         <component :is="Component" :key="route.path" />
       </transition>
     </RouterView>
@@ -71,26 +22,14 @@ const onEnter = (el: Element, done: () => void) => {
   flex-direction: column;
 }
 
-.global-curtain {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background-color: #efd537; // Metropolitan Yellow
-  z-index: 99999;
-  transform: translateY(-100%);
-  pointer-events: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.page-fade-enter-active,
+.page-fade-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
 
-  .curtain-logo {
-    font-family: 'Switzer', sans-serif;
-    font-size: clamp(3rem, 8vw, 6rem);
-    font-weight: 800;
-    color: #235931; // Green regeneration
-    text-transform: uppercase;
-  }
+.page-fade-enter-from,
+.page-fade-leave-to {
+  opacity: 0;
+  transform: translateY(6px);
 }
 </style>

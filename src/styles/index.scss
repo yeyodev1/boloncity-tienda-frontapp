@@ -1,6 +1,9 @@
 @forward 'colorVariables.module.scss';
 @forward 'fonts.module.scss';
 
+@use 'colorVariables.module.scss' as *;
+@use 'fonts.module.scss' as *;
+
 @use "sass:color";
 @use "sass:math";
 
@@ -31,4 +34,83 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+::selection {
+  background: rgba($yellow-metropolitan, 0.35);
+  color: $green-urban;
+}
+
+@mixin eyebrow {
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+@mixin section-title {
+  font-size: clamp(2.4rem, 5vw, 5rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 0.95;
+  text-transform: uppercase;
+}
+
+@mixin body-text {
+  color: rgba($text-dark, 0.72);
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.7;
+}
+
+@mixin card-base {
+  background: rgba($white, 0.92);
+  border: 1px solid rgba($text-dark, 0.08);
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba($text-dark, 0.08);
+  backdrop-filter: blur(8px);
+}
+
+@mixin pill-button($bg, $color) {
+  align-items: center;
+  background: $bg;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: $color;
+  display: inline-flex;
+  font-size: 0.95rem;
+  font-weight: 800;
+  gap: 0.5rem;
+  justify-content: center;
+  letter-spacing: 0.08em;
+  min-height: 48px;
+  padding: 0.95rem 1.4rem;
+  text-transform: uppercase;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease, color 0.25s ease;
+}
+
+@mixin hover-lift {
+  transition: transform 0.25s ease, box-shadow 0.25s ease, opacity 0.25s ease;
+
+  &:hover {
+    transform: translateY(-4px);
+  }
+}
+
+@mixin section-padding {
+  padding: clamp(4rem, 10vw, 8rem) 1.25rem;
+
+  @media (min-width: 768px) {
+    padding-left: 4vw;
+    padding-right: 4vw;
+  }
 }

@@ -1,0 +1,354 @@
+<script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
+import AdminLayout from '@/components/admin/AdminLayout.vue'
+import SkeletonLoader from '@/components/global/SkeletonLoader.vue'
+import OrderService, { type OrderDTO } from '@/services/OrderService'
+
+const route = useRoute()
+const order = ref<OrderDTO | null>(null)
+const loading = ref(true)
+
+const statusLabels: Record<string, string> = {
+  pending: 'Pendiente',
+  paid: 'Pagada',
+  preparing: 'En preparación',
+  ready: 'Lista',
+  delivered: 'Entregada',
+  cancelled: 'Cancelada',
+}
+
+const statusTones: Record<string, string> = {
+  pending: 'tone--amber',
+  paid: 'tone--blue',
+  preparing: 'tone--green',
+  ready: 'tone--violet',
+  delivered: 'tone--neutral',
+  cancelled: 'tone--red',
+}
+
+const itemCount = computed(() => order.value?.items?.reduce((sum, item) => sum + item.quantity, 0) || 0)
+
+function formatCurrency(amount: number) {
+  return new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(amount / 100)
+}
+
+onMounted(async () => {
+  const response = await OrderService.getById(String(route.params.id))
+  order.value = response.data
+  loading.value = false
+})
+</script>
+
+<template>
+  <AdminLayout>
+    <section class="admin-order-detail">
+      <header class="admin-order-detail__hero panel" v-if="order">
+        <div>
+          <p class="admin-order-detail__eyebrow">Orden</p>
+          <h1>{{ order.orderNumber }}</h1>
+          <p>{{ order.customerName || order.customerEmail }}</p>
+        </div>
+
+        <div class="admin-order-detail__status" :class="statusTones[order.status]">
+          <span>{{ statusLabels[order.status] || order.status }}</span>
+        </div>
+      </header>
+
+      <SkeletonLoader v-if="loading" type="card" :count="2" />
+
+      <div v-else-if="order" class="admin-order-detail__grid">
+        <article class="panel summary-card">
+          <div class="summary-card__top">
+            <div>
+              <span>Cliente</span>
+              <strong>{{ order.customerName || 'Sin nombre' }}</strong>
+            </div>
+            <div>
+              <span>Email</span>
+              <strong>{{ order.customerEmail }}</strong>
+            </div>
+          </div>
+
+          <div class="summary-card__grid">
+            <div>
+              <span>Total</span>
+              <strong>{{ formatCurrency(order.total) }}</strong>
+            </div>
+            <div>
+              <span>Items</span>
+              <strong>{{ itemCount }}</strong>
+            </div>
+            <div>
+              <span>Sucursal</span>
+              <strong>{{ order.branch?.name || 'Sin sucursal' }}</strong>
+            </div>
+            <div>
+              <span>Teléfono</span>
+              <strong>{{ order.customerPhone || 'No registrado' }}</strong>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel items-card">
+          <div class="section-head">
+            <div>
+              <p class="section-head__eyebrow">Contenido</p>
+              <h2>Productos</h2>
+            </div>
+            <strong>{{ formatCurrency(order.subtotal) }}</strong>
+          </div>
+
+          <div class="item-list">
+            <article v-for="item in order.items || []" :key="`${item.name}-${item.quantity}`" class="item-row">
+              <div>
+                <strong>{{ item.name }}</strong>
+                <p>Cantidad: {{ item.quantity }}</p>
+              </div>
+              <span>{{ formatCurrency(item.price * item.quantity) }}</span>
+            </article>
+          </div>
+        </article>
+
+        <article class="panel audit-card">
+          <div class="section-head">
+            <div>
+              <p class="section-head__eyebrow">Trazabilidad</p>
+              <h2>Auditoría</h2>
+            </div>
+          </div>
+
+          <div v-if="order.audit?.length" class="audit">
+            <div v-for="entry in order.audit || []" :key="`${entry.action}-${entry.timestamp}`" class="audit-item">
+              <div class="audit-item__head">
+                <strong>{{ entry.action }}</strong>
+                <small>{{ entry.performedByEmail || 'system' }}</small>
+              </div>
+              <p v-if="entry.fromValue || entry.toValue">{{ entry.fromValue || '—' }} → {{ entry.toValue || '—' }}</p>
+              <p v-if="entry.details">{{ entry.details }}</p>
+            </div>
+          </div>
+          <p v-else class="empty-state">Sin auditoría registrada.</p>
+        </article>
+      </div>
+    </section>
+  </AdminLayout>
+</template>
+
+<style scoped lang="scss">
+.admin-order-detail {
+  display: grid;
+  gap: 1rem;
+}
+
+.admin-order-detail__hero {
+  align-items: end;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem;
+}
+
+.admin-order-detail__eyebrow {
+  color: $primary-dark;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.admin-order-detail__hero h1 {
+  font-size: clamp(2rem, 4vw, 3.2rem);
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  line-height: 0.95;
+  margin-top: 0.35rem;
+}
+
+.admin-order-detail__hero p {
+  color: var(--admin-muted);
+  margin-top: 0.75rem;
+}
+
+.admin-order-detail__status {
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  padding: 0.75rem 1rem;
+  text-transform: uppercase;
+}
+
+.admin-order-detail__grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.summary-card,
+.items-card,
+.audit-card {
+  flex: 1 1 420px;
+}
+
+.summary-card,
+.items-card,
+.audit-card {
+  padding: 1rem;
+}
+
+.summary-card__top,
+.summary-card__grid {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.summary-card__top {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 1rem;
+}
+
+.summary-card__grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.summary-card span,
+.section-head__eyebrow {
+  color: rgba($text-dark, 0.62);
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.summary-card strong,
+.section-head strong,
+.item-row span {
+  display: block;
+  font-weight: 800;
+}
+
+.section-head {
+  align-items: end;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.section-head h2 {
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.item-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.item-row {
+  align-items: start;
+  background: $bg-light;
+  border: 1px solid rgba($text-dark, 0.08);
+  border-radius: 18px;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+}
+
+.item-row p,
+.audit-item p {
+  color: rgba($text-dark, 0.66);
+  line-height: 1.5;
+}
+
+.audit {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.audit-item {
+  background: $bg-light;
+  border: 1px solid rgba($text-dark, 0.08);
+  border-radius: 18px;
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.9rem 1rem;
+}
+
+.audit-item__head {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.audit-item__head small {
+  color: rgba($text-dark, 0.58);
+}
+
+.empty-state {
+  color: rgba($text-dark, 0.66);
+}
+
+.tone--amber {
+  background: rgba($secondary, 0.2);
+  color: $text-dark;
+}
+
+.tone--blue {
+  background: rgba(27, 77, 126, 0.22);
+  color: #cfe6ff;
+}
+
+.tone--green {
+  background: rgba(35, 89, 49, 0.22);
+  color: #d9f6df;
+}
+
+.tone--violet {
+  background: rgba(90, 52, 139, 0.22);
+  color: #e2d5ff;
+}
+
+.tone--neutral {
+  background: rgba(20, 24, 20, 0.22);
+  color: $text-dark;
+}
+
+.tone--red {
+  background: rgba(126, 33, 33, 0.22);
+  color: #ffcfcf;
+}
+
+@media (max-width: 1024px) {
+  .admin-order-detail__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-card__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-order-detail__hero {
+    flex-direction: column;
+    align-items: start;
+  }
+
+  .summary-card__top,
+  .summary-card__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .item-row,
+  .audit-item__head {
+    flex-direction: column;
+    align-items: start;
+  }
+}
+</style>
