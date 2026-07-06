@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import AdminLayout from '@/components/admin/AdminLayout.vue'
 import BaseSelect from '@/components/global/BaseSelect.vue'
+import ModalShell from '@/components/global/ModalShell.vue'
 import SkeletonLoader from '@/components/global/SkeletonLoader.vue'
 import UserService, { type UserDTO } from '@/services/UserService'
 import BranchService, { type BranchDTO } from '@/services/BranchService'
@@ -10,8 +11,13 @@ import { useToast } from '@/composables/useToast'
 const users = ref<UserDTO[]>([])
 const branches = ref<BranchDTO[]>([])
 const loading = ref(true)
-const selectedId = ref('')
-const selectedEmail = ref('')
+const saving = ref(false)
+const editorOpen = ref(false)
+const editingId = ref('')
+const email = ref('')
+const password = ref('')
+const name = ref('')
+const phone = ref('')
 const selectedBranches = ref<string[]>([])
 const accountType = ref<'customer' | 'branch_admin' | 'admin'>('branch_admin')
 const allBranches = ref(false)
@@ -30,6 +36,11 @@ const accountTypeLabels: Record<string, string> = {
   admin: 'Admin',
 }
 
+const modalTitle = computed(() => (editingId.value ? 'Editar usuario' : 'Nuevo usuario'))
+const modalSubtitle = computed(() =>
+  editingId.value ? 'Actualiza rol, sucursales y datos del usuario.' : 'Crea un nuevo usuario con rol y acceso a sucursales.',
+)
+
 async function load() {
   loading.value = true
   const [usersResponse, branchesResponse] = await Promise.all([UserService.getAll(), BranchService.getAll()])
@@ -38,31 +49,63 @@ async function load() {
   loading.value = false
 }
 
-function fill(user: UserDTO) {
-  selectedId.value = user._id
-  selectedEmail.value = user.email
-  selectedBranches.value = user.branches?.map((branch) => branch._id) || []
-  accountType.value = user.accountType
-  allBranches.value = user.allBranches || false
-}
-
-function cancel() {
-  selectedId.value = ''
-  selectedEmail.value = ''
+function resetForm() {
+  editingId.value = ''
+  email.value = ''
+  password.value = ''
+  name.value = ''
+  phone.value = ''
   selectedBranches.value = []
   accountType.value = 'branch_admin'
   allBranches.value = false
 }
 
+function openCreate() {
+  resetForm()
+  editorOpen.value = true
+}
+
+function fill(user: UserDTO) {
+  editingId.value = user._id
+  email.value = user.email
+  password.value = ''
+  name.value = user.name || ''
+  selectedBranches.value = user.branches?.map((branch) => branch._id) || []
+  accountType.value = user.accountType
+  allBranches.value = user.allBranches || false
+  editorOpen.value = true
+}
+
+function closeEditor() {
+  editorOpen.value = false
+  setTimeout(() => resetForm(), 150)
+}
+
 async function submit() {
   try {
-    const payload = { branches: selectedBranches.value, accountType: accountType.value, allBranches: allBranches.value }
-    if (selectedId.value) await UserService.update(selectedId.value, payload)
-    success('Usuario actualizado')
-    cancel()
+    saving.value = true
+    const payload: Record<string, unknown> = {
+      email: email.value,
+      name: name.value || undefined,
+      accountType: accountType.value,
+      branches: selectedBranches.value,
+      allBranches: allBranches.value,
+    }
+    if (password.value) payload.password = password.value
+
+    if (editingId.value) {
+      await UserService.update(editingId.value, payload)
+      success('Usuario actualizado')
+    } else {
+      await UserService.create(payload)
+      success('Usuario creado')
+    }
+    closeEditor()
     await load()
   } catch {
-    error('No se pudo actualizar el usuario')
+    error('No se pudo guardar el usuario')
+  } finally {
+    saving.value = false
   }
 }
 
@@ -76,31 +119,17 @@ onMounted(load)
         <div>
           <p class="admin-users__eyebrow">Gestión</p>
           <h1>Usuarios</h1>
-          <p>Asigna roles y sucursales a los usuarios registrados.</p>
+          <p>Administra roles, sucursales y acceso de los usuarios registrados.</p>
+        </div>
+        <div class="admin-users__hero-actions">
+          <button class="admin-users__cta" type="button" @click="openCreate">Nuevo usuario</button>
         </div>
       </header>
 
-      <form v-if="selectedId" class="panel form-panel" @submit.prevent="submit">
-        <div class="form-header">
-          <span class="form-header__label">Editando</span>
-          <strong class="form-header__email">{{ selectedEmail }}</strong>
-          <button type="button" class="form-header__cancel" @click="cancel">Cancelar</button>
-        </div>
-        <div class="form-grid">
-          <BaseSelect v-model="accountType" :options="accountTypeOptions" placeholder="Tipo de cuenta" />
-          <label class="field-toggle full">
-            <input v-model="allBranches" type="checkbox" />
-            <span>Dueño del negocio (ve todas las sucursales)</span>
-          </label>
-          <BaseSelect v-model="selectedBranches" :options="branchOptions" multiple :disabled="allBranches" />
-          <button class="full" type="submit">Guardar cambios</button>
-        </div>
-      </form>
-
-      <SkeletonLoader v-if="loading" type="card" :count="4" />
+      <SkeletonLoader v-if="loading" type="card" :count="6" />
 
       <div v-else class="user-list">
-        <article v-for="user in users" :key="user._id" class="panel user-card" :class="{ 'is-selected': user._id === selectedId }">
+        <article v-for="user in users" :key="user._id" class="panel user-card" :class="{ 'is-selected': user._id === editingId }">
           <div class="user-card__body">
             <div class="user-card__head">
               <div class="user-card__avatar">{{ (user.name || user.email).slice(0, 1).toUpperCase() }}</div>
@@ -113,11 +142,58 @@ onMounted(load)
           </div>
           <div class="user-card__foot">
             <small>{{ user.branches?.map((branch) => branch.name).join(', ') || 'Sin sucursales' }}</small>
-            <button type="button" @click="fill(user)">Asignar</button>
+            <button type="button" @click="fill(user)">Editar</button>
           </div>
         </article>
       </div>
     </section>
+
+    <ModalShell :open="editorOpen" :title="modalTitle" :subtitle="modalSubtitle" size="lg" @close="closeEditor">
+      <form class="editor-form panel" @submit.prevent="submit">
+        <div class="editor-grid">
+          <div class="editor-section full">
+            <span>Identidad</span>
+            <p>Correo y contraseña de acceso al sistema.</p>
+          </div>
+
+          <label>
+            <span>Correo electrónico</span>
+            <input v-model="email" type="email" placeholder="usuario@ejemplo.com" required />
+          </label>
+
+          <label>
+            <span>{{ editingId ? 'Nueva contraseña (opcional)' : 'Contraseña' }}</span>
+            <input v-model="password" type="password" placeholder="••••••••" :required="!editingId" />
+          </label>
+
+          <label>
+            <span>Nombre</span>
+            <input v-model="name" placeholder="Nombre completo" />
+          </label>
+
+          <div class="editor-section full">
+            <span>Roles y permisos</span>
+            <p>Define el tipo de cuenta y las sucursales a las que tiene acceso.</p>
+          </div>
+
+          <BaseSelect v-model="accountType" :options="accountTypeOptions" placeholder="Tipo de cuenta" />
+
+          <label class="field-toggle full">
+            <input v-model="allBranches" type="checkbox" />
+            <span>Dueño del negocio (acceso a todas las sucursales)</span>
+          </label>
+
+          <BaseSelect v-model="selectedBranches" :options="branchOptions" multiple :disabled="allBranches" />
+        </div>
+
+        <div class="editor-actions">
+          <button type="button" class="secondary" @click="closeEditor">Cancelar</button>
+          <button type="submit" :disabled="saving">
+            {{ saving ? 'Guardando...' : editingId ? 'Guardar cambios' : 'Crear usuario' }}
+          </button>
+        </div>
+      </form>
+    </ModalShell>
   </AdminLayout>
 </template>
 
@@ -130,12 +206,16 @@ onMounted(load)
 }
 
 .admin-users__hero,
-.form-panel,
 .user-card {
   margin-bottom: 0;
 }
 
 .admin-users__hero {
+  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 1rem;
   overflow: hidden;
   padding: clamp(1.25rem, 3vw, 2rem);
   position: relative;
@@ -151,97 +231,33 @@ onMounted(load)
   width: 220px;
 }
 
+.admin-users__hero-actions {
+  position: relative;
+  z-index: 1;
+}
+
+.admin-users__cta {
+  background: #235931;
+  border: 0;
+  border-radius: 999px;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 800;
+  min-height: 48px;
+  padding: 0.75rem 1.5rem;
+  transition: opacity 0.2s;
+}
+
+.admin-users__cta:hover {
+  opacity: 0.85;
+}
+
 .admin-users__eyebrow {
   color: #235931;
   font-size: 0.82rem;
   font-weight: 800;
   letter-spacing: 0.16em;
   margin-bottom: 0.25rem;
-  text-transform: uppercase;
-}
-
-.form-panel {
-  padding: 1rem;
-}
-
-.form-header {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid rgba(8, 17, 13, 0.08);
-}
-
-.form-header__label {
-  color: rgba(8, 17, 13, 0.58);
-  font-size: 0.82rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.form-header__email {
-  font-size: 1rem;
-  font-weight: 800;
-  color: #08110d;
-}
-
-.form-header__cancel {
-  margin-left: auto;
-  background: rgba(8, 17, 13, 0.06);
-  border: 0;
-  border-radius: 999px;
-  color: rgba(8, 17, 13, 0.72);
-  cursor: pointer;
-  font-size: 0.82rem;
-  font-weight: 700;
-  min-height: 36px;
-  padding: 0.5rem 1rem;
-  transition: background 0.2s;
-}
-
-.form-header__cancel:hover {
-  background: rgba(8, 17, 13, 0.12);
-}
-
-.form-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-}
-
-.form-grid > * {
-  flex: 1 1 220px;
-}
-
-.full {
-  flex-basis: 100%;
-}
-
-.field-toggle {
-  align-items: center;
-  background: #fff;
-  border: 1px solid rgba(8, 17, 13, 0.12);
-  border-radius: 16px;
-  display: flex;
-  gap: 0.6rem;
-  min-height: 52px;
-  padding: 0.95rem 1rem;
-  cursor: pointer;
-}
-
-.field-toggle input {
-  min-height: 18px;
-  width: 18px;
-}
-
-.field-toggle span {
-  color: #235931;
-  font-size: 0.82rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
@@ -346,23 +362,135 @@ onMounted(load)
   opacity: 0.85;
 }
 
-button[type='submit'] {
-  background: #235931;
+.editor-form {
+  padding: 1rem;
+}
+
+.editor-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.editor-section {
+  background: rgba(35, 89, 49, 0.06);
+  border: 1px solid rgba(35, 89, 49, 0.1);
+  border-radius: 18px;
+  padding: 0.85rem 1rem;
+}
+
+.editor-section span {
+  color: #235931;
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.editor-section p {
+  color: rgba(8, 17, 13, 0.62);
+  margin-top: 0.25rem;
+}
+
+.editor-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.editor-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.editor-grid label span,
+.field-toggle span {
+  color: #235931;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.editor-grid input,
+.editor-grid select {
+  background: #fff;
+  border: 1px solid rgba(8, 17, 13, 0.12);
+  border-radius: 16px;
+  color: #08110d;
+  min-height: 52px;
+  padding: 1rem 1.05rem;
+}
+
+.full {
+  flex-basis: 100%;
+}
+
+.field-toggle {
+  align-items: center;
+  background: #fff;
+  border: 1px solid rgba(8, 17, 13, 0.12);
+  border-radius: 16px;
+  display: flex;
+  gap: 0.6rem;
+  min-height: 52px;
+  padding: 0.95rem 1rem;
+  cursor: pointer;
+}
+
+.field-toggle input {
+  min-height: 18px;
+  width: 18px;
+}
+
+.field-toggle span {
+  color: #235931;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.editor-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(8, 17, 13, 0.08);
+}
+
+.editor-actions button {
   border: 0;
   border-radius: 999px;
-  color: #fff;
   cursor: pointer;
   font-weight: 800;
-  min-height: 52px;
+  min-height: 48px;
   padding: 0.75rem 1.5rem;
   transition: opacity 0.2s;
 }
 
-button[type='submit']:hover {
+.editor-actions button.secondary {
+  background: rgba(8, 17, 13, 0.06);
+  color: rgba(8, 17, 13, 0.72);
+}
+
+.editor-actions button.secondary:hover {
+  background: rgba(8, 17, 13, 0.12);
+}
+
+.editor-actions button[type='submit'] {
+  background: #235931;
+  color: #fff;
+}
+
+.editor-actions button[type='submit']:hover {
   opacity: 0.85;
 }
 
-button[type='submit']:disabled {
+.editor-actions button[type='submit']:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
@@ -378,6 +506,25 @@ button[type='submit']:disabled {
 
   .user-card__foot small {
     max-width: 300px;
+  }
+
+  .admin-users__hero {
+    align-items: flex-end;
+    flex-direction: row;
+  }
+
+  .editor-grid {
+    flex-flow: row wrap;
+  }
+
+  .editor-grid label,
+  .editor-section,
+  .field-toggle {
+    flex: 1 1 260px;
+  }
+
+  .editor-grid .full {
+    flex-basis: 100%;
   }
 }
 </style>
