@@ -7,6 +7,8 @@ import SkeletonLoader from '@/components/global/SkeletonLoader.vue'
 import UserService, { type UserDTO } from '@/services/UserService'
 import BranchService, { type BranchDTO } from '@/services/BranchService'
 import { useToast } from '@/composables/useToast'
+import { useConfirm } from '@/composables/useConfirm'
+import { useUserStore } from '@/stores/user'
 
 const users = ref<UserDTO[]>([])
 const branches = ref<BranchDTO[]>([])
@@ -22,6 +24,8 @@ const selectedBranches = ref<string[]>([])
 const accountType = ref<'customer' | 'branch_admin' | 'admin'>('branch_admin')
 const allBranches = ref(false)
 const { success, error } = useToast()
+const { confirm } = useConfirm()
+const userStore = useUserStore()
 
 const accountTypeOptions = [
   { value: 'customer', label: 'Cliente' },
@@ -109,6 +113,27 @@ async function submit() {
   }
 }
 
+async function removeUser(user: UserDTO) {
+  if (userStore.id === user._id) {
+    error('No puedes eliminarte a ti mismo')
+    return
+  }
+  const ok = await confirm({
+    title: 'Eliminar usuario',
+    message: `¿Estás seguro de eliminar a ${user.name || user.email}? Esta acción no se puede deshacer.`,
+    confirmText: 'Eliminar',
+    type: 'danger',
+  })
+  if (!ok) return
+  try {
+    await UserService.remove(user._id)
+    users.value = users.value.filter((u) => u._id !== user._id)
+    success('Usuario eliminado')
+  } catch {
+    error('No se pudo eliminar el usuario')
+  }
+}
+
 onMounted(load)
 </script>
 
@@ -143,6 +168,7 @@ onMounted(load)
           <div class="user-card__foot">
             <small>{{ user.branches?.map((branch) => branch.name).join(', ') || 'Sin sucursales' }}</small>
             <button type="button" @click="fill(user)">Editar</button>
+            <button class="user-card__delete" type="button" @click="removeUser(user)">Eliminar</button>
           </div>
         </article>
       </div>
@@ -360,6 +386,15 @@ onMounted(load)
 
 .user-card__foot button:hover {
   opacity: 0.85;
+}
+
+.user-card__delete {
+  background: rgba(200, 32, 32, 0.08) !important;
+  color: #c82020 !important;
+}
+
+.user-card__delete:hover {
+  background: rgba(200, 32, 32, 0.18) !important;
 }
 
 .editor-form {

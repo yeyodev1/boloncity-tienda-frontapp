@@ -25,6 +25,10 @@ class UserService extends APIBase {
   update(id: string, payload: Record<string, unknown>) {
     return this.put<UserDTO>(`users/${id}`, payload)
   }
+
+  remove(id: string) {
+    return this.delete<{ message: string }>(`users/${id}`)
+  }
 }
 
 export default new UserService()

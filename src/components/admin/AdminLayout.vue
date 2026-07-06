@@ -12,6 +12,7 @@ const userStore = useUserStore()
 const { confirm } = useConfirm()
 
 const storeModalOpen = ref(false)
+const menuOpen = ref(false)
 
 const isAdmin = computed(() => userStore.allBranches || userStore.accountType === 'admin')
 
@@ -26,6 +27,7 @@ const navItems = computed(() => [
 
 function go(path: string) {
   router.push(path)
+  menuOpen.value = false
 }
 
 function goStore() {
@@ -51,7 +53,7 @@ async function logout() {
 </script>
 
 <template>
-  <div class="admin-shell">
+  <div class="admin-shell" :class="{ 'menu-open': menuOpen }">
     <aside class="sidebar panel">
       <div class="brand">
         <p class="brand__eyebrow">Panel interno</p>
@@ -84,9 +86,50 @@ async function logout() {
       </div>
     </aside>
 
+    <div class="drawer-overlay" :class="{ 'is-open': menuOpen }" @click="menuOpen = false" />
+
+    <aside class="drawer panel" :class="{ 'is-open': menuOpen }">
+      <div class="drawer__head">
+        <p class="drawer__eyebrow">Panel interno</p>
+        <strong>Boloncity</strong>
+        <button class="drawer__close" type="button" @click="menuOpen = false">
+          <i class="fa-solid fa-times" />
+        </button>
+      </div>
+
+      <nav class="drawer__nav">
+        <button
+          v-for="item in navItems"
+          :key="item.path"
+          type="button"
+          :class="{ active: route.path === item.path }"
+          @click="go(item.path)"
+        >
+          <i :class="item.icon" />
+          <span>{{ item.label }}</span>
+        </button>
+      </nav>
+
+      <div class="drawer__footer">
+        <div class="drawer__user">
+          <span class="drawer__avatar">{{ (userStore.email || 'A').slice(0, 1).toUpperCase() }}</span>
+          <div>
+            <strong>{{ userStore.email || 'Admin' }}</strong>
+            <small>{{ userStore.accountType || 'admin' }}</small>
+          </div>
+        </div>
+        <button class="drawer__logout" type="button" @click="logout">Salir</button>
+      </div>
+    </aside>
+
     <main class="content">
       <header class="topbar panel">
-        <BranchSelector />
+        <div class="topbar__start">
+          <button class="topbar__menu-btn" type="button" @click="menuOpen = !menuOpen" aria-label="Abrir menú">
+            <i class="fa-solid fa-bars" />
+          </button>
+          <BranchSelector />
+        </div>
         <div class="topbar__actions">
           <button v-if="isAdmin" class="topbar__store-btn" type="button" @click="goStore">
             <i class="fa-solid fa-store" />
@@ -98,13 +141,6 @@ async function logout() {
         <slot />
       </section>
     </main>
-
-    <nav class="bottom-nav">
-      <button v-for="item in navItems" :key="item.path" type="button" @click="go(item.path)">
-        <i :class="item.icon" />
-        <span>{{ item.label }}</span>
-      </button>
-    </nav>
 
     <ModalShell
       :open="storeModalOpen"
@@ -152,7 +188,7 @@ async function logout() {
   font-family: Switzer, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   gap: 1rem;
   min-height: 100vh;
-  padding: 1rem 1rem 86px;
+  padding: 1rem;
 }
 
 .panel {
@@ -162,6 +198,7 @@ async function logout() {
   box-shadow: 0 18px 38px rgba(28, 22, 12, 0.08);
 }
 
+/* Desktop sidebar */
 .sidebar {
   background: #ffffff;
   display: none;
@@ -205,8 +242,7 @@ async function logout() {
   gap: 0.5rem;
 }
 
-.sidebar__nav button,
-.bottom-nav button {
+.sidebar__nav button {
   align-items: center;
   background: transparent;
   border: 1px solid transparent;
@@ -220,8 +256,7 @@ async function logout() {
   transition: background-color 0.25s ease, border-color 0.25s ease, transform 0.25s ease;
 }
 
-.sidebar__nav button:hover,
-.bottom-nav button:hover {
+.sidebar__nav button:hover {
   background: rgba(35, 89, 49, 0.06);
   transform: translateX(2px);
 }
@@ -232,8 +267,7 @@ async function logout() {
   color: $white;
 }
 
-.sidebar__nav i,
-.bottom-nav i {
+.sidebar__nav i {
   width: 18px;
   text-align: center;
 }
@@ -290,6 +324,179 @@ async function logout() {
   color: $alert-error;
 }
 
+/* Drawer overlay */
+.drawer-overlay {
+  background: rgba(0, 0, 0, 0.4);
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  position: fixed;
+  transition: opacity 0.3s ease;
+  z-index: 40;
+}
+
+.drawer-overlay.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Slide-in drawer (mobile) */
+.drawer {
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  height: 100vh;
+  left: 0;
+  max-width: 320px;
+  padding: 1.25rem;
+  position: fixed;
+  top: 0;
+  transform: translateX(-100%);
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 50;
+  width: 80vw;
+  border-radius: 0 22px 22px 0;
+  border: 0;
+  box-shadow: 4px 0 32px rgba(0, 0, 0, 0.12);
+}
+
+.drawer.is-open {
+  transform: translateX(0);
+}
+
+.drawer__head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--admin-line);
+  position: relative;
+}
+
+.drawer__eyebrow {
+  color: var(--admin-primary);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.drawer__head strong {
+  font-size: 1.4rem;
+  letter-spacing: -0.04em;
+}
+
+.drawer__close {
+  position: absolute;
+  right: 0;
+  top: 0;
+  background: rgba(8, 17, 13, 0.06);
+  border: 0;
+  border-radius: 999px;
+  color: rgba(8, 17, 13, 0.72);
+  cursor: pointer;
+  height: 36px;
+  width: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.drawer__close:hover {
+  background: rgba(8, 17, 13, 0.12);
+}
+
+.drawer__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1 1 auto;
+}
+
+.drawer__nav button {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 16px;
+  color: rgba(24, 33, 27, 0.76);
+  display: flex;
+  gap: 0.8rem;
+  min-height: 52px;
+  padding: 0.9rem 1rem;
+  text-align: left;
+  transition: background-color 0.25s ease, border-color 0.25s ease;
+  cursor: pointer;
+}
+
+.drawer__nav button:hover {
+  background: rgba(35, 89, 49, 0.06);
+}
+
+.drawer__nav button.active {
+  background: var(--admin-primary);
+  border-color: var(--admin-primary);
+  color: $white;
+}
+
+.drawer__nav i {
+  width: 18px;
+  text-align: center;
+}
+
+.drawer__footer {
+  border-top: 1px solid var(--admin-line);
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding-top: 1rem;
+}
+
+.drawer__user {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+}
+
+.drawer__avatar {
+  align-items: center;
+  background: rgba($primary-dark, 0.12);
+  border: 1px solid rgba($primary-dark, 0.18);
+  color: var(--admin-primary);
+  border-radius: 50%;
+  display: inline-flex;
+  height: 42px;
+  justify-content: center;
+  width: 42px;
+}
+
+.drawer__user strong,
+.drawer__user small {
+  display: block;
+}
+
+.drawer__user small {
+  color: var(--admin-muted);
+}
+
+.drawer__logout {
+  background: var(--admin-surface-strong);
+  border: 1px solid var(--admin-line);
+  border-radius: 14px;
+  color: var(--admin-text);
+  cursor: pointer;
+  min-height: 48px;
+  transition: background 0.2s;
+}
+
+.drawer__logout:hover {
+  background: rgba($alert-error, 0.1);
+  border-color: rgba($alert-error, 0.2);
+  color: $alert-error;
+}
+
+/* Main content */
 .content {
   display: flex;
   flex: 1 1 auto;
@@ -301,13 +508,37 @@ async function logout() {
 .topbar {
   align-items: center;
   display: flex;
-  flex-direction: column;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1rem 1.25rem;
+  padding: 0.65rem 1rem;
   position: sticky;
   top: 0.75rem;
   z-index: 20;
+}
+
+.topbar__start {
+  align-items: center;
+  display: flex;
+  gap: 0.65rem;
+}
+
+.topbar__menu-btn {
+  align-items: center;
+  background: rgba(8, 17, 13, 0.06);
+  border: 0;
+  border-radius: 999px;
+  color: rgba(8, 17, 13, 0.72);
+  cursor: pointer;
+  display: inline-flex;
+  height: 42px;
+  justify-content: center;
+  width: 42px;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.topbar__menu-btn:hover {
+  background: rgba(8, 17, 13, 0.12);
 }
 
 .topbar__actions {
@@ -325,8 +556,8 @@ async function logout() {
   cursor: pointer;
   display: inline-flex;
   gap: 0.5rem;
-  min-height: 44px;
-  padding: 0.6rem 1rem;
+  min-height: 42px;
+  padding: 0.5rem 1rem;
   font-weight: 700;
   transition: background 0.2s;
 }
@@ -339,34 +570,6 @@ async function logout() {
   flex: 1 1 auto;
   min-width: 0;
   padding: 0;
-}
-
-.bottom-nav {
-  background: rgba(255, 255, 255, 0.96);
-  border-top: 1px solid var(--admin-line);
-  bottom: 0;
-  display: flex;
-  gap: 0.5rem;
-  left: 0;
-  overflow-x: auto;
-  padding: 0.55rem;
-  position: fixed;
-  right: 0;
-  z-index: 30;
-}
-
-.bottom-nav button {
-  flex: 1 0 84px;
-  flex-direction: column;
-  font-size: 0.72rem;
-  gap: 0.3rem;
-  min-height: 58px;
-  padding: 0.55rem 0.3rem;
-}
-
-.bottom-nav button span {
-  line-height: 1;
-  text-align: center;
 }
 
 .store-choice {
@@ -557,14 +760,15 @@ async function logout() {
 @media (min-width: 1025px) {
   .admin-shell {
     flex-direction: row;
-    padding: 1rem;
   }
 
   .sidebar {
     display: flex;
   }
 
-  .bottom-nav {
+  .drawer,
+  .drawer-overlay,
+  .topbar__menu-btn {
     display: none;
   }
 }
