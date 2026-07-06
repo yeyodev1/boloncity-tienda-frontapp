@@ -12,7 +12,7 @@ defineProps<{
 </template>
 
 <style scoped lang="scss">
-.skeleton { display: grid; gap: 0.75rem; }
+.skeleton { display: flex; flex-direction: column; gap: 0.75rem; }
 .skeleton-item {
   height: 1rem;
   border-radius: 999px;

@@ -59,8 +59,10 @@ onMounted(async () => {
 }
 
 .response-card {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0.9rem;
+  align-items: center;
   max-width: 460px;
   padding: 2.25rem 1.5rem;
   text-align: center;
@@ -82,10 +84,9 @@ onMounted(async () => {
 .response-card__mark {
   align-items: center;
   border-radius: 50%;
-  display: grid;
+  display: inline-flex;
   height: 76px;
-  justify-self: center;
-  place-items: center;
+  justify-content: center;
   width: 76px;
 }
 

@@ -23,7 +23,8 @@ const { toasts, remove } = useToast()
   top: 1rem;
   right: 1rem;
   z-index: 99998;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0.75rem;
 }
 

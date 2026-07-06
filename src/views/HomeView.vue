@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import CustomCursor from '../components/CustomCursor.vue';
-import HeaderMenu from '../components/HeaderMenu.vue';
+import StoreHeader from '../components/store/StoreHeader.vue';
 import HeroSection from '../components/HeroSection.vue';
 import MarqueeBanner from '../components/MarqueeBanner.vue';
 import HistorySection from '../components/HistorySection.vue';
@@ -30,9 +29,8 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="home-wrapper hide-cursor">
-    <CustomCursor />
-    <HeaderMenu :images="images" />
+  <div class="home-wrapper">
+    <StoreHeader />
     <HeroSection :images="images" />
     <MarqueeBanner />
     <HistorySection :images="images" />
@@ -53,10 +51,5 @@ $text-dark: #1A1A1A;
   font-family: 'Switzer', sans-serif;
   overflow-x: hidden;
   position: relative;
-  
-  &.hide-cursor {
-    cursor: none !important;
-    * { cursor: none !important; }
-  }
 }
 </style>

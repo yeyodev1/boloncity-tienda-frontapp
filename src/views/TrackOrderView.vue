@@ -101,22 +101,40 @@ const currentStepIndex = computed(() => {
 
 <style scoped lang="scss">
 .track-page {
-  display: grid;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(239, 213, 55, 0.16), transparent 34%),
+    linear-gradient(180deg, #f8f6ec 0%, #f4f4f0 48%, #fff 100%);
+  display: flex;
+  flex-direction: column;
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
 .track-page__main {
-  display: grid;
-  gap: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  flex: 1 0 auto;
+  gap: clamp(1rem, 3vw, 1.5rem);
   margin: 0 auto;
-  max-width: 900px;
+  max-width: 1180px;
+  padding: clamp(1.25rem, 4vw, 2.5rem) 1rem clamp(2.5rem, 6vw, 5rem);
   width: 100%;
 }
 
 .track-hero,
 .track-shell {
-  margin: 0 1.25rem;
-  padding: 1.5rem;
+  border: 1px solid rgba(26, 26, 26, 0.08);
+  border-radius: 28px;
+  box-shadow: 0 22px 54px rgba(26, 26, 26, 0.08);
+  margin: 0;
+  padding: clamp(1.15rem, 4vw, 1.75rem);
+}
+
+.track-hero {
+  background:
+    linear-gradient(135deg, rgba(35, 89, 49, 0.96), rgba(12, 34, 18, 0.94)),
+    radial-gradient(circle at 90% 15%, rgba(239, 213, 55, 0.25), transparent 28%);
+  color: #fff;
 }
 
 .track-hero__eyebrow,
@@ -124,6 +142,10 @@ const currentStepIndex = computed(() => {
   @include eyebrow;
   color: #00a523;
   margin-bottom: 0.5rem;
+}
+
+.track-hero__eyebrow {
+  color: #efd537;
 }
 
 .track-hero h1 {
@@ -135,19 +157,36 @@ const currentStepIndex = computed(() => {
 }
 
 .track-hero p {
-  @include body-text;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.65;
   margin-top: 0.85rem;
   max-width: 36rem;
 }
 
 .track-shell {
-  display: grid;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
   gap: 1rem;
 }
 
 .track-form {
-  display: grid;
-  gap: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.track-form input {
+  min-height: 56px;
+}
+
+.track-form button {
+  justify-content: center;
+  min-height: 56px;
+  min-width: 150px;
 }
 
 .track-error {
@@ -156,7 +195,8 @@ const currentStepIndex = computed(() => {
 
 .track-result {
   border-top: 1px solid rgba(26, 26, 26, 0.08);
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 1rem;
   padding-top: 1.25rem;
 }
@@ -181,7 +221,8 @@ const currentStepIndex = computed(() => {
 }
 
 .track-timeline {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0.7rem;
 }
 
@@ -226,6 +267,31 @@ const currentStepIndex = computed(() => {
 }
 
 .track-empty {
-  padding-top: 0.5rem;
+  background: rgba(35, 89, 49, 0.04);
+  border: 1px dashed rgba(35, 89, 49, 0.18);
+  border-radius: 20px;
+  padding: 1.25rem;
+  text-align: center;
+}
+
+@media (min-width: 761px) {
+  .track-form {
+    flex-direction: row;
+  }
+
+  .track-form input {
+    flex: 1 1 0;
+  }
+
+  .track-form button {
+    flex: 0 0 160px;
+  }
+}
+
+@media (min-width: 1180px) {
+  .track-hero,
+  .track-shell {
+    padding: 2.75rem;
+  }
 }
 </style>

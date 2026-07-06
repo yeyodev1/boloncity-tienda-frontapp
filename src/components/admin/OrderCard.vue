@@ -66,7 +66,8 @@ const nextStatus = getNextOrderStatus(props.status)
 .order-card__main {
   background: transparent;
   color: inherit;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0.75rem;
   padding: 1rem;
   text-align: left;
@@ -75,9 +76,14 @@ const nextStatus = getNextOrderStatus(props.status)
 
 .order-card__top {
   align-items: center;
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.75rem;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.order-card__top strong {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .order-card__drag-handle {
@@ -144,9 +150,9 @@ const nextStatus = getNextOrderStatus(props.status)
 }
 
 .order-card__actions {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0.6rem;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
   padding: 0 1rem 1rem;
 }
 
@@ -172,9 +178,13 @@ const nextStatus = getNextOrderStatus(props.status)
   color: #18211b;
 }
 
-@media (max-width: 768px) {
+@media (min-width: 769px) {
   .order-card__actions {
-    grid-template-columns: 1fr;
+    flex-direction: row;
+  }
+
+  .order-card__actions button {
+    flex: 1 1 0;
   }
 }
 </style>

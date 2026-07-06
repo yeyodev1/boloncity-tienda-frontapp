@@ -22,10 +22,11 @@ export interface ProductDTO {
 }
 
 class ProductService extends APIBase {
-  getAll(filters?: { category?: string; q?: string }) {
+  getAll(filters?: { category?: string; q?: string; available?: boolean }) {
     const params = new URLSearchParams()
     if (filters?.category) params.set('category', filters.category)
     if (filters?.q) params.set('q', filters.q)
+    if (filters?.available) params.set('available', 'true')
     const query = params.toString()
     return this.get<ProductDTO[]>(`products${query ? `?${query}` : ''}`)
   }

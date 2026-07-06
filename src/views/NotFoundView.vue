@@ -25,8 +25,10 @@ import { RouterLink } from 'vue-router'
 }
 
 .notfound-card {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0.9rem;
+  align-items: center;
   max-width: 560px;
   padding: 2.5rem 1.5rem;
   text-align: center;

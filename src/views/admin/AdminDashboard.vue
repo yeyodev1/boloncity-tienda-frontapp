@@ -275,13 +275,18 @@ function goCatalog() {
 }
 
 .stats-grid {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.75rem;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+}
+
+.stats-grid > * {
+  flex: 1 1 160px;
 }
 
 .stat-card {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0.25rem;
   padding: 1rem 1.1rem;
   position: relative;
@@ -323,6 +328,7 @@ function goCatalog() {
 
 .dashboard-main {
   display: flex;
+  flex-direction: column;
   gap: 1rem;
 }
 
@@ -333,7 +339,7 @@ function goCatalog() {
 }
 
 .dashboard-statuses {
-  flex: 0 0 260px;
+  flex: 0 0 auto;
   padding: 1.25rem;
 }
 
@@ -375,6 +381,17 @@ function goCatalog() {
   width: 100%;
 }
 
+.dashboard-table thead {
+  display: none;
+}
+
+.dashboard-table tr {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.75rem 0;
+}
+
 .dashboard-table th {
   color: rgba($text-dark, 0.55);
   font-size: 0.78rem;
@@ -386,8 +403,8 @@ function goCatalog() {
 }
 
 .dashboard-table td {
-  border-top: 1px solid rgba($text-dark, 0.06);
-  padding: 0.75rem 0.5rem 0.75rem 0;
+  border: 0;
+  padding: 0;
 }
 
 .dashboard-table__number {
@@ -436,38 +453,33 @@ function goCatalog() {
   font-size: 1.1rem;
 }
 
-@media (max-width: 960px) {
+@media (min-width: 961px) {
   .dashboard-main {
-    flex-direction: column;
+    flex-direction: row;
   }
 
   .dashboard-statuses {
-    flex-basis: auto;
+    flex-basis: 260px;
   }
 }
 
-@media (max-width: 640px) {
-  .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
+@media (min-width: 641px) {
   .dashboard-hero {
-    flex-direction: column;
+    flex-direction: row;
   }
 
   .dashboard-table thead {
-    display: none;
+    display: table-header-group;
   }
 
   .dashboard-table tr {
-    display: grid;
-    gap: 0.35rem;
-    padding: 0.75rem 0;
+    display: table-row;
+    padding: 0;
   }
 
   .dashboard-table td {
-    border: 0;
-    padding: 0;
+    border-top: 1px solid rgba($text-dark, 0.06);
+    padding: 0.75rem 0.5rem 0.75rem 0;
   }
 }
 </style>

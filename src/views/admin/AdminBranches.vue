@@ -633,54 +633,103 @@ button.danger {
   color: #7e2121;
 }
 
-@media (max-width: 1080px) {
-  .branches-layout,
-  .branch-card,
-  .branch-modal {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .branch-card__main,
-  .branch-card__meta,
-  .item-actions {
-    flex-basis: auto;
-    width: 100%;
-  }
-
-  .item-actions {
-    justify-content: flex-start;
-  }
-
-  .branch-modal__media {
-    flex-basis: auto;
-  }
+.branches-layout,
+.branch-card,
+.branch-modal,
+.actions,
+.branches-hero {
+  flex-direction: column;
 }
 
-@media (max-width: 640px) {
+.branch-card__main,
+.branch-card__meta,
+.item-actions {
+  flex-basis: auto;
+  width: 100%;
+}
+
+.item-actions {
+  justify-content: flex-start;
+}
+
+.branch-modal__media {
+  flex-basis: auto;
+}
+
+.admin-page {
+  padding: 0.75rem;
+}
+
+label,
+.item-actions button {
+  flex-basis: 100%;
+}
+
+.hero-action,
+.branch-card__image {
+  width: 100%;
+}
+
+.branch-card__image {
+  flex-basis: auto;
+  height: 150px;
+}
+
+@media (min-width: 641px) {
   .admin-page {
-    padding: 0.75rem;
+    padding: clamp(0.75rem, 2vw, 1.5rem);
   }
 
   label,
   .item-actions button {
-    flex-basis: 100%;
+    flex-basis: auto;
+  }
+}
+
+@media (min-width: 1081px) {
+  .branches-layout,
+  .branch-card,
+  .branch-modal,
+  .branches-hero {
+    align-items: stretch;
+    flex-direction: row;
   }
 
-  .actions,
-  .item-actions,
-  .branches-hero {
-    flex-direction: column;
+  .actions {
+    flex-direction: row;
+  }
+
+  .branch-card__main {
+    flex: 1 1 280px;
+    width: auto;
+  }
+
+  .branch-card__meta {
+    flex: 0 1 220px;
+    width: auto;
+  }
+
+  .item-actions {
+    flex: 0 1 auto;
+    width: 100%;
+  }
+
+  .item-actions {
+    justify-content: flex-end;
+  }
+
+  .branch-modal__media {
+    flex-basis: 300px;
   }
 
   .hero-action,
   .branch-card__image {
-    width: 100%;
+    width: auto;
   }
 
   .branch-card__image {
-    flex-basis: auto;
-    height: 150px;
+    flex-basis: 180px;
+    height: auto;
   }
 }
 </style>

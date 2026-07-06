@@ -226,6 +226,7 @@ $text-dark: #1A1A1A;
       &.pos-1 { width: 25vw; height: 35vw; top: 15%; right: 5%; }
       &.pos-2 { width: 18vw; height: 25vw; bottom: 10%; right: 35%; }
       &.pos-3 { width: 15vw; height: 20vw; top: 20%; left: 55%; z-index: -1; }
+      display: none;
     }
   }
 }
@@ -235,8 +236,7 @@ $text-dark: #1A1A1A;
   to { transform: rotate(360deg); }
 }
 
-@media (max-width: 768px) {
-  .hero .main-title { font-size: 4rem; }
-  .hero .hero-images .hero-floating-img { display: none; }
+@media (min-width: 769px) {
+  .hero .hero-images .hero-floating-img { display: block; }
 }
 </style>

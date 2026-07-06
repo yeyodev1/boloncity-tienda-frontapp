@@ -29,8 +29,9 @@ const { confirmState, accept, cancel } = useConfirm()
   z-index: 99998;
   background: rgba(8, 17, 13, 0.72);
   backdrop-filter: blur(10px);
-  display: grid;
-  place-items: center;
+  align-items: center;
+  display: flex;
+  justify-content: center;
   padding: 1rem;
 }
 
@@ -39,7 +40,7 @@ const { confirmState, accept, cancel } = useConfirm()
   background: #fff;
   border: 1px solid rgba(8, 17, 13, 0.08);
   border-radius: 24px;
-  padding: 1.5rem;
+  padding: 1.25rem;
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.28);
 
   .confirm-modal__eyebrow {
@@ -69,6 +70,7 @@ const { confirmState, accept, cancel } = useConfirm()
 
 .actions {
   display: flex;
+  flex-direction: column;
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 0.75rem;
@@ -80,6 +82,7 @@ const { confirmState, accept, cancel } = useConfirm()
     padding: 0.8rem 1rem;
     font-weight: 800;
     cursor: pointer;
+    width: 100%;
   }
 
   .secondary { background: rgba(8, 17, 13, 0.06); color: #08110d; }
@@ -120,16 +123,16 @@ const { confirmState, accept, cancel } = useConfirm()
   transform: scale(0.95);
 }
 
-@media (max-width: 640px) {
+@media (min-width: 641px) {
   .confirm-modal {
-    padding: 1.25rem;
+    padding: 1.5rem;
+  }
 
-    .actions {
-      flex-direction: column;
+  .actions {
+    flex-direction: row;
 
-      button {
-        width: 100%;
-      }
+    button {
+      width: auto;
     }
   }
 }

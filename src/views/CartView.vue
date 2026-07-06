@@ -77,28 +77,45 @@ const hasItems = computed(() => cart.items.length > 0)
 
 <style scoped lang="scss">
 .cart-page {
-  display: grid;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(239, 213, 55, 0.16), transparent 34%),
+    linear-gradient(180deg, #f8f6ec 0%, #f4f4f0 48%, #fff 100%);
+  display: flex;
+  flex-direction: column;
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
 .cart-page__main {
-  display: grid;
-  gap: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  flex: 1 0 auto;
+  gap: clamp(1rem, 3vw, 1.5rem);
   margin: 0 auto;
   max-width: 1400px;
+  padding: clamp(1.25rem, 4vw, 2.5rem) 1rem 0;
   width: 100%;
 }
 
 .cart-hero,
 .cart-layout {
-  margin: 0 1.25rem;
+  margin: 0;
 }
 
 .cart-hero {
-  align-items: end;
+  align-items: flex-start;
+  background:
+    linear-gradient(135deg, rgba(35, 89, 49, 0.96), rgba(12, 34, 18, 0.94)),
+    radial-gradient(circle at 90% 15%, rgba(239, 213, 55, 0.25), transparent 28%);
+  border: 1px solid rgba(26, 26, 26, 0.08);
+  border-radius: 28px;
+  box-shadow: 0 22px 54px rgba(26, 26, 26, 0.08);
+  color: #fff;
   display: flex;
+  flex-direction: column;
   justify-content: space-between;
-  padding: 1.5rem;
+  gap: 1rem;
+  padding: clamp(1.15rem, 4vw, 2rem);
 }
 
 .cart-hero__eyebrow,
@@ -106,6 +123,10 @@ const hasItems = computed(() => cart.items.length > 0)
   @include eyebrow;
   color: #00a523;
   margin-bottom: 0.5rem;
+}
+
+.cart-hero__eyebrow {
+  color: #efd537;
 }
 
 .cart-hero h1 {
@@ -117,29 +138,38 @@ const hasItems = computed(() => cart.items.length > 0)
 }
 
 .cart-hero a {
-  color: #235931;
+  @include pill-button(rgba(255, 255, 255, 0.12), #fff);
+  border-color: rgba(255, 255, 255, 0.14);
   font-weight: 700;
 }
 
 .cart-layout {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 1.25rem;
 }
 
 .cart-items,
 .cart-summary {
-  padding: 1.25rem;
+  border: 1px solid rgba(26, 26, 26, 0.08);
+  border-radius: 28px;
+  box-shadow: 0 22px 54px rgba(26, 26, 26, 0.08);
+  padding: clamp(1rem, 3vw, 1.35rem);
 }
 
 .cart-items {
-  display: grid;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
   gap: 0.9rem;
 }
 
 .cart-empty {
-  display: grid;
+  align-items: center;
+  display: flex;
+  flex-direction: column;
   gap: 0.75rem;
-  justify-items: center;
   padding: 2.5rem 1rem;
   text-align: center;
 }
@@ -150,12 +180,13 @@ const hasItems = computed(() => cart.items.length > 0)
 }
 
 .cart-item {
-  align-items: center;
+  align-items: flex-start;
+  background: #fff;
   border: 1px solid rgba(26, 26, 26, 0.08);
-  border-radius: 18px;
-  display: grid;
+  border-radius: 20px;
+  display: flex;
+  flex-wrap: wrap;
   gap: 1rem;
-  grid-template-columns: 80px minmax(0, 1fr) auto auto;
   padding: 0.85rem;
 }
 
@@ -175,6 +206,7 @@ const hasItems = computed(() => cart.items.length > 0)
 }
 
 .cart-item__copy {
+  flex: 1 1 calc(100% - 96px);
   min-width: 0;
 }
 
@@ -182,6 +214,7 @@ const hasItems = computed(() => cart.items.length > 0)
   font-size: 1rem;
   font-weight: 800;
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .cart-item__price {
@@ -211,9 +244,10 @@ const hasItems = computed(() => cart.items.length > 0)
 }
 
 .cart-item__total {
-  display: grid;
+  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
   gap: 0.4rem;
-  justify-items: end;
 }
 
 .cart-item__remove {
@@ -223,7 +257,10 @@ const hasItems = computed(() => cart.items.length > 0)
 }
 
 .cart-summary {
-  display: grid;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
   gap: 1rem;
 }
 
@@ -239,30 +276,41 @@ const hasItems = computed(() => cart.items.length > 0)
 
 @media (min-width: 980px) {
   .cart-layout {
-    grid-template-columns: minmax(0, 1fr) 320px;
     align-items: start;
+    flex-direction: row;
+  }
+
+  .cart-items {
+    flex: 1 1 0;
+  }
+
+  .cart-summary {
+    flex: 0 0 320px;
   }
 
   .cart-summary {
     position: sticky;
-    top: 6rem;
+    top: 7rem;
   }
 }
 
-@media (max-width: 760px) {
+@media (min-width: 761px) {
   .cart-hero {
-    align-items: start;
-    flex-direction: column;
+    align-items: flex-end;
+    flex-direction: row;
   }
 
   .cart-item {
-    grid-template-columns: 80px minmax(0, 1fr);
+    align-items: center;
+    flex-wrap: nowrap;
   }
 
-  .cart-item__controls,
+  .cart-item__copy {
+    flex: 1 1 0;
+  }
+
   .cart-item__total {
-    grid-column: 2 / -1;
-    justify-self: start;
+    align-items: flex-end;
   }
 }
 </style>

@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import ToastNotification from '@/components/global/ToastNotification.vue'
 import ConfirmModal from '@/components/global/ConfirmModal.vue'
+import SessionExpiredModal from '@/components/global/SessionExpiredModal.vue'
 </script>
 
 <template>
   <div class="app-container">
     <ToastNotification />
     <ConfirmModal />
+    <SessionExpiredModal />
     <RouterView v-slot="{ Component, route }">
       <transition name="page-fade" mode="out-in">
         <component :is="Component" :key="route.path" />

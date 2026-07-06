@@ -84,8 +84,8 @@ $text-dark: #1A1A1A;
   overflow: hidden;
 
   .footer-grid {
-    display: grid;
-    grid-template-columns: 2fr 1fr 1fr;
+    display: flex;
+    flex-direction: column;
     gap: 4vw;
     margin-bottom: 6vw;
     position: relative;
@@ -168,6 +168,8 @@ $text-dark: #1A1A1A;
 
   .footer-bottom {
     display: flex;
+    flex-direction: column;
+    gap: 1rem;
     justify-content: space-between;
     align-items: center;
     padding: 2vw 4vw;
@@ -175,6 +177,7 @@ $text-dark: #1A1A1A;
     color: rgba($white, 0.5);
     font-size: 0.9rem;
     position: relative;
+    text-align: center;
     z-index: 2;
 
     .footer-legal {
@@ -192,15 +195,22 @@ $text-dark: #1A1A1A;
   }
 }
 
-@media (max-width: 768px) {
+@media (min-width: 769px) {
   .footer .footer-grid {
-    grid-template-columns: 1fr;
-    gap: 3rem;
+    flex-direction: row;
   }
+
   .footer .footer-bottom {
-    flex-direction: column;
-    gap: 1rem;
-    text-align: center;
+    flex-direction: row;
+    text-align: left;
+  }
+
+  .footer .footer-grid > *:first-child {
+    flex: 2 1 0;
+  }
+
+  .footer .footer-grid > *:not(:first-child) {
+    flex: 1 1 0;
   }
 }
 </style>

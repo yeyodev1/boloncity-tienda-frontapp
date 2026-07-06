@@ -180,7 +180,7 @@ $text-dark: #1A1A1A;
   will-change: transform;
 
   .cinematic-card {
-    flex: 0 0 45vw; // Massive width
+    flex: 0 0 85vw;
     height: 100%;
     position: relative;
     border-radius: 20px;
@@ -222,15 +222,15 @@ $text-dark: #1A1A1A;
         flex-direction: column;
         justify-content: flex-end;
         padding: 3rem;
-        opacity: 0;
-        transform: translateY(20px);
+        opacity: 1;
+        transform: translateY(0);
         transition: all 0.5s ease;
 
         .card-content {
           color: $white;
 
           h3 {
-            font-size: 3rem;
+            font-size: 2rem;
             font-weight: 800;
             margin-bottom: 0.5rem;
             text-transform: uppercase;
@@ -293,16 +293,16 @@ $text-dark: #1A1A1A;
   }
 }
 
-@media (max-width: 768px) {
+@media (min-width: 769px) {
   .product-slider .cinematic-card {
-    flex: 0 0 85vw;
+    flex: 0 0 45vw;
   }
   .product-slider .cinematic-card .card-img-wrapper .card-overlay {
-    opacity: 1; // Always show on mobile
-    transform: translateY(0);
+    opacity: 0;
+    transform: translateY(20px);
   }
   .product-slider .cinematic-card .card-img-wrapper .card-overlay .card-content h3 {
-    font-size: 2rem;
+    font-size: 3rem;
   }
 }
 </style>

@@ -14,12 +14,14 @@ const props = withDefaults(
     placeholder?: string
     multiple?: boolean
     bare?: boolean
+    disabled?: boolean
   }>(),
   {
     label: '',
     placeholder: 'Seleccionar',
     multiple: false,
     bare: false,
+    disabled: false,
   },
 )
 
@@ -43,6 +45,7 @@ const selectedLabels = computed(() => {
 })
 
 function toggle() {
+  if (props.disabled) return
   open.value = !open.value
 }
 
@@ -107,6 +110,7 @@ onBeforeUnmount(() => {
       'base-select--open': open,
       'base-select--multi': multiple,
       'base-select--bare': bare,
+      'base-select--disabled': disabled,
       'base-select--has-value': multiple ? (modelValue as string[]).length > 0 : !!modelValue,
     }"
   >
@@ -168,7 +172,8 @@ onBeforeUnmount(() => {
 
 <style scoped lang="scss">
 .base-select {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0.55rem;
   width: 100%;
   position: relative;
@@ -313,5 +318,12 @@ onBeforeUnmount(() => {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+}
+
+/* Disabled state */
+.base-select--disabled .base-select__trigger {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 </style>

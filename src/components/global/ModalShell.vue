@@ -70,10 +70,10 @@ onBeforeUnmount(() => {
   align-items: center;
   background: rgba(8, 17, 13, 0.72);
   backdrop-filter: blur(12px);
-  display: grid;
+  display: flex;
   inset: 0;
-  justify-items: center;
-  padding: 1rem;
+  justify-content: center;
+  padding: 0.5rem;
   position: fixed;
   z-index: 99997;
 }
@@ -82,9 +82,9 @@ onBeforeUnmount(() => {
   background: #fff;
   border-radius: 24px;
   box-shadow: 0 -24px 60px rgba(0, 0, 0, 0.35);
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  max-height: min(92vh, 860px);
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 1rem);
   overflow: hidden;
   width: min(100%, 980px);
 }
@@ -103,6 +103,10 @@ onBeforeUnmount(() => {
 
 .modal-shell__panel--xl {
   width: min(100%, 1180px);
+}
+
+.modal-shell__footer {
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom));
 }
 
 .modal-shell__header {
@@ -199,6 +203,10 @@ onBeforeUnmount(() => {
 }
 
 @media (min-width: 768px) {
+  .modal-shell {
+    padding: 1rem;
+  }
+
   .modal-shell__panel {
     max-height: calc(100vh - 3rem);
   }
@@ -206,21 +214,8 @@ onBeforeUnmount(() => {
   .modal-shell__body {
     padding: 1.25rem;
   }
-}
-
-@media (max-width: 640px) {
-  .modal-shell {
-    padding: 0.5rem;
-  }
-
-  .modal-shell__panel {
-    border-radius: 22px;
-    max-height: calc(100vh - 1rem);
-    width: 100%;
-  }
-
   .modal-shell__footer {
-    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+    padding-bottom: 1rem;
   }
 }
 </style>

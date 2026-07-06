@@ -48,7 +48,6 @@ const branchOptions = computed(() => branches.value.map((b) => ({ value: b._id, 
 const featuredCount = computed(() => products.value.filter((product) => product.isFeatured).length)
 const availableCount = computed(() => products.value.filter((product) => product.isAvailable).length)
 const totalCategories = computed(() => categories.value.length)
-const selectedImageName = computed(() => imageFile.value?.name || (imagePreview.value ? 'Imagen actual del producto' : 'Sin imagen seleccionada'))
 
 const filteredProducts = computed(() => {
   let result = products.value
@@ -178,7 +177,6 @@ async function submit() {
       scheduledActivation: scheduledActivation.value || null,
       scheduledDeactivation: scheduledDeactivation.value || null,
       sortOrder: Number(sortOrder.value),
-      images: JSON.stringify([]),
       branchPrices: JSON.stringify([]),
     }
 
@@ -338,18 +336,10 @@ onMounted(load)
 
           <label class="uploader__dropzone">
             <input class="uploader__input" type="file" accept="image/*" @change="onFileChange" />
-            <span class="uploader__label">Imagen</span>
-            <strong>{{ selectedImageName }}</strong>
-            <small>Toca aquí para cargar PNG, JPG o WEBP.</small>
+            <span class="uploader__label">{{ imageFile ? 'Cambiar imagen' : 'Subir imagen' }}</span>
           </label>
 
-          <button v-if="imagePreview" type="button" class="image-clear" @click="clearImageSelection">Quitar imagen seleccionada</button>
-
-          <div class="preview-copy">
-            <p class="preview-copy__eyebrow">Imagen</p>
-            <h3>{{ name || 'Sin nombre aún' }}</h3>
-            <p>{{ description || 'La imagen y los datos se verán aquí.' }}</p>
-          </div>
+          <button v-if="imagePreview" type="button" class="image-clear" @click="clearImageSelection">Quitar imagen</button>
         </div>
 
         <form id="product-editor-form" class="editor-shell__form panel" @submit.prevent="submit">
@@ -464,7 +454,8 @@ onMounted(load)
 
 <style scoped lang="scss">
 .admin-products {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 1.15rem;
   padding: clamp(0.75rem, 2vw, 1.5rem);
 }
@@ -476,8 +467,9 @@ onMounted(load)
 }
 
 .admin-products__hero {
-  align-items: end;
+  align-items: flex-start;
   display: flex;
+  flex-direction: column;
   justify-content: space-between;
   gap: 1rem;
   overflow: hidden;
@@ -533,9 +525,13 @@ onMounted(load)
 }
 
 .admin-products__stats {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.85rem;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.admin-products__stats > * {
+  flex: 1 1 180px;
 }
 
 .stat-card {
@@ -560,15 +556,16 @@ onMounted(load)
 }
 
 .admin-products__toolbar {
-  align-items: end;
-  display: grid;
+  align-items: stretch;
+  display: flex;
+  flex-direction: column;
   gap: 0.85rem;
-  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) auto;
   padding: 1.15rem;
 }
 
 .toolbar-field {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0.45rem;
 }
 
@@ -596,9 +593,13 @@ onMounted(load)
 }
 
 .product-grid {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   gap: 1.1rem;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
+
+.product-grid > * {
+  flex: 1 1 300px;
 }
 
 .product-card {
@@ -646,10 +647,10 @@ onMounted(load)
   align-items: center;
   aspect-ratio: 4 / 3;
   color: rgba(255, 255, 255, 0.92);
-  display: grid;
+  display: flex;
   font-size: clamp(2.5rem, 5vw, 4rem);
   font-weight: 900;
-  justify-items: center;
+  justify-content: center;
   letter-spacing: -0.08em;
   width: 100%;
 }
@@ -687,7 +688,8 @@ onMounted(load)
 }
 
 .product-card__body {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 1rem;
   padding: 0.35rem 1.1rem 1.1rem;
 }
@@ -746,9 +748,9 @@ onMounted(load)
 }
 
 .product-card__meta {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0.65rem;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .product-card__meta div {
@@ -794,7 +796,8 @@ onMounted(load)
 }
 
 .editor-shell {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 1.1rem;
 }
 
@@ -834,44 +837,18 @@ onMounted(load)
 .preview-placeholder {
   align-items: center;
   color: rgba(8, 17, 13, 0.58);
-  display: grid;
+  display: flex;
   height: 100%;
-  justify-items: center;
+  justify-content: center;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
-.preview-copy {
-  display: grid;
-  gap: 0.5rem;
-  margin-top: 0.9rem;
-}
-
-.preview-copy__eyebrow {
-  color: #235931;
-  font-size: 0.78rem;
-  font-weight: 800;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-}
-
-.preview-copy h3 {
-  font-size: clamp(1.5rem, 3vw, 2rem);
-  font-weight: 800;
-  letter-spacing: -0.04em;
-  line-height: 1;
-}
-
-.preview-copy p {
-  color: rgba(8, 17, 13, 0.72);
-  line-height: 1.6;
-}
-
 .editor-grid {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0.9rem;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .editor-section {
@@ -896,7 +873,8 @@ onMounted(load)
 }
 
 .editor-grid label {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0.5rem;
 }
 
@@ -932,9 +910,7 @@ onMounted(load)
   resize: vertical;
 }
 
-.full {
-  grid-column: 1 / -1;
-}
+.full { flex-basis: 100%; }
 
 .field-toggle {
   align-items: center;
@@ -959,29 +935,27 @@ onMounted(load)
 .uploader__dropzone {
   align-items: center;
   cursor: pointer;
-  display: grid;
-  gap: 0.35rem;
-  justify-items: center;
+  display: flex;
+  justify-content: center;
   margin-top: 0.8rem;
-  min-height: 120px;
-  padding: 1rem;
+  min-height: 52px;
+  padding: 0.75rem 1rem;
   position: relative;
-  text-align: center;
+  border-radius: 14px;
+  background: rgba(35, 89, 49, 0.06);
+  border: 1px dashed rgba(35, 89, 49, 0.2);
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.uploader__dropzone:hover {
+  background: rgba(35, 89, 49, 0.1);
+  border-color: rgba(35, 89, 49, 0.35);
 }
 
 .uploader__input {
   inset: 0;
   opacity: 0;
   position: absolute;
-}
-
-.uploader__dropzone strong {
-  font-size: 1rem;
-  color: #08110d;
-}
-
-.uploader__dropzone small {
-  color: rgba(8, 17, 13, 0.65);
 }
 
 .image-clear {
@@ -1062,53 +1036,76 @@ onMounted(load)
 
 @media (min-width: 980px) {
   .editor-shell {
-    grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
     align-items: start;
+    flex-direction: row;
+  }
+
+  .editor-shell__preview {
+    flex: 0 0 min(360px, 38%);
+  }
+
+  .editor-shell__form {
+    flex: 1 1 0;
   }
 }
 
-@media (max-width: 1024px) {
-  .admin-products__stats {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
+@media (min-width: 769px) {
   .admin-products__toolbar {
-    grid-template-columns: 1fr;
+    align-items: flex-end;
+    flex-direction: row;
   }
-}
 
-@media (max-width: 768px) {
+  .toolbar-field:first-child {
+    flex: 1.5 1 0;
+  }
+
+  .toolbar-field:nth-child(2) {
+    flex: 1 1 0;
+  }
+
+  .toolbar-clear {
+    flex: 0 0 auto;
+  }
+
   .admin-products__hero {
-    flex-direction: column;
-    align-items: start;
+    align-items: flex-end;
+    flex-direction: row;
   }
 
   .product-card__foot {
-    flex-direction: column;
+    flex-direction: row;
   }
 
   .editor-grid {
-    grid-template-columns: 1fr;
+    flex-flow: row wrap;
   }
 
-  .product-card__meta {
-    grid-template-columns: 1fr;
+  .editor-grid label,
+  .editor-section,
+  .field-toggle,
+  .uploader {
+    flex: 1 1 260px;
+  }
+
+  .editor-grid .full,
+  .editor-grid textarea.full {
+    flex-basis: 100%;
   }
 }
 
-@media (max-width: 640px) {
-  .admin-products__stats,
-  .product-grid {
-    grid-template-columns: 1fr;
+@media (min-width: 641px) {
+  .product-card__meta {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .product-card__meta > * {
+    flex: 1 1 120px;
   }
 
   .admin-products__hero,
   .admin-products__toolbar {
-    padding: 1rem;
-  }
-
-  .product-card__foot {
-    flex-direction: column;
+    padding: 1.15rem;
   }
 }
 </style>

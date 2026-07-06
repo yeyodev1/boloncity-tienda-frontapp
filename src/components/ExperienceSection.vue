@@ -136,13 +136,15 @@ $text-dark: #1A1A1A;
 
 .editorial-container {
   display: flex;
+  flex-direction: column;
   gap: 5vw;
   max-width: 1600px;
   margin: 0 auto;
 }
 
 .editorial-left {
-  flex: 0 0 40%;
+  flex: none;
+  margin-bottom: 10vw;
   position: relative;
 
   .sticky-content {
@@ -241,8 +243,8 @@ $text-dark: #1A1A1A;
 
     // Offset every other image for a scattered look
     &:nth-child(even) {
-      width: 80%;
-      margin-left: auto;
+      width: 100%;
+      margin-left: 0;
       .img-overflow-hidden {
         aspect-ratio: 16/9; // Landscape
       }
@@ -250,21 +252,20 @@ $text-dark: #1A1A1A;
   }
 }
 
-@media (max-width: 1024px) {
+@media (min-width: 1025px) {
   .editorial-container {
-    flex-direction: column;
+    flex-direction: row;
   }
   .editorial-left {
-    flex: none;
-    margin-bottom: 10vw;
+    flex: 0 0 40%;
+    margin-bottom: 0;
     .sticky-content {
-      position: relative;
-      top: 0;
+      padding-right: 2vw;
     }
   }
   .editorial-right .editorial-img:nth-child(even) {
-    width: 100%;
-    margin-left: 0;
+    width: 80%;
+    margin-left: auto;
   }
 }
 </style>

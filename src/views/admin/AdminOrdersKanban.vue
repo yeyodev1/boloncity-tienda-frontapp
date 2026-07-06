@@ -371,7 +371,8 @@ onMounted(load)
   border: 1px solid rgba($secondary, 0.32);
   border-radius: 20px;
   box-shadow: 0 16px 34px rgba(0, 0, 0, 0.16);
-  display: grid;
+  display: flex;
+  flex-direction: column;
   flex: 1 1 340px;
   gap: 0.55rem;
   padding: 0.9rem;
@@ -526,7 +527,7 @@ onMounted(load)
   overflow-x: auto;
   overflow-y: hidden;
   padding: 0.1rem 0 0.4rem;
-  scroll-snap-type: x proximity;
+  scroll-snap-type: x mandatory;
   width: 100%;
 }
 
@@ -563,7 +564,8 @@ onMounted(load)
 }
 
 .note-modal {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 1rem;
 }
 
@@ -595,7 +597,8 @@ onMounted(load)
 }
 
 .note-modal__field {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0.5rem;
 }
 
@@ -615,7 +618,8 @@ onMounted(load)
 }
 
 .note-modal__history {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0.65rem;
 }
 
@@ -624,7 +628,8 @@ onMounted(load)
   border: 1px solid rgba(8, 17, 13, 0.08);
   border-radius: 16px;
   color: #08110d;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0.25rem;
   padding: 0.8rem 0.9rem;
 }
@@ -655,44 +660,45 @@ onMounted(load)
   }
 }
 
-@media (max-width: 768px) {
+@media (min-width: 769px) {
   .admin-orders__hero {
-    flex-direction: column;
-    align-items: start;
+    align-items: flex-end;
+    flex-direction: row;
   }
   .admin-orders__toolbar {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .status-filter {
-    width: 100%;
-  }
-
-  .status-filter button {
-    flex: 1 1 auto;
-  }
-
-  .board {
-    scroll-snap-type: x mandatory;
+    align-items: center;
+    flex-direction: row;
   }
 }
 
-@media (max-width: 640px) {
+.status-filter {
+  width: 100%;
+}
+
+.status-filter button {
+  flex: 1 1 auto;
+}
+
+@media (min-width: 769px) {
+  .board {
+    scroll-snap-type: x proximity;
+  }
+}
+
+@media (min-width: 641px) {
   .admin-orders {
-    padding: 0.75rem;
+    padding: 1rem;
   }
 
   .admin-orders__hero,
   .admin-orders__toolbar {
-    padding: 1rem;
+    padding: 1.25rem;
   }
 
   .stat-card,
   .toolbar-search,
   .toolbar-clear {
-    flex-basis: 100%;
-    width: 100%;
+    width: auto;
   }
 }
 </style>

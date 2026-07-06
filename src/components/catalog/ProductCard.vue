@@ -8,6 +8,7 @@ const props = defineProps<{ product: ProductDTO }>()
 const cart = useCartStore()
 const { success } = useToast()
 const router = useRouter()
+const categoryLabel = props.product.categories?.[1]?.name || props.product.categories?.[0]?.name || 'Boloncity'
 
 function addToCart() {
   cart.addItem({
@@ -25,7 +26,8 @@ function addToCart() {
 <template>
   <article class="product-card">
     <button class="product-card__image" type="button" @click="router.push(`/producto/${product.slug}`)">
-      <img :src="product.images[0]?.url || ''" :alt="product.name" />
+      <img v-if="product.images[0]?.url" :src="product.images[0].url" :alt="product.name" />
+      <span v-else class="product-card__placeholder">{{ product.name.slice(0, 2) }}</span>
       <span class="product-card__overlay">
         <span>Ver detalle</span>
       </span>
@@ -33,9 +35,10 @@ function addToCart() {
     <div class="product-card__body">
       <p class="product-card__code">{{ product.code }}</p>
       <h3>{{ product.name }}</h3>
+      <p v-if="product.description" class="product-card__description">{{ product.description }}</p>
       <div class="product-card__meta">
         <strong>${{ product.price.toFixed(2) }}</strong>
-        <span v-if="product.hasIva">IVA</span>
+        <span>{{ categoryLabel }}</span>
       </div>
       <button type="button" class="product-card__add" @click="addToCart">Agregar</button>
     </div>
@@ -45,9 +48,11 @@ function addToCart() {
 <style scoped lang="scss">
 .product-card {
   @include card-base;
+  border-radius: 24px;
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-width: 0;
   overflow: hidden;
   position: relative;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
@@ -59,9 +64,11 @@ function addToCart() {
 }
 
 .product-card__image {
-  display: block;
+  align-items: center;
+  display: flex;
+  justify-content: center;
   width: 100%;
-  aspect-ratio: 4 / 5;
+  aspect-ratio: 16 / 10;
   border: 0;
   padding: 0;
   position: relative;
@@ -85,6 +92,20 @@ function addToCart() {
   }
 }
 
+.product-card__placeholder {
+  align-items: center;
+  background: radial-gradient(circle at 30% 20%, rgba(239, 213, 55, 0.9), rgba(35, 89, 49, 0.92));
+  color: #fff;
+  display: flex;
+  font-size: clamp(2.6rem, 8vw, 4.8rem);
+  font-weight: 900;
+  height: 100%;
+  justify-content: center;
+  letter-spacing: -0.08em;
+  text-transform: uppercase;
+  width: 100%;
+}
+
 .product-card__overlay {
   align-items: end;
   background: linear-gradient(180deg, rgba(26, 26, 26, 0.02) 0%, rgba(26, 26, 26, 0.65) 100%);
@@ -105,8 +126,11 @@ function addToCart() {
 }
 
 .product-card__body {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0.7rem;
+  flex: 1 1 auto;
+  min-width: 0;
   padding: 1.15rem;
 }
 
@@ -115,11 +139,22 @@ h3 {
   font-weight: 800;
   line-height: 1.15;
   margin: 0;
+  min-height: 2.6rem;
+  overflow-wrap: anywhere;
+}
+
+.product-card__description {
+  color: rgba(26, 26, 26, 0.58);
+  font-size: 0.92rem;
+  line-height: 1.45;
+  min-height: 2.7rem;
+  overflow-wrap: anywhere;
 }
 
 .product-card__code {
   @include eyebrow;
   color: #00a523;
+  overflow-wrap: anywhere;
 }
 
 .product-card__meta {
@@ -127,7 +162,26 @@ h3 {
   justify-content: space-between;
   align-items: center;
   color: rgba(26, 26, 26, 0.7);
+  flex-wrap: wrap;
   font-weight: 700;
+  gap: 0.75rem;
+  margin-top: auto;
+  min-width: 0;
+}
+
+.product-card__meta strong {
+  flex: 0 0 auto;
+}
+
+.product-card__meta span {
+  color: #235931;
+  flex: 1 1 120px;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-align: right;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
 }
 
 .product-card__add {

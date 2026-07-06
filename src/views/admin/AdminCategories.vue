@@ -139,11 +139,11 @@ onMounted(load)
 .card { background: #fff; border-radius: 18px; padding: 1rem; box-shadow: 0 10px 24px rgba(0,0,0,.08); margin-bottom: 1.5rem; }
 .form-grid { display: flex; gap: .75rem; flex-wrap: wrap; }
 .form-grid > * { flex: 1 1 220px; }
-.form-grid .actions { grid-column: 1 / -1; display: flex; gap: .75rem; justify-content: flex-end; }
+.form-grid .actions { display: flex; flex-basis: 100%; gap: .75rem; justify-content: flex-end; }
 .list { display: flex; flex-direction: column; gap: .75rem; }
 .item { display:flex; justify-content: space-between; gap: 1rem; padding: 1rem; border-radius: 16px; background: #fff; }
 .item-actions { display:flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
 button { border:0; border-radius: 999px; padding: .7rem 1rem; background:$primary-dark; color:$white; cursor:pointer; }
 button[type='button'] { background:rgba($secondary, 0.16); color:$text-dark; }
-@media (max-width: 768px) { .form-grid { grid-template-columns: 1fr; } .item { flex-direction: column; } }
+@media (min-width: 769px) { .item { flex-direction: row; } }
 </style>

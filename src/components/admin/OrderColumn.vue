@@ -102,7 +102,8 @@ function emitAdvance(order: OrderDTO, status: OrderStatus) {
 }
 
 .column__body {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0.75rem;
   min-height: 220px;
 }
@@ -139,9 +140,7 @@ function emitAdvance(order: OrderDTO, status: OrderStatus) {
   box-shadow: 0 20px 44px rgba(0, 0, 0, 0.32);
 }
 
-@media (max-width: 768px) {
-  .column {
-    scroll-snap-align: start;
-  }
+.column {
+  scroll-snap-align: start;
 }
 </style>

@@ -137,13 +137,15 @@ onMounted(async () => {
 
 <style scoped lang="scss">
 .admin-order-detail {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 1rem;
 }
 
 .admin-order-detail__hero {
-  align-items: end;
+  align-items: flex-start;
   display: flex;
+  flex-direction: column;
   justify-content: space-between;
   gap: 1rem;
   padding: 1.25rem;
@@ -199,17 +201,13 @@ onMounted(async () => {
 
 .summary-card__top,
 .summary-card__grid {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0.85rem;
 }
 
 .summary-card__top {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-bottom: 1rem;
-}
-
-.summary-card__grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .summary-card span,
@@ -244,7 +242,8 @@ onMounted(async () => {
 }
 
 .item-list {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0.75rem;
 }
 
@@ -254,6 +253,7 @@ onMounted(async () => {
   border: 1px solid rgba($text-dark, 0.08);
   border-radius: 18px;
   display: flex;
+  flex-direction: column;
   justify-content: space-between;
   gap: 1rem;
   padding: 0.9rem 1rem;
@@ -266,7 +266,8 @@ onMounted(async () => {
 }
 
 .audit {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0.75rem;
 }
 
@@ -274,14 +275,16 @@ onMounted(async () => {
   background: $bg-light;
   border: 1px solid rgba($text-dark, 0.08);
   border-radius: 18px;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0.35rem;
   padding: 0.9rem 1rem;
 }
 
 .audit-item__head {
-  align-items: center;
+  align-items: flex-start;
   display: flex;
+  flex-direction: column;
   justify-content: space-between;
   gap: 0.75rem;
 }
@@ -324,31 +327,27 @@ onMounted(async () => {
   color: #ffcfcf;
 }
 
-@media (max-width: 1024px) {
-  .admin-order-detail__grid {
-    grid-template-columns: 1fr;
-  }
-
-  .summary-card__grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 768px) {
+@media (min-width: 769px) {
   .admin-order-detail__hero {
-    flex-direction: column;
-    align-items: start;
+    align-items: flex-end;
+    flex-direction: row;
   }
 
   .summary-card__top,
   .summary-card__grid {
-    grid-template-columns: 1fr;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .summary-card__top > *,
+  .summary-card__grid > * {
+    flex: 1 1 180px;
   }
 
   .item-row,
   .audit-item__head {
-    flex-direction: column;
-    align-items: start;
+    align-items: center;
+    flex-direction: row;
   }
 }
 </style>

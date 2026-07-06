@@ -72,11 +72,13 @@ function addToCart() {
 
 <style scoped lang="scss">
 .product-page {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   min-height: 100vh;
 }
 
 .product-page__main {
+  flex: 1 0 auto;
   margin: 0 auto;
   max-width: 1400px;
   width: 100%;
@@ -89,7 +91,8 @@ function addToCart() {
 }
 
 .product-detail {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 1.5rem;
 }
 
@@ -101,7 +104,8 @@ function addToCart() {
 }
 
 .product-detail__copy {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 1rem;
 }
 
@@ -143,7 +147,15 @@ function addToCart() {
 @media (min-width: 960px) {
   .product-detail {
     align-items: center;
-    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+    flex-direction: row;
+  }
+
+  .product-detail__media {
+    flex: 1.1 1 0;
+  }
+
+  .product-detail__copy {
+    flex: 0.9 1 0;
   }
 }
 </style>

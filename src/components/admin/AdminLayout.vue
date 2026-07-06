@@ -148,10 +148,11 @@ async function logout() {
   background: linear-gradient(180deg, $white, $bg-light);
   color: var(--admin-text);
   display: flex;
+  flex-direction: column;
   font-family: Switzer, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   gap: 1rem;
   min-height: 100vh;
-  padding: 1rem;
+  padding: 1rem 1rem 86px;
 }
 
 .panel {
@@ -163,7 +164,7 @@ async function logout() {
 
 .sidebar {
   background: #ffffff;
-  display: flex;
+  display: none;
   flex-direction: column;
   flex: 0 0 290px;
   gap: 1.25rem;
@@ -174,7 +175,8 @@ async function logout() {
 }
 
 .brand {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0.2rem;
   padding-bottom: 1rem;
   border-bottom: 1px solid var(--admin-line);
@@ -198,7 +200,8 @@ async function logout() {
 }
 
 .sidebar__nav {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0.5rem;
 }
 
@@ -238,7 +241,8 @@ async function logout() {
 .sidebar__footer {
   margin-top: auto;
   border-top: 1px solid var(--admin-line);
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0.9rem;
   padding-top: 1rem;
 }
@@ -255,7 +259,7 @@ async function logout() {
   border: 1px solid rgba($primary-dark, 0.18);
   color: var(--admin-primary);
   border-radius: 50%;
-  display: grid;
+  display: inline-flex;
   height: 42px;
   justify-content: center;
   width: 42px;
@@ -297,16 +301,18 @@ async function logout() {
 .topbar {
   align-items: center;
   display: flex;
+  flex-direction: column;
   justify-content: space-between;
   gap: 1rem;
   padding: 1rem 1.25rem;
   position: sticky;
-  top: 1rem;
+  top: 0.75rem;
   z-index: 20;
 }
 
 .topbar__actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
 }
 
@@ -336,11 +342,36 @@ async function logout() {
 }
 
 .bottom-nav {
-  display: none;
+  background: rgba(255, 255, 255, 0.96);
+  border-top: 1px solid var(--admin-line);
+  bottom: 0;
+  display: flex;
+  gap: 0.5rem;
+  left: 0;
+  overflow-x: auto;
+  padding: 0.55rem;
+  position: fixed;
+  right: 0;
+  z-index: 30;
+}
+
+.bottom-nav button {
+  flex: 1 0 84px;
+  flex-direction: column;
+  font-size: 0.72rem;
+  gap: 0.3rem;
+  min-height: 58px;
+  padding: 0.55rem 0.3rem;
+}
+
+.bottom-nav button span {
+  line-height: 1;
+  text-align: center;
 }
 
 .store-choice {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 1rem;
 }
 
@@ -427,7 +458,8 @@ async function logout() {
 }
 
 .admin-page label {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0.55rem;
 }
 
@@ -462,11 +494,9 @@ async function logout() {
   color: var(--admin-text) !important;
 }
 
-.admin-page .full {
-  grid-column: 1 / -1;
-}
-
 .admin-page .form-grid {
+  display: flex;
+  flex-direction: column;
   gap: 0.85rem;
 }
 
@@ -480,6 +510,7 @@ async function logout() {
 .admin-page .form-grid .actions,
 .admin-page .actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.75rem;
   justify-content: flex-end;
 }
@@ -499,61 +530,42 @@ async function logout() {
   min-height: 44px;
 }
 
-@media (max-width: 1024px) {
-  .admin-shell {
-    display: flex;
-    flex-direction: column;
-    padding-bottom: 86px;
-  }
-
-  .sidebar {
-    display: none;
-  }
-
+@media (min-width: 641px) {
   .topbar {
-    top: 0.75rem;
+    align-items: center;
+    flex-direction: row;
   }
 
-  .bottom-nav {
-    background: rgba(255, 255, 255, 0.96);
-    border-top: 1px solid var(--admin-line);
-    bottom: 0;
-    display: flex;
-    gap: 0.5rem;
-    left: 0;
-    overflow-x: auto;
-    padding: 0.55rem;
-    position: fixed;
-    right: 0;
-    z-index: 30;
+  .admin-page .form-grid {
+    flex-flow: row wrap;
   }
 
-  .bottom-nav button {
-    flex: 1 0 84px;
-    flex-direction: column;
-    font-size: 0.72rem;
-    gap: 0.3rem;
-    min-height: 58px;
-    padding: 0.55rem 0.3rem;
+  .admin-page .form-grid > label,
+  .admin-page .form-grid > input,
+  .admin-page .form-grid > select,
+  .admin-page .form-grid > textarea {
+    flex: 1 1 260px;
   }
 
-  .bottom-nav button span {
-    line-height: 1;
-    text-align: center;
+  .admin-page .form-grid .full,
+  .admin-page .form-grid .actions,
+  .admin-page .form-grid > textarea {
+    flex-basis: 100%;
   }
 }
 
-@media (max-width: 640px) {
-  .topbar {
-    flex-direction: column;
-    align-items: stretch;
+@media (min-width: 1025px) {
+  .admin-shell {
+    flex-direction: row;
+    padding: 1rem;
   }
 
-  .admin-page .form-grid,
-  .admin-page .item,
-  .admin-page .header-row {
-    grid-template-columns: 1fr;
-    flex-direction: column;
+  .sidebar {
+    display: flex;
+  }
+
+  .bottom-nav {
+    display: none;
   }
 }
 </style>

@@ -218,12 +218,15 @@ detectBranch()
 
 <style scoped lang="scss">
 .checkout-page {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   min-height: 100vh;
 }
 
 .checkout-page__main {
-  display: grid;
+  display: flex;
+  flex-direction: column;
+  flex: 1 0 auto;
   gap: 1.25rem;
   margin: 0 auto;
   max-width: 1400px;
@@ -237,8 +240,9 @@ detectBranch()
 }
 
 .checkout-hero {
-  align-items: end;
+  align-items: flex-start;
   display: flex;
+  flex-direction: column;
   justify-content: space-between;
   padding: 1.5rem;
 }
@@ -267,8 +271,9 @@ detectBranch()
 }
 
 .checkout-hero__total {
-  display: grid;
-  justify-items: end;
+  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
 }
 
 .checkout-hero__total span {
@@ -282,7 +287,8 @@ detectBranch()
 }
 
 .checkout-layout {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 1.25rem;
 }
 
@@ -293,17 +299,20 @@ detectBranch()
 }
 
 .checkout-form {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 1.25rem;
 }
 
 .checkout-form__grid {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 1rem;
 }
 
 label {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0.55rem;
 }
 
@@ -316,7 +325,8 @@ label span,
 .checkout-branch {
   background: rgba(35, 89, 49, 0.04);
   border-radius: 18px;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0.9rem;
   padding: 1rem;
 }
@@ -347,7 +357,8 @@ label span,
 }
 
 .checkout-summary {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0.85rem;
 }
 
@@ -368,12 +379,14 @@ label span,
 }
 
 .checkout-payment {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 1.25rem;
 }
 
 .checkout-payment__head {
   display: flex;
+  flex-direction: column;
   justify-content: space-between;
   gap: 1rem;
 }
@@ -386,8 +399,16 @@ label span,
 
 @media (min-width: 980px) {
   .checkout-layout {
-    grid-template-columns: minmax(0, 1fr) 360px;
     align-items: start;
+    flex-direction: row;
+  }
+
+  .checkout-form {
+    flex: 1 1 0;
+  }
+
+  .checkout-summary {
+    flex: 0 0 360px;
   }
 
   .checkout-summary {
@@ -396,11 +417,15 @@ label span,
   }
 }
 
-@media (max-width: 760px) {
+@media (min-width: 761px) {
   .checkout-hero,
   .checkout-payment__head {
-    flex-direction: column;
-    align-items: start;
+    align-items: flex-end;
+    flex-direction: row;
+  }
+
+  .checkout-hero__total {
+    align-items: flex-end;
   }
 }
 </style>

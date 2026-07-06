@@ -1,5 +1,7 @@
 import { defineStore } from 'pinia'
 
+const SESSION_DURATION_MS = 1000 * 60 * 60 * 24 * 120
+
 export interface UserState {
   id: string | null
   name: string | null
@@ -24,16 +26,30 @@ export const useUserStore = defineStore('user', {
   actions: {
     hydrate() {
       const token = localStorage.getItem('access_token')
+      const expiresAt = Number(localStorage.getItem('session_expires_at') || 0)
       const id = localStorage.getItem('user_id')
       const accountType = localStorage.getItem('user_account_type') as 'customer' | 'branch_admin' | 'admin' | null
       const branches = localStorage.getItem('user_branches')
       const allBranches = localStorage.getItem('user_all_branches')
+
+      if (token && expiresAt && Date.now() > expiresAt) {
+        this.clear()
+        return
+      }
 
       this.isAuthenticated = !!token
       this.id = id || null
       this.accountType = accountType
       this.branches = branches ? JSON.parse(branches) : []
       this.allBranches = allBranches === 'true'
+    },
+
+    setSessionToken(token: string) {
+      try {
+        localStorage.setItem('access_token', token)
+        localStorage.setItem('session_expires_at', String(Date.now() + SESSION_DURATION_MS))
+      } catch {}
+      this.isAuthenticated = true
     },
 
     setUser(payload: { id?: string; name?: string; email?: string; accountType?: 'customer' | 'branch_admin' | 'admin'; branches?: string[]; allBranches?: boolean }) {
@@ -76,6 +92,7 @@ export const useUserStore = defineStore('user', {
       this.isAuthenticated = false
       try {
         localStorage.removeItem('access_token')
+        localStorage.removeItem('session_expires_at')
         localStorage.removeItem('user_id')
         localStorage.removeItem('user_account_type')
         localStorage.removeItem('user_branches')

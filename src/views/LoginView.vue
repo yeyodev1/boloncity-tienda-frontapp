@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import AuthService from '@/services/AuthService'
 import { useUserStore } from '@/stores/user'
 import { useToast } from '@/composables/useToast'
+import imagesData from '@/assets/images.json'
 
 const email = ref('')
 const password = ref('')
@@ -12,14 +13,14 @@ const loading = ref(false)
 const router = useRouter()
 const user = useUserStore()
 const { success, error } = useToast()
+const heroImage = imagesData[8]?.url || imagesData[0]?.url
 
 async function submit() {
   loading.value = true
   try {
     const response = await AuthService.login(email.value, password.value)
     const { token, user: currentUser } = response.data
-    localStorage.setItem('access_token', token)
-    localStorage.setItem('user_account_type', currentUser.accountType)
+    user.setSessionToken(token)
     user.setUser({
       id: currentUser._id,
       email: currentUser.email,
@@ -42,26 +43,40 @@ async function submit() {
   <section class="auth-page page">
     <div class="auth-layout">
       <div class="auth-visual panel">
-        <p class="auth-visual__eyebrow">Boloncity</p>
-        <h1>Ingreso</h1>
-        <p>
-          Una experiencia limpia para entrar a tu cuenta y seguir tu pedido sin ruido.
-        </p>
-        <div class="auth-visual__badge">METRÓPOLIS</div>
+        <img class="auth-visual__image" :src="heroImage" alt="Producto Boloncity servido" />
+        <div class="auth-visual__content">
+          <RouterLink class="auth-brand" to="/">
+            <span>BC</span>
+            <strong>Boloncity</strong>
+          </RouterLink>
+          <p class="auth-visual__eyebrow">Tu cuenta Boloncity</p>
+          <h1>Vuelve por tu próximo antojo</h1>
+          <p>
+            Entra para pedir más rápido, revisar tus pedidos y seguir disfrutando los sabores que ya conoces.
+          </p>
+        </div>
+
+        <div class="auth-benefits" aria-label="Beneficios de iniciar sesión">
+          <span>Pide tus favoritos en menos pasos</span>
+          <span>Consulta el estado de tu pedido</span>
+          <span>Guarda tus datos para próximas compras</span>
+        </div>
       </div>
 
       <div class="panel auth-card">
-        <p class="auth-card__eyebrow">Acceso</p>
-        <h2>Ingresar</h2>
-        <p class="muted">Accede a tu cuenta para revisar pedidos y compras.</p>
+        <div class="auth-card__head">
+          <p class="auth-card__eyebrow">Bienvenido</p>
+          <h2>Ingresar</h2>
+          <p class="muted">Accede a tu cuenta para comprar y seguir tus pedidos con una experiencia más rápida.</p>
+        </div>
 
         <form class="auth-form" @submit.prevent="submit">
-          <label>
+          <label class="auth-field">
             <span>Email</span>
             <input v-model.trim="email" type="email" placeholder="tu@email.com" autocomplete="email" />
           </label>
 
-          <label>
+          <label class="auth-field">
             <span>Contraseña</span>
             <input v-model="password" type="password" placeholder="Tu contraseña" autocomplete="current-password" />
           </label>
@@ -72,7 +87,7 @@ async function submit() {
         </form>
 
         <p class="auth-card__link muted">
-          ¿No tienes cuenta?
+          <span>¿No tienes cuenta?</span>
           <RouterLink to="/registro">Crear cuenta</RouterLink>
         </p>
       </div>
@@ -82,94 +97,250 @@ async function submit() {
 
 <style scoped lang="scss">
 .auth-page {
-  display: grid;
-  place-items: center;
-  background: radial-gradient(circle at top, rgba(239, 213, 55, 0.12), transparent 55%),
-    linear-gradient(180deg, rgba(35, 89, 49, 0.04), rgba(255, 255, 255, 0));
+  align-items: center;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(239, 213, 55, 0.22), transparent 34%),
+    radial-gradient(circle at 100% 20%, rgba(35, 89, 49, 0.16), transparent 32%),
+    linear-gradient(135deg, #f8f6ec 0%, #f4f4f0 48%, #eef5ef 100%);
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+  padding: 0;
+  position: relative;
+}
+
+.auth-page::before {
+  background: rgba(255, 255, 255, 0.42);
+  border: 1px solid rgba(35, 89, 49, 0.08);
+  border-radius: 999px;
+  content: '';
+  height: 360px;
+  left: -180px;
+  position: absolute;
+  top: 18%;
+  width: 360px;
 }
 
 .auth-layout {
-  display: grid;
-  gap: 1rem;
-  max-width: 1120px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  max-width: 1180px;
+  min-height: 100vh;
+  position: relative;
   width: 100%;
+  z-index: 1;
 }
 
 .auth-visual,
 .auth-card {
-  padding: 1.5rem;
+  border-radius: 0;
+  padding: clamp(1.35rem, 5vw, 2.4rem);
 }
 
 .auth-visual {
-  background: linear-gradient(135deg, rgba(35, 89, 49, 0.98), rgba(35, 89, 49, 0.76));
+  background:
+    linear-gradient(135deg, rgba(8, 17, 13, 0.22), transparent 52%),
+    linear-gradient(135deg, #235931 0%, #122b19 100%);
   color: #fff;
-  min-height: 240px;
-  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  justify-content: space-between;
+  min-height: 360px;
   overflow: hidden;
+  position: relative;
+}
+
+.auth-visual__image {
+  height: 100%;
+  inset: 0;
+  object-fit: cover;
+  opacity: 0.58;
+  position: absolute;
+  width: 100%;
+}
+
+.auth-visual::before {
+  background: linear-gradient(180deg, rgba(8, 17, 13, 0.24), rgba(8, 17, 13, 0.74));
+  content: '';
+  inset: 0;
+  position: absolute;
+  z-index: 1;
 }
 
 .auth-visual::after {
-  content: '';
-  position: absolute;
-  inset: auto -10% -25% auto;
-  width: 240px;
-  height: 240px;
+  background: radial-gradient(circle, rgba(239, 213, 55, 0.32), transparent 62%);
   border-radius: 50%;
-  background: rgba(239, 213, 55, 0.18);
+  bottom: -140px;
+  content: '';
   filter: blur(18px);
+  height: 320px;
+  position: absolute;
+  right: -120px;
+  width: 320px;
+}
+
+.auth-visual__content,
+.auth-benefits {
+  position: relative;
+  z-index: 2;
+}
+
+.auth-brand {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.75rem;
+  margin-bottom: clamp(2.5rem, 12vw, 5rem);
+}
+
+.auth-brand span {
+  align-items: center;
+  background: #efd537;
+  border-radius: 16px;
+  color: #102719;
+  display: inline-flex;
+  font-weight: 900;
+  height: 46px;
+  justify-content: center;
+  letter-spacing: -0.08em;
+  width: 46px;
+}
+
+.auth-brand strong {
+  font-size: 1.1rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .auth-visual__eyebrow,
 .auth-card__eyebrow {
   @include eyebrow;
-  margin-bottom: 0.5rem;
+  color: #00a523;
+  margin-bottom: 0.75rem;
+}
+
+.auth-visual__eyebrow {
+  color: #efd537;
 }
 
 .auth-visual h1,
 .auth-card h2 {
-  font-size: clamp(2.4rem, 5vw, 4rem);
-  font-weight: 800;
+  font-size: clamp(2.6rem, 8vw, 5.2rem);
+  font-weight: 900;
   letter-spacing: -0.05em;
-  line-height: 0.92;
+  line-height: 0.88;
   text-transform: uppercase;
+}
+
+.auth-card h2 {
+  color: #08110d;
+  font-size: clamp(2.2rem, 7vw, 4rem);
 }
 
 .auth-visual p {
   color: rgba(255, 255, 255, 0.82);
   margin-top: 1rem;
-  max-width: 26rem;
+  max-width: 34rem;
 }
 
-.auth-visual__badge {
-  @include pill-button(rgba(255, 255, 255, 0.12), #fff);
-  bottom: 1.5rem;
-  position: absolute;
-  right: 1.5rem;
+.auth-benefits {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.auth-benefits span {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 18px;
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 0.92rem;
+  font-weight: 800;
+  padding: 0.9rem 1rem;
 }
 
 .auth-card {
-  display: grid;
-  gap: 1rem;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(8, 17, 13, 0.08);
+  box-shadow: 0 30px 80px rgba(8, 17, 13, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 1.35rem;
+  justify-content: center;
+}
+
+.auth-card__head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.auth-card__head .muted {
+  line-height: 1.65;
 }
 
 .auth-form {
-  display: grid;
-  gap: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
 }
 
-label {
-  display: grid;
-  gap: 0.55rem;
+.auth-field {
+  background: #fff;
+  border: 1px solid rgba(8, 17, 13, 0.1);
+  border-radius: 22px;
+  box-shadow: 0 14px 34px rgba(8, 17, 13, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 1rem 1.05rem 1.1rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
-label span {
-  font-size: 0.9rem;
-  font-weight: 700;
+.auth-field:focus-within {
+  border-color: rgba(35, 89, 49, 0.35);
+  box-shadow: 0 18px 40px rgba(35, 89, 49, 0.12);
+  transform: translateY(-2px);
+}
+
+.auth-field span {
+  color: rgba(8, 17, 13, 0.62);
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.auth-field input {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  color: #08110d;
+  min-height: 34px;
+  padding: 0;
+}
+
+.auth-field input:focus {
+  box-shadow: none;
+}
+
+.btn-primary {
+  min-height: 56px;
+  box-shadow: 0 18px 34px rgba(35, 89, 49, 0.18);
 }
 
 .auth-card__link {
+  align-items: center;
+  background: rgba(35, 89, 49, 0.06);
+  border-radius: 18px;
   display: flex;
-  gap: 0.35rem;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  justify-content: center;
+  padding: 0.95rem 1rem;
+  text-align: center;
 }
 
 .auth-card__link a {
@@ -179,12 +350,27 @@ label span {
 
 @media (min-width: 960px) {
   .auth-layout {
-    grid-template-columns: minmax(0, 1fr) minmax(360px, 460px);
+    gap: 0;
+    max-width: none;
+  }
+
+  .auth-layout {
     align-items: stretch;
+    flex-direction: row;
   }
 
   .auth-visual {
-    min-height: 620px;
+    flex: 1 1 0;
+  }
+
+  .auth-card {
+    flex: 0 0 min(520px, 42vw);
+    padding: clamp(2.5rem, 5vw, 4.5rem);
+  }
+
+  .auth-visual {
+    min-height: 640px;
+    padding: clamp(2rem, 4vw, 3rem);
   }
 }
 </style>

@@ -127,6 +127,7 @@ $text-dark: #1A1A1A;
 
 .history-container {
   display: flex;
+  flex-direction: column;
   max-width: 1600px;
   margin: 0 auto;
   align-items: center;
@@ -134,7 +135,7 @@ $text-dark: #1A1A1A;
 }
 
 .history-content {
-  flex: 0 0 50%;
+  flex: none;
   position: relative;
   z-index: 2;
 
@@ -164,7 +165,7 @@ $text-dark: #1A1A1A;
   }
 
   .history-desc-wrapper {
-    max-width: 80%;
+    max-width: 100%;
     
     .history-desc {
       font-size: 1.3rem;
@@ -203,9 +204,11 @@ $text-dark: #1A1A1A;
 }
 
 .history-gallery {
-  flex: 1;
+  flex: none;
   position: relative;
-  height: 600px; // Fixed height context for absolute images
+  height: 500px; // Fixed height context for absolute images
+  margin-top: 10vw;
+  width: 100%;
 
   .floating-img {
     position: absolute;
@@ -253,18 +256,19 @@ $text-dark: #1A1A1A;
   }
 }
 
-@media (max-width: 1024px) {
+@media (min-width: 1025px) {
   .history-container {
-    flex-direction: column;
+    flex-direction: row;
   }
   .history-content {
-    flex: none;
-    .history-desc-wrapper { max-width: 100%; }
+    flex: 0 0 50%;
+    .history-desc-wrapper { max-width: 80%; }
   }
   .history-gallery {
-    width: 100%;
-    height: 500px;
-    margin-top: 10vw;
+    flex: 1;
+    height: 600px;
+    margin-top: 0;
+    width: auto;
   }
 }
 </style>

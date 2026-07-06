@@ -31,8 +31,13 @@ class APIBase {
     this.axiosInstance.interceptors.response.use(
       (response) => response,
       (error) => {
-        if (error.response?.status === 401) {
-          window.dispatchEvent(new CustomEvent('auth:token-expired'))
+        const hadToken = !!localStorage.getItem('access_token')
+        if (hadToken && error.response?.status === 401) {
+          window.dispatchEvent(new CustomEvent('auth:token-expired', {
+            detail: {
+              message: error.response.data?.message || 'Invalid or expired token',
+            },
+          }))
         }
         return Promise.reject(error)
       },
