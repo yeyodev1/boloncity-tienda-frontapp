@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import StoreHeader from '@/components/store/StoreHeader.vue'
 import StoreFooter from '@/components/store/StoreFooter.vue'
 import SkeletonLoader from '@/components/global/SkeletonLoader.vue'
@@ -15,58 +15,84 @@ const searchTerm = ref('')
 const loading = ref(true)
 const currentPage = ref(1)
 const pageSize = 10
+const totalProducts = ref(0)
+const pageCount = ref(1)
+let searchTimer: ReturnType<typeof setTimeout> | undefined
+let latestRequest = 0
 
 const visibleCategories = computed(() => categories.value.filter((category) => category.productsCount || !category.parentCategory))
 const selectedCategoryLabel = computed(() => categories.value.find((category) => category.slug === selectedCategory.value)?.name || 'Todas')
-const filteredProducts = computed(() => {
-  const query = searchTerm.value.trim().toLowerCase()
-  if (!query) return products.value
+const featuredProducts = computed(() => products.value.filter((product) => product.isFeatured).slice(0, 4))
+const paginationStart = computed(() => (totalProducts.value ? (currentPage.value - 1) * pageSize + 1 : 0))
+const paginationEnd = computed(() => Math.min(currentPage.value * pageSize, totalProducts.value))
 
-  return products.value.filter((product) => {
-    const categoryNames = product.categories?.map((category) => category.name).join(' ') || ''
-    return [product.name, product.code, product.description, categoryNames].some((value) => value?.toLowerCase().includes(query))
-  })
-})
+async function goToPage(page: number) {
+  const nextPage = Math.min(Math.max(page, 1), pageCount.value)
+  if (nextPage === currentPage.value || loading.value) return
+  currentPage.value = nextPage
+  document.querySelector('.catalog-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  await loadProducts()
+}
 
-const featuredProducts = computed(() => filteredProducts.value.filter((product) => product.isFeatured).slice(0, 4))
-const pageCount = computed(() => Math.max(1, Math.ceil(filteredProducts.value.length / pageSize)))
-const paginatedProducts = computed(() => {
-  const start = (currentPage.value - 1) * pageSize
-  return filteredProducts.value.slice(start, start + pageSize)
-})
-const paginationStart = computed(() => (filteredProducts.value.length ? (currentPage.value - 1) * pageSize + 1 : 0))
-const paginationEnd = computed(() => Math.min(currentPage.value * pageSize, filteredProducts.value.length))
+async function loadProducts() {
+  const requestId = ++latestRequest
+  loading.value = true
+  products.value = []
 
-function goToPage(page: number) {
-  currentPage.value = Math.min(Math.max(page, 1), pageCount.value)
+  try {
+    const response = await ProductService.getPaginated({
+      page: currentPage.value,
+      limit: pageSize,
+      available: true,
+      category: selectedCategory.value || undefined,
+      q: searchTerm.value.trim() || undefined,
+    })
+    if (requestId !== latestRequest) return
+
+    const payload = response.data as typeof response.data | ProductDTO[]
+    if (Array.isArray(payload)) {
+      totalProducts.value = payload.length
+      pageCount.value = Math.max(1, Math.ceil(payload.length / pageSize))
+      const start = (currentPage.value - 1) * pageSize
+      products.value = payload.slice(start, start + pageSize)
+    } else {
+      products.value = payload.data
+      currentPage.value = payload.pagination.page
+      pageCount.value = payload.pagination.totalPages
+      totalProducts.value = payload.pagination.total
+    }
+  } catch {
+    if (requestId !== latestRequest) return
+    products.value = []
+    currentPage.value = 1
+    pageCount.value = 1
+    totalProducts.value = 0
+  } finally {
+    if (requestId === latestRequest) loading.value = false
+  }
 }
 
 async function loadData() {
-  loading.value = true
-  const [productsResponse, categoriesResponse] = await Promise.all([
-    ProductService.getAll({ available: true, ...(selectedCategory.value ? { category: selectedCategory.value } : {}) }),
-    CategoryService.getAll(),
-  ])
-
-  products.value = productsResponse.data
+  const [categoriesResponse] = await Promise.all([CategoryService.getAll(), loadProducts()])
   categories.value = categoriesResponse.data
-  loading.value = false
 }
 
 watch(selectedCategory, () => {
   currentPage.value = 1
-  loadData()
+  loadProducts()
 })
 
 watch(searchTerm, () => {
+  latestRequest += 1
   currentPage.value = 1
-})
-
-watch(pageCount, () => {
-  if (currentPage.value > pageCount.value) currentPage.value = pageCount.value
+  loading.value = true
+  products.value = []
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(loadProducts, 350)
 })
 
 onMounted(loadData)
+onBeforeUnmount(() => clearTimeout(searchTimer))
 </script>
 
 <template>
@@ -87,8 +113,8 @@ onMounted(loadData)
         </div>
 
         <div class="catalog-hero__meta">
-          <span>{{ filteredProducts.length }} visibles</span>
-          <span>{{ products.length }} productos</span>
+          <span>{{ totalProducts }} visibles</span>
+          <span>Página {{ currentPage }} de {{ pageCount }}</span>
           <span>{{ visibleCategories.length }} categorías</span>
         </div>
       </section>
@@ -108,7 +134,7 @@ onMounted(loadData)
 
         <CategoryTabs v-model="selectedCategory" :categories="visibleCategories" />
 
-        <div v-if="featuredProducts.length" class="featured-strip" aria-label="Productos destacados">
+        <div v-if="!loading && featuredProducts.length" class="featured-strip" aria-label="Productos destacados">
           <article v-for="product in featuredProducts" :key="product._id" class="featured-pill">
             <span>{{ product.categories?.[1]?.name || product.categories?.[0]?.name || 'Favorito' }}</span>
             <strong>{{ product.name }}</strong>
@@ -116,16 +142,16 @@ onMounted(loadData)
           </article>
         </div>
 
-        <SkeletonLoader v-if="loading" type="card" :count="6" />
+        <SkeletonLoader v-if="loading" type="product" :count="pageSize" />
 
-        <template v-else-if="filteredProducts.length">
+        <template v-else-if="products.length">
           <div class="catalog-results">
-            <ProductCard v-for="product in paginatedProducts" :key="product._id" :product="product" />
+            <ProductCard v-for="product in products" :key="product._id" :product="product" />
           </div>
 
           <nav class="catalog-pagination" aria-label="Paginación del catálogo">
             <p>
-              Mostrando {{ paginationStart }}-{{ paginationEnd }} de {{ filteredProducts.length }} productos
+              Mostrando {{ paginationStart }}-{{ paginationEnd }} de {{ totalProducts }} productos
             </p>
 
             <div class="catalog-pagination__controls">
@@ -177,10 +203,10 @@ onMounted(loadData)
   display: flex;
   flex-direction: column;
   flex: 1 0 auto;
-  gap: clamp(1rem, 3vw, 1.5rem);
+  gap: clamp(2rem, 5vw, 4rem);
   margin: 0 auto;
   max-width: 1480px;
-  padding: clamp(1.25rem, 4vw, 2.5rem) 1rem 0;
+  padding: clamp(1.5rem, 4vw, 3rem) 1rem clamp(3rem, 7vw, 6rem);
   width: 100%;
 }
 
@@ -271,6 +297,9 @@ h1 span {
 .catalog-panel {
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(1.75rem, 4vw, 3rem);
 }
 
 .catalog-tools {
@@ -278,7 +307,6 @@ h1 span {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  margin-bottom: 1.25rem;
   min-width: 0;
 }
 
@@ -335,9 +363,9 @@ h1 span {
 .featured-strip {
   display: flex;
   gap: 0.85rem;
-  margin: 0 0 1.25rem;
+  margin: 0;
   overflow-x: auto;
-  padding-bottom: 0.25rem;
+  padding: 0.15rem 0 0.5rem;
   scrollbar-width: thin;
 }
 
@@ -374,7 +402,7 @@ h1 span {
 .catalog-results {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: 1.25rem;
   align-items: stretch;
 }
 
@@ -406,8 +434,8 @@ h1 span {
   flex-direction: column;
   gap: 1rem;
   justify-content: space-between;
-  margin-top: 1.5rem;
-  padding-top: 1.25rem;
+  margin-top: 0.25rem;
+  padding-top: clamp(1.5rem, 3vw, 2.25rem);
 }
 
 .catalog-pagination p {
@@ -443,15 +471,15 @@ h1 span {
 
 @media (min-width: 641px) {
   .catalog-page__main {
-    padding: 0 1.25rem;
+    padding: clamp(2rem, 4vw, 3.5rem) 1.25rem clamp(4rem, 7vw, 7rem);
   }
 
   .catalog-results {
-    gap: 1.1rem;
+    gap: 1.5rem;
   }
 
   .catalog-results > * {
-    flex-basis: calc((100% - 1.1rem) / 2);
+    flex-basis: calc((100% - 1.5rem) / 2);
   }
 }
 
@@ -496,13 +524,13 @@ h1 span {
 
 @media (min-width: 1100px) {
   .catalog-results > * {
-    flex-basis: calc((100% - 2.2rem) / 3);
+    flex-basis: calc((100% - 3rem) / 3);
   }
 }
 
 @media (min-width: 1380px) {
   .catalog-results > * {
-    flex-basis: calc((100% - 3.3rem) / 4);
+    flex-basis: calc((100% - 4.5rem) / 4);
   }
 }
 </style>

@@ -72,13 +72,12 @@ onBeforeUnmount(() => {
         </div>
 
         <RouterLink class="store-header__cart" to="/carrito">
+          <i class="fa-solid fa-bag-shopping" />
           <span>Carrito</span>
           <strong>{{ cartCount }}</strong>
         </RouterLink>
-        <button class="store-header__menu" type="button" @click="mobileOpen = !mobileOpen" aria-label="Abrir menú">
-          <span />
-          <span />
-          <span />
+        <button class="store-header__menu" type="button" @click="mobileOpen = !mobileOpen" :aria-label="mobileOpen ? 'Cerrar menú' : 'Abrir menú'">
+          <i :class="mobileOpen ? 'fa-solid fa-xmark' : 'fa-solid fa-bars'" />
         </button>
       </div>
     </div>
@@ -307,16 +306,13 @@ onBeforeUnmount(() => {
   z-index: 2;
 }
 
-.store-header__menu span {
-  background: #1a1a1a;
-  border-radius: 999px;
-  display: block;
-  height: 2px;
-  width: 18px;
+.store-header__menu i {
+  color: #1a1a1a;
+  font-size: 1rem;
 }
 
-.store-header.is-menu-open .store-header__menu span {
-  background: #fff;
+.store-header.is-menu-open .store-header__menu i {
+  color: #fff;
 }
 
 .store-header__pill,

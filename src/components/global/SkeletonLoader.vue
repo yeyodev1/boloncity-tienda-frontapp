@@ -1,6 +1,6 @@
 <script setup lang="ts">
 defineProps<{
-  type?: 'card' | 'list' | 'table' | 'kanban'
+  type?: 'card' | 'list' | 'table' | 'kanban' | 'product'
   count?: number
 }>()
 </script>
@@ -22,5 +22,7 @@ defineProps<{
 }
 .card .skeleton-item { height: 140px; border-radius: 18px; }
 .kanban .skeleton-item { height: 90px; border-radius: 16px; }
+.product { flex-flow: row wrap; gap: 1rem; }
+.product .skeleton-item { flex: 1 1 290px; height: 430px; border-radius: 24px; }
 @keyframes shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
 </style>

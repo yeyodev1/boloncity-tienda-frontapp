@@ -21,6 +21,16 @@ export interface ProductDTO {
   pointsValue: number
 }
 
+export interface PaginatedProductsDTO {
+  data: ProductDTO[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+  }
+}
+
 class ProductService extends APIBase {
   getAll(filters?: { category?: string; q?: string; available?: boolean }) {
     const params = new URLSearchParams()
@@ -29,6 +39,18 @@ class ProductService extends APIBase {
     if (filters?.available) params.set('available', 'true')
     const query = params.toString()
     return this.get<ProductDTO[]>(`products${query ? `?${query}` : ''}`)
+  }
+
+  getPaginated(filters: { page: number; limit: number; category?: string; q?: string; available?: boolean }) {
+    const params = new URLSearchParams({
+      paginate: 'true',
+      page: String(filters.page),
+      limit: String(filters.limit),
+    })
+    if (filters.category) params.set('category', filters.category)
+    if (filters.q) params.set('q', filters.q)
+    if (filters.available) params.set('available', 'true')
+    return this.get<PaginatedProductsDTO>(`products?${params.toString()}`)
   }
 
   getBySlug(slug: string) {
@@ -47,10 +69,10 @@ class ProductService extends APIBase {
     return this.delete<{ message: string }>(`products/${id}`)
   }
 
-  uploadImage(id: string, file: File) {
+  uploadImage(id: string, file: File, replace = false) {
     const formData = new FormData()
     formData.append('image', file)
-    return this.post<ProductDTO>(`products/${id}/images`, formData)
+    return this.post<ProductDTO>(`products/${id}/images${replace ? '?replace=true' : ''}`, formData)
   }
 
   deleteImage(id: string, publicId: string) {
