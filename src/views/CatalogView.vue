@@ -4,6 +4,7 @@ import StoreHeader from '@/components/store/StoreHeader.vue'
 import StoreFooter from '@/components/store/StoreFooter.vue'
 import SkeletonLoader from '@/components/global/SkeletonLoader.vue'
 import ProductCard from '@/components/catalog/ProductCard.vue'
+import ProductQuickView from '@/components/catalog/ProductQuickView.vue'
 import CategoryTabs from '@/components/catalog/CategoryTabs.vue'
 import ProductService, { type ProductDTO } from '@/services/ProductService'
 import CategoryService, { type CategoryDTO } from '@/services/CategoryService'
@@ -17,12 +18,12 @@ const currentPage = ref(1)
 const pageSize = 10
 const totalProducts = ref(0)
 const pageCount = ref(1)
+const selectedProduct = ref<ProductDTO | null>(null)
 let searchTimer: ReturnType<typeof setTimeout> | undefined
 let latestRequest = 0
 
 const visibleCategories = computed(() => categories.value.filter((category) => category.productsCount || !category.parentCategory))
 const selectedCategoryLabel = computed(() => categories.value.find((category) => category.slug === selectedCategory.value)?.name || 'Todas')
-const featuredProducts = computed(() => products.value.filter((product) => product.isFeatured).slice(0, 4))
 const paginationStart = computed(() => (totalProducts.value ? (currentPage.value - 1) * pageSize + 1 : 0))
 const paginationEnd = computed(() => Math.min(currentPage.value * pageSize, totalProducts.value))
 
@@ -102,51 +103,38 @@ onBeforeUnmount(() => clearTimeout(searchTimer))
     <main class="catalog-page__main">
       <section class="catalog-hero">
         <div class="catalog-hero__copy">
-          <p class="catalog-hero__eyebrow">Catálogo</p>
-          <h1>
-            El menú
-            <span>Boloncity</span>
-          </h1>
-          <p>
-            Bolones, tigrillos, combos, bebidas y extras organizados para elegir rápido sin perderte entre opciones.
-          </p>
+          <p class="catalog-hero__eyebrow"><i class="fa-solid fa-store" /> Tienda en línea</p>
+          <h1>El sabor de <span>Boloncity</span></h1>
+          <p>Escoge tu favorito, mira todos sus detalles y arma tu pedido en pocos pasos.</p>
         </div>
 
         <div class="catalog-hero__meta">
-          <span>{{ totalProducts }} visibles</span>
-          <span>Página {{ currentPage }} de {{ pageCount }}</span>
-          <span>{{ visibleCategories.length }} categorías</span>
+          <span><i class="fa-solid fa-bowl-food" /> {{ totalProducts }} productos</span>
+          <span><i class="fa-solid fa-layer-group" /> {{ visibleCategories.length }} categorías</span>
         </div>
       </section>
 
       <section class="catalog-panel">
         <div class="catalog-tools">
           <div>
-            <p class="catalog-tools__eyebrow">Explora por antojo</p>
+            <p class="catalog-tools__eyebrow">Nuestro catálogo</p>
             <h2>{{ selectedCategoryLabel }}</h2>
+            <span>{{ totalProducts }} opciones disponibles</span>
           </div>
 
           <label class="catalog-search">
-            <span>Buscar</span>
-            <input v-model="searchTerm" type="search" placeholder="Bolón, café, combo..." />
+            <span>Buscar en el menú</span>
+            <div><i class="fa-solid fa-magnifying-glass" /><input v-model="searchTerm" type="search" placeholder="Bolón, café, combo..." /></div>
           </label>
         </div>
 
         <CategoryTabs v-model="selectedCategory" :categories="visibleCategories" />
 
-        <div v-if="!loading && featuredProducts.length" class="featured-strip" aria-label="Productos destacados">
-          <article v-for="product in featuredProducts" :key="product._id" class="featured-pill">
-            <span>{{ product.categories?.[1]?.name || product.categories?.[0]?.name || 'Favorito' }}</span>
-            <strong>{{ product.name }}</strong>
-            <small>${{ product.price.toFixed(2) }}</small>
-          </article>
-        </div>
-
         <SkeletonLoader v-if="loading" type="product" :count="pageSize" />
 
         <template v-else-if="products.length">
           <div class="catalog-results">
-            <ProductCard v-for="product in products" :key="product._id" :product="product" />
+            <ProductCard v-for="product in products" :key="product._id" :product="product" @open="selectedProduct = product" />
           </div>
 
           <nav class="catalog-pagination" aria-label="Paginación del catálogo">
@@ -184,6 +172,8 @@ onBeforeUnmount(() => clearTimeout(searchTimer))
       </section>
     </main>
 
+    <ProductQuickView :product="selectedProduct" @close="selectedProduct = null" />
+
     <StoreFooter />
   </div>
 </template>
@@ -210,24 +200,25 @@ onBeforeUnmount(() => clearTimeout(searchTimer))
   width: 100%;
 }
 
-.catalog-hero,
-.catalog-panel {
+.catalog-hero {
   border: 1px solid rgba(26, 26, 26, 0.08);
   border-radius: 28px;
   box-shadow: 0 22px 54px rgba(26, 26, 26, 0.08);
   margin: 0;
-  padding: clamp(1.15rem, 4vw, 2rem);
+  padding: clamp(2.5rem, 7vw, 5rem) clamp(1.25rem, 5vw, 3rem);
 }
 
 .catalog-hero {
-  align-items: flex-start;
+  align-items: center;
   background:
     linear-gradient(135deg, rgba(35, 89, 49, 0.96), rgba(12, 34, 18, 0.94)),
     radial-gradient(circle at 90% 15%, rgba(239, 213, 55, 0.25), transparent 28%);
   color: #fff;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.5rem;
+  justify-content: center;
+  min-height: 300px;
   overflow: hidden;
   position: relative;
 }
@@ -250,24 +241,38 @@ onBeforeUnmount(() => clearTimeout(searchTimer))
   z-index: 1;
 }
 
+.catalog-hero__copy {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+}
+
 .catalog-hero__eyebrow {
   @include eyebrow;
   color: #efd537;
   margin-bottom: 0.5rem;
+  align-items: center;
+  background: rgba(239, 213, 55, 0.12);
+  border: 1px solid rgba(239, 213, 55, 0.2);
+  border-radius: 999px;
+  display: inline-flex;
+  gap: 0.45rem;
+  padding: 0.5rem 0.7rem;
 }
 
 h1 {
-  font-size: clamp(2.8rem, 6vw, 5rem);
+  font-size: clamp(2.5rem, 6vw, 4.7rem);
   font-weight: 800;
   letter-spacing: -0.05em;
-  line-height: 0.9;
+  line-height: 0.95;
   text-transform: uppercase;
   overflow-wrap: anywhere;
 }
 
 h1 span {
-  color: transparent;
-  -webkit-text-stroke: 1.5px rgba(255, 255, 255, 0.86);
+  color: #efd537;
+  display: block;
 }
 
 .catalog-hero p {
@@ -275,15 +280,16 @@ h1 span {
   font-size: 1rem;
   font-weight: 600;
   line-height: 1.65;
-  margin-top: 1rem;
+  margin-top: 0.9rem;
   max-width: 36rem;
 }
 
 .catalog-hero__meta {
-  align-self: flex-start;
+  align-self: center;
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: 0.6rem;
+  justify-content: center;
 }
 
 .catalog-hero__meta span {
@@ -295,19 +301,26 @@ h1 span {
 }
 
 .catalog-panel {
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(10px);
   display: flex;
   flex-direction: column;
-  gap: clamp(1.75rem, 4vw, 3rem);
+  gap: clamp(1.25rem, 3vw, 2rem);
+  margin: 0;
+  min-width: 0;
 }
 
 .catalog-tools {
   align-items: flex-start;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.25rem;
   min-width: 0;
+}
+
+.catalog-tools > div:first-child > span {
+  color: rgba(26, 26, 26, 0.48);
+  display: block;
+  font-size: 0.82rem;
+  margin-top: 0.4rem;
 }
 
 .catalog-tools__eyebrow,
@@ -330,13 +343,23 @@ h1 span {
 .catalog-search {
   background: #fff;
   border: 1px solid rgba(26, 26, 26, 0.08);
-  border-radius: 20px;
+  border-radius: 16px;
   box-shadow: 0 14px 34px rgba(26, 26, 26, 0.05);
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
   padding: 0.9rem 1rem;
   width: 100%;
+}
+
+.catalog-search > div {
+  align-items: center;
+  display: flex;
+  gap: 0.6rem;
+}
+
+.catalog-search > div i {
+  color: #235931;
 }
 
 .catalog-search input {
@@ -360,49 +383,10 @@ h1 span {
   text-transform: uppercase;
 }
 
-.featured-strip {
-  display: flex;
-  gap: 0.85rem;
-  margin: 0;
-  overflow-x: auto;
-  padding: 0.15rem 0 0.5rem;
-  scrollbar-width: thin;
-}
-
-.featured-pill {
-  background: linear-gradient(135deg, #235931, #102719);
-  border-radius: 20px;
-  color: #fff;
-  display: flex;
-  flex: 0 0 min(260px, 82vw);
-  flex-direction: column;
-  gap: 0.35rem;
-  min-width: 0;
-  padding: 1rem;
-}
-
-.featured-pill span {
-  color: #efd537;
-  font-size: 0.72rem;
-  font-weight: 900;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.featured-pill strong {
-  line-height: 1.1;
-  overflow-wrap: anywhere;
-}
-
-.featured-pill small {
-  color: rgba(255, 255, 255, 0.72);
-  font-weight: 800;
-}
-
 .catalog-results {
   display: flex;
   flex-wrap: wrap;
-  gap: 1.25rem;
+  gap: 1rem;
   align-items: stretch;
 }
 
@@ -434,7 +418,7 @@ h1 span {
   flex-direction: column;
   gap: 1rem;
   justify-content: space-between;
-  margin-top: 0.25rem;
+  margin-top: 1rem;
   padding-top: clamp(1.5rem, 3vw, 2.25rem);
 }
 
@@ -475,33 +459,15 @@ h1 span {
   }
 
   .catalog-results {
-    gap: 1.5rem;
+    gap: 1.1rem;
   }
 
   .catalog-results > * {
-    flex-basis: calc((100% - 1.5rem) / 2);
+    flex-basis: calc((100% - 1.1rem) / 2);
   }
 }
 
 @media (min-width: 901px) {
-  .catalog-hero {
-    align-items: flex-end;
-    flex-direction: row;
-  }
-
-  .catalog-hero > *:first-child {
-    flex: 1.5 1 0;
-  }
-
-  .catalog-hero > *:last-child {
-    flex: 0.7 1 220px;
-  }
-
-  .catalog-hero__meta {
-    align-self: flex-end;
-    align-items: flex-end;
-  }
-
   .catalog-tools {
     align-items: flex-end;
     flex-direction: row;
@@ -520,17 +486,15 @@ h1 span {
   .catalog-pagination p {
     text-align: left;
   }
-}
 
-@media (min-width: 1100px) {
   .catalog-results > * {
-    flex-basis: calc((100% - 3rem) / 3);
+    flex-basis: calc((100% - 2.2rem) / 3);
   }
 }
 
-@media (min-width: 1380px) {
+@media (min-width: 1200px) {
   .catalog-results > * {
-    flex-basis: calc((100% - 4.5rem) / 4);
+    flex-basis: calc((100% - 3.3rem) / 4);
   }
 }
 </style>

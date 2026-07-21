@@ -1,98 +1,31 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { Transition } from 'vue'
 import StoreHeader from '@/components/store/StoreHeader.vue'
 import StoreFooter from '@/components/store/StoreFooter.vue'
 import PayPhoneBox from '@/components/checkout/PayPhoneBox.vue'
-import { useCartStore } from '@/stores/cart'
-import OrderService from '@/services/OrderService'
-import { useToast } from '@/composables/useToast'
-import type { OrderDTO } from '@/services/OrderService'
-import BranchService, { type BranchDTO } from '@/services/BranchService'
-import { useBranchStore } from '@/stores/branch'
+import { useCheckout } from '@/composables/useCheckout'
+import {
+  CheckoutHero,
+  CheckoutDeliveryType,
+  CheckoutLocation,
+  CheckoutBilling,
+  CheckoutSummary,
+} from '@/components/checkout'
 
-const cart = useCartStore()
-const branchStore = useBranchStore()
-cart.hydrate()
-branchStore.hydrate()
-
-const customerName = ref('')
-const customerEmail = ref('')
-const customerPhone = ref('')
-const notes = ref('')
-const order = ref<OrderDTO | null>(null)
-const loading = ref(false)
-const ready = ref(false)
-const branch = ref<BranchDTO | null>(null)
-const branchLoading = ref(false)
-const publicBranches = ref<BranchDTO[]>([])
-const { error } = useToast()
-const payphoneToken = import.meta.env.VITE_PAYPHONE_TOKEN as string
-const payphoneStoreId = import.meta.env.VITE_PAYPHONE_STORE_ID as string
-
-const total = computed(() => cart.subtotal)
-
-function onPayPhoneReady() {
-  ready.value = true
-}
-
-async function detectBranch() {
-  branchLoading.value = true
-  try {
-    if (branchStore.selectedBranchId) {
-      branchLoading.value = false
-      branch.value = null
-      return
-    }
-
-    if (!navigator.geolocation) {
-      branchLoading.value = false
-      return
-    }
-
-    navigator.geolocation.getCurrentPosition(async (position) => {
-      try {
-        const response = await BranchService.nearest(position.coords.latitude, position.coords.longitude)
-        branch.value = response.data.branch
-        branchStore.setSelectedBranch(branch.value?._id || null)
-      } finally {
-        branchLoading.value = false
-      }
-    }, async () => {
-      const response = await BranchService.getPublic()
-      publicBranches.value = response.data
-      branchLoading.value = false
-    })
-  } catch {
-    branchLoading.value = false
-  }
-}
-
-async function createOrder() {
-  try {
-    loading.value = true
-    const response = await OrderService.create({
-      items: cart.items.map((item) => ({ productId: item.productId, quantity: item.quantity })),
-      customerEmail: customerEmail.value,
-      customerName: customerName.value,
-      customerPhone: customerPhone.value,
-      notes: notes.value,
-      branchId: branchStore.selectedBranchId || branch.value?._id || null,
-    })
-    order.value = response.data
-  } catch {
-    error('No se pudo iniciar el pago')
-  } finally {
-    loading.value = false
-  }
-}
-
-function selectBranch(item: BranchDTO) {
-  branch.value = item
-  branchStore.setSelectedBranch(item._id)
-}
-
-detectBranch()
+const {
+  branchStore, countries,
+  customerFirstName, customerLastName, customerEmail, customerPhone, phoneCountryCode,
+  notes, deliveryAddress, deliveryGoogleMapsUrl, deliveryType, order,
+  loading, ready, branch, branchLoading, publicBranches,
+  deliveryCost, deliveryDistance, mapsError, locating, locationDetected,
+  manualMapsLink, displayLat, displayLng,
+  showBilling, billingDocType, billingName, billingDocNumber, billingEmail, billingAddress,
+  total, isFormValid,
+  payphoneToken, payphoneStoreId,
+  onPayPhoneReady, closePayment, toggleDeliveryType,
+  detectLocation, useManualLink, clearLocation,
+  detectBranch, createOrder, selectBranch,
+} = useCheckout()
 </script>
 
 <template>
@@ -100,124 +33,164 @@ detectBranch()
     <StoreHeader />
 
     <main class="checkout-page__main">
-      <section class="checkout-hero panel">
-        <div>
-          <p class="checkout-hero__eyebrow">Checkout</p>
-          <h1>Finalizar pedido</h1>
-          <p>
-            Recibirás tus credenciales por email y el número de pedido para seguir tu compra.
-          </p>
-        </div>
+      <CheckoutHero :total="total" />
 
-        <div class="checkout-hero__total">
-          <span>Total</span>
-          <strong>${{ total.toFixed(2) }}</strong>
-        </div>
-      </section>
+      <Transition name="page-fade" mode="out-in">
+        <section v-if="!order" key="form" class="checkout-layout">
+          <form class="panel checkout-form" @submit.prevent="createOrder">
+            <CheckoutDeliveryType :delivery-type="deliveryType" @update:delivery-type="toggleDeliveryType" />
 
-      <section v-if="!order" class="checkout-layout">
-        <form class="panel checkout-form" @submit.prevent="createOrder">
-          <div class="checkout-form__grid">
-            <label>
-              <span>Nombre</span>
-              <input v-model.trim="customerName" placeholder="Tu nombre" autocomplete="name" />
-            </label>
+            <div class="checkout-form__grid">
+              <div class="checkout-form__row">
+                <label class="checkout-field checkout-field--half">
+                  <span class="checkout-field__label"><i class="fa-solid fa-user" /> Nombre</span>
+                  <input class="checkout-field__input" v-model.trim="customerFirstName" placeholder="Tu nombre" autocomplete="given-name" />
+                </label>
+                <label class="checkout-field checkout-field--half">
+                  <span class="checkout-field__label"><i class="fa-solid fa-user" /> Apellido</span>
+                  <input class="checkout-field__input" v-model.trim="customerLastName" placeholder="Tu apellido" autocomplete="family-name" />
+                </label>
+              </div>
 
-            <label>
-              <span>Email</span>
-              <input v-model.trim="customerEmail" type="email" placeholder="tu@email.com" autocomplete="email" />
-            </label>
+              <label class="checkout-field">
+                <span class="checkout-field__label"><i class="fa-solid fa-envelope" /> Email <em>*</em></span>
+                <input class="checkout-field__input" v-model.trim="customerEmail" type="email" placeholder="tu@email.com" autocomplete="email" />
+              </label>
 
-            <label>
-              <span>Teléfono</span>
-              <input v-model.trim="customerPhone" placeholder="Tu número" autocomplete="tel" />
-            </label>
+              <div class="checkout-form__row">
+                <div class="checkout-field checkout-field--code">
+                  <span class="checkout-field__label"><i class="fa-solid fa-globe" /> País</span>
+                  <select class="checkout-field__input checkout-field__select" v-model="phoneCountryCode">
+                    <option v-for="c in countries" :key="c.code" :value="c.code">{{ c.label }}</option>
+                  </select>
+                </div>
+                <label class="checkout-field checkout-field--phone">
+                  <span class="checkout-field__label"><i class="fa-solid fa-phone" /> Teléfono</span>
+                  <input class="checkout-field__input" v-model.trim="customerPhone" type="tel" placeholder="Número" autocomplete="tel" />
+                </label>
+              </div>
 
-            <label>
-              <span>Notas</span>
-              <textarea v-model.trim="notes" placeholder="Indicaciones opcionales" />
-            </label>
-          </div>
+              <template v-if="deliveryType === 'delivery'">
+                <label class="checkout-field">
+                  <span class="checkout-field__label"><i class="fa-solid fa-location-dot" /> Dirección de entrega <em>*</em></span>
+                  <input class="checkout-field__input" v-model.trim="deliveryAddress" placeholder="Calle, número, referencia" />
+                </label>
 
-          <div class="checkout-branch">
-            <div class="checkout-branch__head">
-              <span class="checkout-branch__label">Sucursal</span>
-              <span v-if="branchLoading" class="muted">Detectando...</span>
-              <span v-else-if="branch">{{ branch.name }}</span>
-              <span v-else-if="branchStore.selectedBranchId" class="muted">Sucursal guardada</span>
+                <CheckoutLocation
+                  :delivery-google-maps-url="deliveryGoogleMapsUrl"
+                  :delivery-distance="deliveryDistance"
+                  :delivery-cost="deliveryCost"
+                  :maps-error="mapsError"
+                  :locating="locating"
+                  :location-detected="locationDetected"
+                  :manual-maps-link="manualMapsLink"
+                  :branch-name="branch?.name || ''"
+                  :display-lat="displayLat"
+                  :display-lng="displayLng"
+                  @detect-location="detectLocation"
+                  @use-manual-link="useManualLink"
+                  @clear-location="clearLocation"
+                  @update:manual-maps-link="manualMapsLink = $event"
+                />
+              </template>
+
+              <label class="checkout-field">
+                <span class="checkout-field__label"><i class="fa-solid fa-pen" /> Notas</span>
+                <textarea class="checkout-field__input checkout-field__textarea" v-model.trim="notes" placeholder="Indicaciones opcionales para tu pedido"></textarea>
+              </label>
+
+              <CheckoutBilling
+                :show-billing="showBilling"
+                :billing-doc-type="billingDocType"
+                :billing-name="billingName"
+                :billing-doc-number="billingDocNumber"
+                :billing-email="billingEmail"
+                :billing-address="billingAddress"
+                @update:show-billing="showBilling = $event"
+                @update:billing-doc-type="billingDocType = $event"
+                @update:billing-name="billingName = $event"
+                @update:billing-doc-number="billingDocNumber = $event"
+                @update:billing-email="billingEmail = $event"
+                @update:billing-address="billingAddress = $event"
+              />
             </div>
 
-            <div v-if="!branch && publicBranches.length" class="checkout-branch__pills">
-              <button
-                v-for="item in publicBranches"
-                :key="item._id"
-                type="button"
-                class="checkout-branch__pill"
-                :class="{ active: branchStore.selectedBranchId === item._id }"
-                @click="selectBranch(item)"
-              >
-                {{ item.name }}
+            <div v-if="deliveryType === 'pickup'" class="checkout-branch">
+              <div class="checkout-branch__head">
+                <span class="checkout-branch__label"><i class="fa-solid fa-store" /> Elige tu sucursal <em>*</em></span>
+                <span v-if="branchLoading" class="muted">Detectando...</span>
+              </div>
+              <button v-if="!branchStore.selectedBranchId" type="button" class="checkout-branch__nearby" @click="detectBranch">
+                <i class="fa-solid fa-location-crosshairs" /> Usar mi ubicación
               </button>
+              <div v-if="!branchStore.selectedBranchId && publicBranches.length" class="checkout-branch__pills">
+                <button v-for="item in publicBranches" :key="item._id" type="button" class="checkout-branch__pill" :class="{ active: branchStore.selectedBranchId === item._id }" @click="selectBranch(item)">
+                  {{ item.name }}
+                </button>
+              </div>
+              <p v-if="branchStore.selectedBranchId || branch" class="checkout-branch__selected">
+                <i class="fa-solid fa-check-circle" /> {{ branch?.name || 'Sucursal seleccionada' }}
+              </p>
             </div>
-          </div>
 
-          <button class="btn-primary" type="submit" :disabled="loading || !cart.items.length || !customerEmail">
-            {{ loading ? 'Procesando...' : 'Generar orden y pagar' }}
-          </button>
-        </form>
+            <button class="btn-primary checkout-form__submit" type="submit" :disabled="loading || !isFormValid">
+              <template v-if="loading">Procesando...</template>
+              <template v-else><i class="fa-solid fa-arrow-right" /> {{ deliveryType === 'delivery' ? 'Pedir a domicilio' : 'Pedir para recoger' }}</template>
+            </button>
+          </form>
 
-        <aside class="panel checkout-summary">
-          <p class="checkout-summary__eyebrow">Resumen</p>
-          <article v-for="item in cart.items" :key="item.productId" class="checkout-summary__item">
-            <div>
-              <strong>{{ item.name }}</strong>
-              <p class="muted">x{{ item.quantity }}</p>
-            </div>
-            <strong>${{ (item.price * item.quantity).toFixed(2) }}</strong>
-          </article>
-
-          <div class="checkout-summary__row">
-            <span>Subtotal</span>
-            <strong>${{ total.toFixed(2) }}</strong>
-          </div>
-
-          <RouterLink class="btn-secondary checkout-summary__link" to="/carrito">Volver al carrito</RouterLink>
-        </aside>
-      </section>
-
-      <section v-else class="panel checkout-payment">
-        <div class="checkout-payment__head">
-          <div>
-            <p class="checkout-payment__eyebrow">Pago</p>
-            <h2>Pedido {{ order.orderNumber }}</h2>
-          </div>
-          <p class="muted">Tu orden ya está lista para PayPhone.</p>
-        </div>
-
-        <div class="checkout-payment__box">
-          <PayPhoneBox
-            :token="payphoneToken"
-            :store-id="payphoneStoreId"
-            :client-transaction-id="order.payphone?.clientTransactionId || ''"
-            :amount="order.total"
-            :amount-with-tax="order.total"
-            :reference="`Pedido ${order.orderNumber}`"
-            :email="customerEmail"
-            :phone-number="customerPhone"
-            :on-ready="onPayPhoneReady"
+          <CheckoutSummary
+            :delivery-type="deliveryType"
+            :delivery-cost="deliveryCost"
+            :delivery-distance="deliveryDistance"
+            :total="total"
           />
-        </div>
-
-        <p v-if="ready" class="muted">El módulo de pago ya está listo.</p>
-      </section>
+        </section>
+      </Transition>
     </main>
 
     <StoreFooter />
+
+    <Transition name="modal-fade">
+      <div v-if="order" class="payment-overlay">
+        <div class="payment-modal">
+          <div class="payment-modal__header">
+            <button type="button" class="payment-modal__back" @click="closePayment">
+              <i class="fa-solid fa-arrow-left" /> Volver
+            </button>
+            <p class="payment-modal__eyebrow"><i class="fa-solid fa-lock" /> Pago seguro</p>
+            <p class="payment-modal__secure">No almacenamos tus datos de pago</p>
+            <h2>Pedido {{ order.orderNumber }}</h2>
+          </div>
+
+          <div class="payment-modal__box">
+            <PayPhoneBox
+              :token="payphoneToken"
+              :store-id="payphoneStoreId"
+              :client-transaction-id="order.payphone?.clientTransactionId || ''"
+              :amount="order.total"
+              :amount-with-tax="order.total"
+              :reference="`Pedido ${order.orderNumber}`"
+              :email="customerEmail"
+              :phone-number="`${phoneCountryCode} ${customerPhone}`"
+              :on-ready="onPayPhoneReady"
+            />
+          </div>
+
+          <p v-if="ready" class="payment-modal__ready">
+            <i class="fa-solid fa-circle-check" /> Módulo de pago listo
+          </p>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
 <style scoped lang="scss">
 .checkout-page {
+  background:
+    radial-gradient(circle at 8% 0%, rgba(239, 213, 55, 0.2), transparent 32%),
+    linear-gradient(180deg, #f8f6ec 0%, #f2f4ed 52%, #fff 100%);
   display: flex;
   flex-direction: column;
   min-height: 100vh;
@@ -227,205 +200,230 @@ detectBranch()
   display: flex;
   flex-direction: column;
   flex: 1 0 auto;
-  gap: 1.25rem;
+  gap: 1.5rem;
   margin: 0 auto;
   max-width: 1400px;
+  padding: clamp(1.5rem, 4vw, 3rem) 1rem;
   width: 100%;
-}
-
-.checkout-hero,
-.checkout-layout,
-.checkout-payment {
-  margin: 0 1.25rem;
-}
-
-.checkout-hero {
-  align-items: flex-start;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 1.5rem;
-}
-
-.checkout-hero__eyebrow,
-.checkout-summary__eyebrow,
-.checkout-payment__eyebrow {
-  @include eyebrow;
-  color: #00a523;
-  margin-bottom: 0.5rem;
-}
-
-.checkout-hero h1,
-.checkout-payment h2 {
-  font-size: clamp(2.5rem, 5vw, 4rem);
-  font-weight: 800;
-  letter-spacing: -0.05em;
-  line-height: 0.95;
-  text-transform: uppercase;
-}
-
-.checkout-hero p {
-  @include body-text;
-  margin-top: 0.85rem;
-  max-width: 40rem;
-}
-
-.checkout-hero__total {
-  align-items: flex-start;
-  display: flex;
-  flex-direction: column;
-}
-
-.checkout-hero__total span {
-  @include eyebrow;
-  color: rgba(26, 26, 26, 0.55);
-}
-
-.checkout-hero__total strong {
-  color: #235931;
-  font-size: clamp(1.8rem, 4vw, 2.6rem);
 }
 
 .checkout-layout {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
-}
-
-.checkout-form,
-.checkout-summary,
-.checkout-payment {
-  padding: 1.25rem;
+  gap: 1.5rem;
+  margin: 0 1.25rem;
 }
 
 .checkout-form {
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(35, 89, 49, 0.08);
+  border-radius: 28px;
+  box-shadow: 0 24px 60px rgba(28, 22, 12, 0.08);
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  padding: clamp(1rem, 3vw, 1.5rem);
 }
 
-.checkout-form__grid {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
+.checkout-form__grid { display: flex; flex-direction: column; gap: 0.85rem; }
+.checkout-form__row { display: flex; gap: 0.75rem; }
 
-label {
+.checkout-field {
+  background: #fff;
+  border: 1px solid rgba(8, 17, 13, 0.1);
+  border-radius: 22px;
+  box-shadow: 0 10px 24px rgba(8, 17, 13, 0.04);
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
+  min-width: 0;
+  padding: 1rem 1.05rem 1.1rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
-label span,
-.checkout-branch__label {
-  font-size: 0.9rem;
-  font-weight: 700;
+.checkout-field:focus-within { border-color: rgba(35, 89, 49, 0.35); box-shadow: 0 18px 40px rgba(35, 89, 49, 0.12); transform: translateY(-2px); }
+.checkout-field--half { flex: 1 1 0; }
+.checkout-field--code { flex: 0 0 140px; }
+.checkout-field--phone { flex: 1 1 0; }
+
+.checkout-field__label {
+  align-items: center;
+  color: rgba(8, 17, 13, 0.62);
+  display: flex;
+  font-size: 0.78rem;
+  font-weight: 900;
+  gap: 0.45rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.checkout-field__label i { color: #235931; font-size: 0.72rem; opacity: 0.8; }
+.checkout-field__label em { color: #a02828; font-style: normal; }
+
+.checkout-field__input {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  color: #08110d;
+  min-height: 34px;
+  padding: 0;
+}
+
+.checkout-field__input:focus { box-shadow: none; }
+.checkout-field__select { appearance: none; cursor: pointer; padding-right: 1.2rem; }
+.checkout-field__textarea { min-height: 100px; resize: vertical; }
+
+.checkout-form__submit {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  min-height: 56px;
+  box-shadow: 0 18px 34px rgba(35, 89, 49, 0.18);
+  font-size: 1.05rem;
 }
 
 .checkout-branch {
-  background: rgba(35, 89, 49, 0.04);
-  border-radius: 18px;
+  background: rgba(35, 89, 49, 0.03);
+  border: 1px solid rgba(35, 89, 49, 0.08);
+  border-radius: 22px;
   display: flex;
   flex-direction: column;
   gap: 0.9rem;
-  padding: 1rem;
+  padding: 1.15rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.checkout-branch__head {
+.checkout-branch:focus-within { border-color: rgba(35, 89, 49, 0.3); box-shadow: 0 14px 34px rgba(35, 89, 49, 0.08); }
+
+.checkout-branch__head { align-items: center; display: flex; flex-wrap: wrap; gap: 0.75rem; justify-content: space-between; }
+
+.checkout-branch__label {
+  align-items: center;
+  color: rgba(8, 17, 13, 0.62);
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  justify-content: space-between;
+  font-size: 0.78rem;
+  font-weight: 900;
+  gap: 0.45rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
-.checkout-branch__pills {
+.checkout-branch__label i { color: #235931; font-size: 0.72rem; opacity: 0.8; }
+.checkout-branch__label em { color: #a02828; font-style: normal; }
+
+.checkout-branch__nearby {
+  align-items: center;
+  background: rgba(35, 89, 49, 0.06);
+  border-radius: 999px;
+  color: #235931;
   display: flex;
-  flex-wrap: wrap;
+  font-weight: 800;
   gap: 0.5rem;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0.75rem 1rem;
+  transition: background-color 0.2s ease, transform 0.2s ease;
 }
+
+.checkout-branch__nearby:hover { background: rgba(35, 89, 49, 0.12); transform: translateY(-1px); }
+.checkout-branch__pills { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 
 .checkout-branch__pill {
   background: rgba(26, 26, 26, 0.05);
+  border: 1px solid rgba(26, 26, 26, 0.06);
   border-radius: 999px;
-  min-height: 40px;
-  padding: 0.7rem 0.95rem;
+  cursor: pointer;
+  font-weight: 700;
+  min-height: 42px;
+  padding: 0.75rem 1.05rem;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
 }
 
-.checkout-branch__pill.active {
-  background: #235931;
-  color: #fff;
+.checkout-branch__pill:hover { background: rgba(35, 89, 49, 0.06); border-color: rgba(35, 89, 49, 0.15); transform: translateY(-1px); }
+.checkout-branch__pill.active { background: #235931; border-color: #235931; color: #fff; }
+.checkout-branch__selected { align-items: center; color: #235931; display: flex; font-weight: 700; gap: 0.4rem; }
+
+.payment-overlay {
+  align-items: center;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
 }
 
-.checkout-summary {
+.payment-modal {
+  background: #fff;
+  border-radius: 28px;
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.25);
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
-}
-
-.checkout-summary__item,
-.checkout-summary__row {
-  align-items: start;
-  display: flex;
-  justify-content: space-between;
-}
-
-.checkout-summary__item {
-  border-bottom: 1px solid rgba(26, 26, 26, 0.06);
-  padding-bottom: 0.75rem;
-}
-
-.checkout-summary__link {
-  width: 100%;
-}
-
-.checkout-payment {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-}
-
-.checkout-payment__head {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
   gap: 1rem;
+  max-width: 460px;
+  padding: 1.5rem;
+  width: 92vw;
 }
 
-.checkout-payment__box {
-  border: 1px solid rgba(26, 26, 26, 0.08);
-  border-radius: 18px;
-  padding: 1rem;
+.payment-modal__header { text-align: center; }
+
+.payment-modal__back {
+  align-items: center;
+  background: rgba(35, 89, 49, 0.06);
+  border-radius: 999px;
+  color: #235931;
+  display: inline-flex;
+  font-size: 0.8rem;
+  font-weight: 800;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+  padding: 0.55rem 0.9rem;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
+
+.payment-modal__back:hover { background: rgba(35, 89, 49, 0.12); color: #00a523; }
+
+.payment-modal__eyebrow {
+  align-items: center;
+  color: #00a523;
+  display: flex;
+  font-size: 0.76rem;
+  font-weight: 900;
+  gap: 0.5rem;
+  justify-content: center;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.payment-modal__secure { color: rgba(8, 17, 13, 0.45); font-size: 0.8rem; margin-top: 0.25rem; }
+
+.payment-modal__header h2 {
+  font-size: 1.6rem;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  margin-top: 0.5rem;
+  text-transform: uppercase;
+}
+
+.payment-modal__box {
+  background: rgba(35, 89, 49, 0.03);
+  border: 1px solid rgba(26, 26, 26, 0.08);
+  border-radius: 22px;
+  padding: 1.5rem;
+}
+
+.payment-modal__ready { align-items: center; color: #00a523; display: flex; font-size: 0.85rem; font-weight: 700; gap: 0.4rem; justify-content: center; }
+
+.modal-fade-enter-active,
+.modal-fade-leave-active { transition: opacity 0.35s cubic-bezier(0.65, 0, 0.35, 1); }
+.modal-fade-enter-from,
+.modal-fade-leave-to { opacity: 0; }
 
 @media (min-width: 980px) {
-  .checkout-layout {
-    align-items: start;
-    flex-direction: row;
-  }
-
-  .checkout-form {
-    flex: 1 1 0;
-  }
-
-  .checkout-summary {
-    flex: 0 0 360px;
-  }
-
-  .checkout-summary {
-    position: sticky;
-    top: 6rem;
-  }
-}
-
-@media (min-width: 761px) {
-  .checkout-hero,
-  .checkout-payment__head {
-    align-items: flex-end;
-    flex-direction: row;
-  }
-
-  .checkout-hero__total {
-    align-items: flex-end;
-  }
+  .checkout-layout { align-items: start; flex-direction: row; }
+  .checkout-form { flex: 1 1 0; }
 }
 </style>

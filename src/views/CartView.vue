@@ -4,8 +4,10 @@ import { RouterLink } from 'vue-router'
 import StoreHeader from '@/components/store/StoreHeader.vue'
 import StoreFooter from '@/components/store/StoreFooter.vue'
 import { useCartStore } from '@/stores/cart'
+import { useConfirm } from '@/composables/useConfirm'
 
 const cart = useCartStore()
+const { confirm } = useConfirm()
 cart.hydrate()
 
 const loadedImages = ref(new Set<string>())
@@ -18,6 +20,17 @@ function markImageLoaded(productId: string) {
 
 function isImageLoaded(productId: string) {
   return loadedImages.value.has(productId)
+}
+
+async function confirmRemove(itemName: string, productId: string) {
+  const ok = await confirm({
+    title: 'Quitar producto',
+    message: `¿Estás seguro de que deseas quitar "${itemName}" de tu carrito?`,
+    confirmText: 'Sí, quitar',
+    type: 'danger',
+  })
+  if (!ok) return
+  cart.removeItem(productId)
 }
 </script>
 
@@ -118,7 +131,7 @@ function isImageLoaded(productId: string) {
               <div class="cart-item__total">
                 <small>Total</small>
                 <strong>${{ (item.price * item.quantity).toFixed(2) }}</strong>
-                <button type="button" :aria-label="`Quitar ${item.name}`" @click="cart.removeItem(item.productId)">
+                <button type="button" :aria-label="`Quitar ${item.name}`" @click="confirmRemove(item.name, item.productId)">
                   <i class="fa-solid fa-trash-can" /> Quitar
                 </button>
               </div>

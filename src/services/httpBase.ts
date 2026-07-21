@@ -6,12 +6,47 @@ class APIBase {
   private axiosInstance = axios.create()
 
   constructor() {
-    const raw = (import.meta.env.VITE_API_BASE_URL as string) || 'https://testing-storybrand-backapp.bakano.ec/api'
-    const trimmed = raw.replace(/\/+$/, '')
-    this.baseUrl = trimmed.endsWith('/api') || /\/api\//.test(trimmed)
-      ? trimmed
-      : `${trimmed}/api`
+    const envUrl = import.meta.env.VITE_API_BASE_URL as string
+    if (envUrl) {
+      const trimmed = envUrl.replace(/\/+$/, '')
+      this.baseUrl = trimmed.endsWith('/api') || /\/api\//.test(trimmed)
+        ? trimmed
+        : `${trimmed}/api`
+    } else {
+      this.baseUrl = this.detectBaseUrl()
+    }
     this.setupInterceptors()
+  }
+
+  private detectBaseUrl(): string {
+    const origin = window.location.origin
+
+    const mappings: Record<string, string> = {
+      'http://localhost:5173': 'http://localhost:8101/api',
+      'http://localhost:5174': 'http://localhost:8101/api',
+    }
+
+    if (mappings[origin]) return mappings[origin]
+
+    try {
+      const url = new URL(origin)
+      const hostname = url.hostname
+
+      if (hostname === 'localhost') return 'http://localhost:8101/api'
+
+      if (hostname.includes('-frontend')) {
+        const backend = hostname.replace('-frontend', '-backapp')
+        const port = url.port ? `:${url.port}` : ''
+        return `${url.protocol}//${backend}${port}/api`
+      }
+
+      if (hostname.endsWith('vercel.app')) {
+        const backend = hostname.replace('-frontend', '-backapp').replace('-tienda', '-tienda')
+        return `${url.protocol}//${backend}/api`
+      }
+    } catch {}
+
+    return 'http://localhost:8101/api'
   }
 
   private setupInterceptors() {

@@ -26,7 +26,7 @@ const emit = defineEmits<{
   display: flex;
   flex-wrap: nowrap;
   gap: 0.75rem;
-  margin-bottom: 1.75rem;
+  margin-bottom: 0;
   overflow-x: auto;
   padding: 0.15rem 0 0.45rem;
   scrollbar-width: thin;

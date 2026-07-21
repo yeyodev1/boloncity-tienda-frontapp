@@ -9,6 +9,15 @@ export interface CreateOrderInput {
   branchId?: string | null
   lat?: number
   lng?: number
+  deliveryCost?: number
+  deliveryType?: 'delivery' | 'pickup'
+  deliveryAddress?: string
+  deliveryGoogleMapsUrl?: string
+  billingDocType?: string
+  billingName?: string
+  billingDocNumber?: string
+  billingEmail?: string
+  billingAddress?: string
 }
 
 export interface OrderDTO {
@@ -18,13 +27,20 @@ export interface OrderDTO {
   total: number
   subtotal: number
   tax: number
+  deliveryType?: 'delivery' | 'pickup'
+  deliveryCost?: number
+  deliveryDistance?: number
+  deliveryAddress?: string
+  deliveryGoogleMapsUrl?: string
   customerEmail: string
   customerName?: string
   customerPhone?: string
+  notes?: string
   branch?: { _id: string; name: string }
   audit?: Array<{ action: string; performedByEmail?: string; fromValue?: string; toValue?: string; details?: string; timestamp: string }>
-  items?: Array<{ name: string; quantity: number; price: number }>
+  items?: Array<{ name: string; quantity: number; price: number; image?: string }>
   payphone?: { clientTransactionId?: string; transactionId?: number; statusCode?: number }
+  picker?: { smrURL?: string; bookingNumericId?: number; statusText?: string; bookingDetailUrl?: string }
   createdAt?: string
   updatedAt?: string
 }
@@ -41,6 +57,10 @@ class OrderService extends APIBase {
   getByNumber(orderNumber: string, email?: string) {
     const query = email ? `?email=${encodeURIComponent(email)}` : ''
     return this.get<OrderDTO>(`orders/${orderNumber}${query}`)
+  }
+
+  getByEmail(email: string) {
+    return this.get<OrderDTO[]>(`orders/by-email/${encodeURIComponent(email)}`)
   }
 
   getById(id: string) {

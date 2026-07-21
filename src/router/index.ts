@@ -32,6 +32,12 @@ const routes: Array<RouteRecordRaw> = [
     meta: { title: 'Checkout | Boloncity' },
   },
   {
+    path: '/pay-response',
+    name: 'PayResponse',
+    component: () => import('../views/CheckoutResponseView.vue'),
+    meta: { title: 'Confirmando pago | Boloncity' },
+  },
+  {
     path: '/checkout/response',
     name: 'CheckoutResponse',
     component: () => import('../views/CheckoutResponseView.vue'),
@@ -97,6 +103,12 @@ const routes: Array<RouteRecordRaw> = [
     name: 'AdminUsers',
     component: () => import('../views/admin/AdminUsers.vue'),
     meta: { title: 'Usuarios | Boloncity', requiresAuth: true, requiresAdmin: true },
+  },
+  {
+    path: '/admin/configuracion',
+    name: 'AdminSettings',
+    component: () => import('../views/admin/AdminSettings.vue'),
+    meta: { title: 'Configuración | Boloncity', requiresAuth: true, requiresAdmin: true },
   },
   {
     path: '/:pathMatch(.*)*',

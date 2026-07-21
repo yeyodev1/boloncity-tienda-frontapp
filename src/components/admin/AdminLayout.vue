@@ -23,6 +23,7 @@ const navItems = computed(() => [
   { label: 'Categorias', path: '/admin/categorias', icon: 'fa-solid fa-layer-group' },
   ...(isAdmin.value ? [{ label: 'Sucursales', path: '/admin/sucursales', icon: 'fa-solid fa-store' }] : []),
   { label: 'Usuarios', path: '/admin/usuarios', icon: 'fa-solid fa-users' },
+  ...(isAdmin.value ? [{ label: 'Configuración', path: '/admin/configuracion', icon: 'fa-solid fa-sliders' }] : []),
 ])
 
 function go(path: string) {
