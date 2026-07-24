@@ -40,7 +40,21 @@ export interface OrderDTO {
   audit?: Array<{ action: string; performedByEmail?: string; fromValue?: string; toValue?: string; details?: string; timestamp: string }>
   items?: Array<{ name: string; quantity: number; price: number; image?: string }>
   payphone?: { clientTransactionId?: string; transactionId?: number; statusCode?: number }
-  picker?: { smrURL?: string; bookingNumericId?: number; statusText?: string; bookingDetailUrl?: string }
+  picker?: {
+    smrURL?: string
+    bookingNumericId?: number
+    bookingId?: string
+    statusText?: string
+    bookingDetailUrl?: string
+    createdAt?: string
+    currentStatus?: string
+    driverName?: string
+    driverPhone?: string
+    driverVehicle?: string
+    driverPhoto?: string
+    validationCode?: string
+    proofOfDelivery?: string
+  }
   createdAt?: string
   updatedAt?: string
 }
@@ -77,6 +91,55 @@ class OrderService extends APIBase {
 
   addNote(id: string, note: string) {
     return this.post<OrderDTO>(`orders/${id}/notes`, { note })
+  }
+
+  getMine() {
+    return this.get<OrderDTO[]>('orders/mine/list')
+  }
+
+  getMineById(id: string) {
+    return this.get<OrderDTO>(`orders/mine/${id}`)
+  }
+
+  retryPicker(id: string) {
+    return this.post<{ success: boolean; order: OrderDTO }>(`orders/${id}/retry-picker`, {})
+  }
+
+  subscribeToMine(id: string, onOrder: (order: OrderDTO) => void, onError?: () => void) {
+    const controller = new AbortController()
+
+    void (async () => {
+      const response = await fetch(this.buildUrl(`orders/mine/${id}/stream`), {
+        headers: this.getHeaders(),
+        signal: controller.signal,
+      })
+      if (!response.ok || !response.body) throw new Error('No se pudo conectar a las actualizaciones')
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (!controller.signal.aborted) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+
+        let boundary = buffer.indexOf('\n\n')
+        while (boundary >= 0) {
+          const event = buffer.slice(0, boundary)
+          buffer = buffer.slice(boundary + 2)
+          const data = event.split('\n').find((line) => line.startsWith('data: '))
+          if (data) onOrder(JSON.parse(data.slice(6)))
+          boundary = buffer.indexOf('\n\n')
+        }
+      }
+
+      if (!controller.signal.aborted) onError?.()
+    })().catch(() => {
+      if (!controller.signal.aborted) onError?.()
+    })
+
+    return controller
   }
 }
 

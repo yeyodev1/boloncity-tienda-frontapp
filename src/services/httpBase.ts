@@ -79,7 +79,7 @@ class APIBase {
     )
   }
 
-  private buildUrl(endpoint: string): string {
+  protected buildUrl(endpoint: string): string {
     return `${this.baseUrl}/${endpoint}`
   }
 

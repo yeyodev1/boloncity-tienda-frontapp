@@ -1,44 +1,38 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { RouterLink } from 'vue-router'
-import { useRouter } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 import AuthService from '@/services/AuthService'
-import { useUserStore } from '@/stores/user'
 import { useToast } from '@/composables/useToast'
 import logoImg from '@/assets/logos/logo.png'
 
-const name = ref('')
-const email = ref('')
-const password = ref('')
-const loading = ref(false)
-const router = useRouter()
-const user = useUserStore()
+const route = useRoute()
 const { success, error } = useToast()
 
+const token = (route.query.token as string) || ''
+const email = (route.query.email as string) || ''
+
+const password = ref('')
+const confirmPassword = ref('')
+const loading = ref(false)
+const done = ref(false)
+
 async function submit() {
+  if (password.value !== confirmPassword.value) {
+    error('Las contraseñas no coinciden')
+    return
+  }
+  if (password.value.length < 6) {
+    error('La contraseña debe tener al menos 6 caracteres')
+    return
+  }
+
   loading.value = true
   try {
-    const response = await AuthService.register({
-      name: name.value,
-      email: email.value,
-      password: password.value,
-    })
-    const { token, user: currentUser } = response.data
-    user.setSessionToken(token)
-    user.setUser({
-      id: currentUser._id,
-      email: currentUser.email,
-      name: currentUser.name,
-      phone: currentUser.phone,
-      photo: currentUser.photo,
-      accountType: currentUser.accountType as 'customer' | 'branch_admin' | 'admin',
-      branches: currentUser.branches?.map((branch: { _id: string }) => branch._id) || [],
-      allBranches: currentUser.allBranches || false,
-    })
-    success('Cuenta creada')
-    router.push('/')
-  } catch {
-    error('No se pudo crear la cuenta')
+    await AuthService.resetPassword(token, email, password.value)
+    done.value = true
+    success('Contraseña actualizada')
+  } catch (e: any) {
+    error(e?.response?.data?.message || 'El enlace ha expirado. Solicita uno nuevo.')
   } finally {
     loading.value = false
   }
@@ -60,59 +54,59 @@ async function submit() {
 
       <p class="auth__tagline">El sabor que te enamora, ahora en tus manos.</p>
 
-      <ul class="auth__benefits">
-        <li><i class="fa-regular fa-circle-check" /> <span>Compra más rápido</span></li>
-        <li><i class="fa-regular fa-circle-check" /> <span>Revisa tus pedidos</span></li>
-      </ul>
-
       <div class="auth__card">
-        <div class="auth__card-head">
-          <h2 class="auth__card-title">Crear cuenta</h2>
-          <p class="auth__card-sub">Déjanos tus datos y empieza a pedir desde la tienda en línea de Boloncity.</p>
-        </div>
+        <template v-if="!token || !email">
+          <div class="auth__card-head">
+            <h2 class="auth__card-title">Enlace inválido</h2>
+            <p class="auth__card-sub">El enlace no es válido o ha expirado. Solicita un nuevo restablecimiento de contraseña.</p>
+          </div>
+          <RouterLink class="auth__btn" to="/forgot-password">
+            <i class="fa-solid fa-key" /> Solicitar nuevo enlace
+          </RouterLink>
+        </template>
+        <template v-else-if="done">
+          <div class="auth__card-head">
+            <h2 class="auth__card-title">Contraseña actualizada</h2>
+            <p class="auth__card-sub">Tu contraseña se ha actualizado exitosamente. Ahora puedes iniciar sesión con tu nueva contraseña.</p>
+          </div>
+          <RouterLink class="auth__btn" to="/login">
+            <i class="fa-solid fa-arrow-right-to-bracket" /> Iniciar sesión
+          </RouterLink>
+        </template>
+        <template v-else>
+          <div class="auth__card-head">
+            <h2 class="auth__card-title">Nueva contraseña</h2>
+            <p class="auth__card-sub">Ingresa tu nueva contraseña para <strong>{{ email }}</strong>.</p>
+          </div>
 
-        <form class="auth__form" @submit.prevent="submit">
-          <label class="auth__field">
-            <span class="auth__field-label">Nombre</span>
-            <div class="auth__field-input">
-              <i class="fa-regular fa-user" />
-              <input v-model.trim="name" type="text" placeholder="Tu nombre" autocomplete="name" />
-            </div>
-          </label>
+          <form class="auth__form" @submit.prevent="submit">
+            <label class="auth__field">
+              <span class="auth__field-label">Nueva contraseña</span>
+              <div class="auth__field-input">
+                <i class="fa-solid fa-lock" />
+                <input v-model="password" type="password" placeholder="Mínimo 6 caracteres" autocomplete="new-password" />
+              </div>
+            </label>
 
-          <label class="auth__field">
-            <span class="auth__field-label">Correo electrónico</span>
-            <div class="auth__field-input">
-              <i class="fa-regular fa-envelope" />
-              <input v-model.trim="email" type="email" placeholder="tu@email.com" autocomplete="email" />
-            </div>
-          </label>
+            <label class="auth__field">
+              <span class="auth__field-label">Confirmar contraseña</span>
+              <div class="auth__field-input">
+                <i class="fa-solid fa-lock" />
+                <input v-model="confirmPassword" type="password" placeholder="Repite la contraseña" autocomplete="new-password" />
+              </div>
+            </label>
 
-          <label class="auth__field">
-            <span class="auth__field-label">Contraseña</span>
-            <div class="auth__field-input">
-              <i class="fa-solid fa-lock" />
-              <input v-model="password" type="password" placeholder="Crea una contraseña" autocomplete="new-password" />
-            </div>
-          </label>
-
-          <button class="auth__btn" type="submit" :disabled="loading || !name || !email || !password">
-            <template v-if="loading">
-              <i class="fa-solid fa-circle-notch fa-spin" /> Creando cuenta
-            </template>
-            <template v-else>
-              <i class="fa-solid fa-user-plus" /> Crear cuenta
-            </template>
-          </button>
-        </form>
-
-        <p class="auth__switch">
-          ¿Ya tienes cuenta?
-          <RouterLink to="/login">Ingresar</RouterLink>
-        </p>
+            <button class="auth__btn" type="submit" :disabled="loading || !password || !confirmPassword">
+              <template v-if="loading">
+                <i class="fa-solid fa-circle-notch fa-spin" /> Actualizando
+              </template>
+              <template v-else>
+                <i class="fa-solid fa-check" /> Actualizar contraseña
+              </template>
+            </button>
+          </form>
+        </template>
       </div>
-
-      <p class="auth__footnote">¿No tienes cuenta? Cuando realices tu primer pedido te crearemos una automáticamente y te enviaremos tu contraseña por correo.</p>
     </div>
   </section>
 </template>
@@ -192,37 +186,6 @@ async function submit() {
   color: rgba(26, 26, 26, 0.55);
   font-size: 0.95rem;
   margin-bottom: 1.25rem;
-}
-
-.auth__benefits {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  justify-content: center;
-  list-style: none;
-  margin-bottom: 1.5rem;
-}
-
-.auth__benefits li {
-  align-items: center;
-  background: rgba(35, 89, 49, 0.06);
-  border: 1px solid rgba(35, 89, 49, 0.08);
-  border-radius: 999px;
-  display: inline-flex;
-  gap: 0.3rem;
-  padding: 0.35rem 0.8rem;
-}
-
-.auth__benefits li i {
-  color: #00a523;
-  font-size: 0.7rem;
-}
-
-.auth__benefits li span {
-  color: rgba(26, 26, 26, 0.75);
-  font-size: 0.75rem;
-  font-weight: 700;
-  white-space: nowrap;
 }
 
 .auth__card {
@@ -344,8 +307,9 @@ async function submit() {
   margin-top: 0.15rem;
   min-height: 50px;
   padding: 0.8rem 1.2rem;
+  text-decoration: none;
   text-transform: uppercase;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, color 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
 .auth__btn:hover:not(:disabled) {
@@ -360,25 +324,6 @@ async function submit() {
 
 .auth__btn:disabled {
   opacity: 0.4;
-}
-
-.auth__switch {
-  color: rgba(26, 26, 26, 0.5);
-  font-size: 0.85rem;
-  text-align: center;
-}
-
-.auth__switch a {
-  color: #235931;
-  font-weight: 700;
-  text-decoration: underline;
-}
-
-.auth__footnote {
-  color: rgba(26, 26, 26, 0.35);
-  font-size: 0.75rem;
-  margin-top: 1rem;
-  max-width: 30ch;
 }
 
 @media (min-width: 640px) {

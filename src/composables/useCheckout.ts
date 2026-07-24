@@ -52,8 +52,9 @@ export function useCheckout() {
     { code: '+593', label: 'EC (+593)' },
     { code: '+57', label: 'CO (+57)' },
     { code: '+51', label: 'PE (+51)' },
-    { code: '+1', label: 'US (+1)' },
+    { code: '+54', label: 'AR (+54)' },
     { code: '+52', label: 'MX (+52)' },
+    { code: '+1', label: 'US (+1)' },
   ]
 
   const total = computed(() => cart.subtotal + (deliveryType.value === 'delivery' ? deliveryCost.value : 0))

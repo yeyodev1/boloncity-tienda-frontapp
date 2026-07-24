@@ -6,6 +6,8 @@ export interface UserState {
   id: string | null
   name: string | null
   email: string | null
+  photo: string | null
+  phone: string | null
   accountType: 'customer' | 'branch_admin' | 'admin' | null
   branches: string[]
   allBranches: boolean
@@ -17,6 +19,8 @@ export const useUserStore = defineStore('user', {
     id: null,
     name: null,
     email: null,
+    photo: null,
+    phone: null,
     accountType: null,
     branches: [],
     allBranches: false,
@@ -31,6 +35,10 @@ export const useUserStore = defineStore('user', {
       const accountType = localStorage.getItem('user_account_type') as 'customer' | 'branch_admin' | 'admin' | null
       const branches = localStorage.getItem('user_branches')
       const allBranches = localStorage.getItem('user_all_branches')
+      const name = localStorage.getItem('user_name')
+      const email = localStorage.getItem('user_email')
+      const photo = localStorage.getItem('user_photo')
+      const phone = localStorage.getItem('user_phone')
 
       if (token && expiresAt && Date.now() > expiresAt) {
         this.clear()
@@ -39,6 +47,10 @@ export const useUserStore = defineStore('user', {
 
       this.isAuthenticated = !!token
       this.id = id || null
+      this.name = name || null
+      this.email = email || null
+      this.photo = photo || null
+      this.phone = phone || null
       this.accountType = accountType
       this.branches = branches ? JSON.parse(branches) : []
       this.allBranches = allBranches === 'true'
@@ -52,15 +64,29 @@ export const useUserStore = defineStore('user', {
       this.isAuthenticated = true
     },
 
-    setUser(payload: { id?: string; name?: string; email?: string; accountType?: 'customer' | 'branch_admin' | 'admin'; branches?: string[]; allBranches?: boolean }) {
+    setUser(payload: { id?: string; name?: string; email?: string; photo?: string; phone?: string; accountType?: 'customer' | 'branch_admin' | 'admin'; branches?: string[]; allBranches?: boolean }) {
       if (payload.id !== undefined) {
         this.id = payload.id
         try {
           localStorage.setItem('user_id', payload.id)
         } catch {}
       }
-      if (payload.name) this.name = payload.name
-      if (payload.email) this.email = payload.email
+      if (payload.name !== undefined) {
+        this.name = payload.name
+        try { localStorage.setItem('user_name', payload.name) } catch {}
+      }
+      if (payload.email !== undefined) {
+        this.email = payload.email
+        try { localStorage.setItem('user_email', payload.email) } catch {}
+      }
+      if (payload.photo !== undefined) {
+        this.photo = payload.photo
+        try { localStorage.setItem('user_photo', payload.photo) } catch {}
+      }
+      if (payload.phone !== undefined) {
+        this.phone = payload.phone
+        try { localStorage.setItem('user_phone', payload.phone) } catch {}
+      }
       if (payload.accountType) {
         this.accountType = payload.accountType
         try {
@@ -86,6 +112,8 @@ export const useUserStore = defineStore('user', {
       this.id = null
       this.name = null
       this.email = null
+      this.photo = null
+      this.phone = null
       this.accountType = null
       this.branches = []
       this.allBranches = false
@@ -94,6 +122,10 @@ export const useUserStore = defineStore('user', {
         localStorage.removeItem('access_token')
         localStorage.removeItem('session_expires_at')
         localStorage.removeItem('user_id')
+        localStorage.removeItem('user_name')
+        localStorage.removeItem('user_email')
+        localStorage.removeItem('user_photo')
+        localStorage.removeItem('user_phone')
         localStorage.removeItem('user_account_type')
         localStorage.removeItem('user_branches')
         localStorage.removeItem('user_all_branches')

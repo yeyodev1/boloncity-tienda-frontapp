@@ -6,6 +6,7 @@ export interface ToastItem {
   id: string
   type: ToastType
   message: string
+  label?: string
 }
 
 const toastItems = ref<ToastItem[]>([])

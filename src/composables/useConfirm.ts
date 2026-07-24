@@ -2,12 +2,13 @@ import { computed, reactive } from 'vue'
 
 export type ConfirmType = 'danger' | 'warning' | 'info'
 
-interface ConfirmOptions {
+export interface ConfirmOptions {
   title: string
   message: string
   confirmText?: string
   cancelText?: string
   type?: ConfirmType
+  icon?: string
 }
 
 interface ConfirmState extends ConfirmOptions {
@@ -21,6 +22,7 @@ const state = reactive<ConfirmState>({
   confirmText: 'Confirmar',
   cancelText: 'Cancelar',
   type: 'warning',
+  icon: '',
 })
 
 let resolver: ((value: boolean) => void) | null = null
@@ -34,6 +36,7 @@ export function useConfirm() {
       state.confirmText = options.confirmText || 'Confirmar'
       state.cancelText = options.cancelText || 'Cancelar'
       state.type = options.type || 'warning'
+      state.icon = options.icon || ''
       resolver = resolve
     })
 

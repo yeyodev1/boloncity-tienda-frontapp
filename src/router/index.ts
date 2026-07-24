@@ -63,6 +63,36 @@ const routes: Array<RouteRecordRaw> = [
     meta: { title: 'Registro | Boloncity' },
   },
   {
+    path: '/forgot-password',
+    name: 'ForgotPassword',
+    component: () => import('../views/ForgotPasswordView.vue'),
+    meta: { title: 'Recuperar contraseña | Boloncity' },
+  },
+  {
+    path: '/reset-password',
+    name: 'ResetPassword',
+    component: () => import('../views/ResetPasswordView.vue'),
+    meta: { title: 'Restablecer contraseña | Boloncity' },
+  },
+  {
+    path: '/mis-ordenes',
+    name: 'MyOrders',
+    component: () => import('../views/MyOrdersView.vue'),
+    meta: { title: 'Mis pedidos | Boloncity', requiresAuth: true },
+  },
+  {
+    path: '/mis-ordenes/:id',
+    name: 'MyOrderDetail',
+    component: () => import('../views/MyOrderDetailView.vue'),
+    meta: { title: 'Detalle pedido | Boloncity', requiresAuth: true },
+  },
+  {
+    path: '/perfil',
+    name: 'Profile',
+    component: () => import('../views/ProfileView.vue'),
+    meta: { title: 'Mi perfil | Boloncity', requiresAuth: true },
+  },
+  {
     path: '/admin',
     name: 'AdminDashboard',
     component: () => import('../views/admin/AdminDashboard.vue'),
@@ -131,7 +161,7 @@ function getAuthenticatedLanding(role: string | null) {
     return '/admin'
   }
 
-  return '/pedido'
+  return '/mis-ordenes'
 }
 
 router.beforeEach((to, _from, next) => {

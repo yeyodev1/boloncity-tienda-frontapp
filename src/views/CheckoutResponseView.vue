@@ -10,6 +10,7 @@ import StoreFooter from '@/components/store/StoreFooter.vue'
 
 const route = useRoute()
 const router = useRouter()
+
 function centsToDollars(cents: number): number {
   return cents / 100
 }
@@ -60,101 +61,103 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="response-page">
+  <div class="rpage">
     <StoreHeader />
 
-    <main class="response-page__main">
-      <div v-if="phase === 'loading'" class="response-card response-card--loading">
-        <div class="response-card__spinner" />
-        <p class="response-card__loading-text">Confirmando tu pago...</p>
+    <main class="rpage__main">
+      <div v-if="phase === 'loading'" class="rpage__loader">
+        <div class="rpage__spinner" />
+        <p class="rpage__loader-text">Confirmando tu pago...</p>
       </div>
 
       <template v-else-if="phase === 'success' && order">
-        <div class="response-card">
-          <div class="response-card__icon response-card__icon--success">
+        <div class="rpage__hero">
+          <div class="rpage__check">
             <i class="fa-solid fa-check" />
           </div>
-          <p class="response-card__eyebrow">Pago exitoso</p>
-          <h1 class="response-card__title">Pedido {{ order.orderNumber }}</h1>
-          <p class="response-card__msg">Tu pago fue procesado correctamente.</p>
-          <p class="response-card__secure"><i class="fa-solid fa-lock" /> No almacenamos tus datos de pago</p>
-
-          <ul class="response-card__details">
-            <li>
-              <span>Estado</span>
-              <strong class="response-card__badge">Pagado</strong>
-            </li>
-            <li v-if="order.customerName">
-              <span>Cliente</span>
-              <strong>{{ order.customerName }}</strong>
-            </li>
-            <li>
-              <span>Email</span>
-              <strong>{{ order.customerEmail }}</strong>
-            </li>
-            <li v-if="order.branch?.name">
-              <span>Sucursal</span>
-              <strong>{{ order.branch.name }}</strong>
-            </li>
-            <li>
-              <span>{{ deliveryLabels[order.deliveryType as string] || 'Tipo' }}</span>
-              <strong>{{ deliveryLabels[order.deliveryType as string] || '—' }}</strong>
-            </li>
-            <li v-if="(order.deliveryCost ?? 0) > 0">
-              <span>Costo de envío</span>
-              <strong>${{ centsToDollars(order.deliveryCost ?? 0).toFixed(2) }}</strong>
-            </li>
-            <li>
-              <span>Total pagado</span>
-              <strong class="response-card__price">${{ centsToDollars(order.total ?? 0).toFixed(2) }}</strong>
-            </li>
-            <li v-if="order.deliveryAddress && order.deliveryType === 'delivery'">
-              <span>Dirección</span>
-              <strong class="response-card__address">{{ order.deliveryAddress }}</strong>
-            </li>
-          </ul>
-
-          <div v-if="order.items?.length" class="response-card__items">
-            <p class="response-card__items-head"><i class="fa-solid fa-receipt" /> Productos</p>
-            <div v-for="item in order.items" :key="item.name" class="response-card__item">
-              <div class="response-card__item-media">
-                <img v-if="item.image" :src="item.image" :alt="item.name" loading="lazy" />
-                <span v-else><i class="fa-solid fa-utensils" /></span>
-              </div>
-              <div class="response-card__item-copy">
-                <strong>{{ item.name }}</strong>
-                <span class="response-card__item-qty">x{{ item.quantity }}</span>
-              </div>
-              <span class="response-card__item-price">${{ (item.price * item.quantity).toFixed(2) }}</span>
-            </div>
-          </div>
-          <a v-if="order.picker?.smrURL" :href="order.picker.smrURL" target="_blank" rel="noopener noreferrer" class="response-card__tracking">
-            <i class="fa-solid fa-location-crosshairs" /> Seguir delivery en vivo
-          </a>
+          <p class="rpage__eyebrow">Pago exitoso</p>
+          <h1 class="rpage__hero-title">Pedido {{ order.orderNumber }}</h1>
+          <p class="rpage__hero-sub">Tu pago fue procesado correctamente.</p>
         </div>
 
-        <div class="response-actions">
-          <button class="btn-primary response-actions__btn" @click="router.push({ path: '/pedido', query: { order: order?.orderNumber, email: order?.customerEmail } })">
+        <div class="rpage__card">
+          <div class="rpage__row">
+            <span class="rpage__label">Estado</span>
+            <span class="rpage__badge">Pagado</span>
+          </div>
+          <div v-if="order.customerName" class="rpage__row">
+            <span class="rpage__label">Cliente</span>
+            <span class="rpage__value">{{ order.customerName }}</span>
+          </div>
+          <div class="rpage__row">
+            <span class="rpage__label">Email</span>
+            <span class="rpage__value">{{ order.customerEmail }}</span>
+          </div>
+          <div v-if="order.branch?.name" class="rpage__row">
+            <span class="rpage__label">Sucursal</span>
+            <span class="rpage__value">{{ order.branch.name }}</span>
+          </div>
+          <div class="rpage__row">
+            <span class="rpage__label">{{ deliveryLabels[order.deliveryType as string] || 'Tipo' }}</span>
+            <span class="rpage__value">{{ deliveryLabels[order.deliveryType as string] || '—' }}</span>
+          </div>
+          <div v-if="(order.deliveryCost ?? 0) > 0" class="rpage__row">
+            <span class="rpage__label">Costo de envío</span>
+            <span class="rpage__value">${{ centsToDollars(order.deliveryCost ?? 0).toFixed(2) }}</span>
+          </div>
+          <div class="rpage__row rpage__row--total">
+            <span class="rpage__label">Total pagado</span>
+            <span class="rpage__total">${{ centsToDollars(order.total ?? 0).toFixed(2) }}</span>
+          </div>
+          <div v-if="order.deliveryAddress && order.deliveryType === 'delivery'" class="rpage__row">
+            <span class="rpage__label">Dirección</span>
+            <span class="rpage__value rpage__value--addr">{{ order.deliveryAddress }}</span>
+          </div>
+        </div>
+
+        <div v-if="order.items?.length" class="rpage__card">
+          <p class="rpage__card-heading">
+            <i class="fa-solid fa-receipt" /> Productos
+          </p>
+          <div v-for="item in order.items" :key="item.name" class="rpage__item">
+            <div class="rpage__item-media">
+              <img v-if="item.image" :src="item.image" :alt="item.name" loading="lazy" />
+              <span v-else><i class="fa-solid fa-utensils" /></span>
+            </div>
+            <div class="rpage__item-info">
+              <strong>{{ item.name }}</strong>
+              <span class="rpage__item-qty">x{{ item.quantity }}</span>
+            </div>
+            <span class="rpage__item-price">${{ (item.price * item.quantity).toFixed(2) }}</span>
+          </div>
+        </div>
+
+        <a v-if="order.picker?.smrURL" :href="order.picker.smrURL" target="_blank" rel="noopener noreferrer" class="rpage__tracking">
+          <i class="fa-solid fa-location-crosshairs" /> Seguir delivery en vivo
+        </a>
+
+        <div class="rpage__actions">
+          <button class="rpage__btn rpage__btn--primary" @click="router.push({ path: '/pedido', query: { order: order?.orderNumber, email: order?.customerEmail } })">
             <i class="fa-solid fa-magnifying-glass" /> Seguir mi pedido
           </button>
-          <button class="btn-secondary response-actions__btn" @click="router.push('/catalogo')">
+          <button class="rpage__btn rpage__btn--outline" @click="router.push('/catalogo')">
             <i class="fa-solid fa-utensils" /> Seguir comprando
           </button>
         </div>
       </template>
 
       <template v-else>
-        <div class="response-card">
-          <div class="response-card__icon response-card__icon--error">
+        <div class="rpage__hero rpage__hero--error">
+          <div class="rpage__check rpage__check--error">
             <i class="fa-solid fa-xmark" />
           </div>
-          <p class="response-card__eyebrow">Pago no procesado</p>
-          <h1 class="response-card__title">Algo salió mal</h1>
-          <p class="response-card__msg">{{ status }}</p>
+          <p class="rpage__eyebrow">Pago no procesado</p>
+          <h1 class="rpage__hero-title">Algo salió mal</h1>
+          <p class="rpage__hero-sub">{{ status }}</p>
         </div>
 
-        <div class="response-actions">
-          <button class="btn-primary response-actions__btn" @click="router.push('/checkout')">
+        <div class="rpage__actions">
+          <button class="rpage__btn rpage__btn--primary" @click="router.push('/checkout')">
             <i class="fa-solid fa-arrow-left" /> Intentar de nuevo
           </button>
         </div>
@@ -166,195 +169,200 @@ onMounted(async () => {
 </template>
 
 <style scoped lang="scss">
-.response-page {
+.rpage {
   background:
-    radial-gradient(circle at 8% 0%, rgba(239, 213, 55, 0.2), transparent 32%),
+    radial-gradient(circle at 8% 0%, rgba(239, 213, 55, 0.18), transparent 32%),
     linear-gradient(180deg, #f8f6ec 0%, #f2f4ed 52%, #fff 100%);
   display: flex;
   flex-direction: column;
   min-height: 100vh;
 }
 
-.response-page__main {
-  align-items: center;
+.rpage__main {
   display: flex;
+  flex-direction: column;
   flex: 1 0 auto;
-  flex-direction: column;
-  gap: 1rem;
-  justify-content: center;
-  padding: 2rem 1rem;
-}
-
-.response-card {
-  align-items: center;
-  background: rgba(255, 255, 255, 0.94);
-  border: 1px solid rgba(35, 89, 49, 0.08);
-  border-radius: 28px;
-  box-shadow: 0 24px 60px rgba(28, 22, 12, 0.08);
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
-  max-width: 460px;
-  padding: 2.25rem 1.5rem;
-  text-align: center;
+  gap: clamp(0.85rem, 2.5vw, 1.25rem);
+  margin: 0 auto;
+  max-width: 520px;
+  padding: calc(72px + clamp(1.5rem, 4vw, 2.5rem)) 1.25rem clamp(4rem, 8vw, 7rem);
   width: 100%;
 }
 
-.response-card--loading {
+.rpage__loader {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
   gap: 1.5rem;
+  padding: 3rem 0;
 }
 
-.response-card__spinner {
-  animation: spin 0.8s linear infinite;
-  border: 4px solid rgba(35, 89, 49, 0.12);
+.rpage__spinner {
+  animation: rpage-spin 0.8s linear infinite;
+  border: 4px solid rgba(35, 89, 49, 0.1);
   border-top-color: #235931;
   border-radius: 50%;
-  height: 72px;
-  width: 72px;
+  height: 64px;
+  width: 64px;
 }
 
-@keyframes spin {
+@keyframes rpage-spin {
   to { transform: rotate(360deg); }
 }
 
-.response-card__loading-text {
-  color: rgba(8, 17, 13, 0.6);
+.rpage__loader-text {
+  color: rgba(8, 17, 13, 0.5);
+  font-size: 0.95rem;
   font-weight: 700;
 }
 
-.response-card__icon {
+.rpage__hero {
   align-items: center;
+  background: linear-gradient(135deg, #235931 0%, #1a4728 50%, #102719 100%);
+  border-radius: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow: hidden;
+  padding: clamp(2.25rem, 6vw, 3rem) 1.5rem 1.75rem;
+  position: relative;
+  text-align: center;
+}
+
+.rpage__hero--error {
+  background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 50%, #7f1d1d 100%);
+}
+
+.rpage__check {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.12);
   border-radius: 50%;
-  display: inline-flex;
-  height: 72px;
+  color: #fff;
+  display: flex;
+  font-size: 1.6rem;
+  height: 64px;
   justify-content: center;
-  width: 72px;
-  font-size: 1.8rem;
+  width: 64px;
 }
 
-.response-card__icon--success {
-  background: rgba(35, 89, 49, 0.08);
-  color: #235931;
+.rpage__check--error {
+  background: rgba(255, 255, 255, 0.1);
 }
 
-.response-card__icon--error {
-  background: rgba(160, 40, 40, 0.08);
-  color: #a02828;
-}
-
-.response-card__eyebrow {
-  color: #00a523;
-  font-size: 0.76rem;
+.rpage__eyebrow {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.75rem;
   font-weight: 900;
   letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.response-card__title {
-  font-size: clamp(1.5rem, 3vw, 2rem);
-  font-weight: 900;
-  letter-spacing: -0.04em;
-  line-height: 1;
-  text-transform: uppercase;
-}
-
-.response-card__msg {
-  color: rgba(8, 17, 13, 0.6);
-  font-size: 0.95rem;
-  line-height: 1.5;
-}
-
-.response-card__secure {
-  color: rgba(8, 17, 13, 0.4);
-  font-size: 0.78rem;
   margin-top: 0.25rem;
+  text-transform: uppercase;
 }
 
-.response-card__badge {
-  background: rgba(35, 89, 49, 0.08);
+.rpage__hero-title {
+  color: #fff;
+  font-size: clamp(1.4rem, 3.5vw, 1.85rem);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.rpage__hero-sub {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin: 0;
+  max-width: 30ch;
+}
+
+.rpage__card {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(35, 89, 49, 0.06);
+  border-radius: 24px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 1.15rem 1.25rem;
+}
+
+.rpage__card-heading {
+  align-items: center;
+  color: rgba(8, 17, 13, 0.45);
+  display: flex;
+  font-size: 0.75rem;
+  font-weight: 800;
+  gap: 0.4rem;
+  letter-spacing: 0.08em;
+  margin: 0 0 0.6rem;
+  text-transform: uppercase;
+}
+
+.rpage__card-heading i { color: #235931; font-size: 0.7rem; }
+
+.rpage__row {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  padding: 0.55rem 0;
+}
+
+.rpage__row + .rpage__row {
+  border-top: 1px solid rgba(35, 89, 49, 0.04);
+}
+
+.rpage__row--total {
+  border-top-color: rgba(35, 89, 49, 0.1);
+  padding: 0.7rem 0 0.4rem;
+}
+
+.rpage__label {
+  color: rgba(8, 17, 13, 0.45);
+  font-size: 0.85rem;
+}
+
+.rpage__value {
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: right;
+}
+
+.rpage__value--addr {
+  font-size: 0.82rem;
+  font-weight: 500;
+  max-width: 55%;
+  line-height: 1.4;
+}
+
+.rpage__badge {
+  background: rgba(35, 89, 49, 0.07);
   border-radius: 999px;
   color: #235931;
   font-size: 0.78rem;
   font-weight: 800;
-  padding: 0.25rem 0.7rem;
+  padding: 0.25rem 0.75rem;
   text-transform: uppercase;
 }
 
-.response-card__price {
+.rpage__total {
   color: #235931;
-  font-size: 1.05rem;
-}
-
-.response-card__address {
-  font-size: 0.8rem;
-  max-width: 220px;
-  text-align: right;
-  line-height: 1.4;
-}
-
-.response-card__details {
-  border-top: 1px solid rgba(8, 17, 13, 0.06);
-  display: flex;
-  flex-direction: column;
-  gap: 0.65rem;
-  list-style: none;
-  margin-top: 0.25rem;
-  padding: 1rem 0;
-  width: 100%;
-}
-
-.response-card__details li {
-  align-items: center;
-  display: flex;
-  justify-content: space-between;
-}
-
-.response-card__details li span {
-  color: rgba(8, 17, 13, 0.5);
-  font-size: 0.85rem;
-}
-
-.response-card__details li strong {
-  font-size: 0.9rem;
-}
-
-.response-card__items {
-  border-top: 1px solid rgba(8, 17, 13, 0.06);
-  display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
-  padding: 1rem 0 0;
-  width: 100%;
-  text-align: left;
-}
-
-.response-card__items-head {
-  align-items: center;
-  color: rgba(8, 17, 13, 0.5);
-  display: flex;
-  font-size: 0.78rem;
+  font-size: 1.1rem;
   font-weight: 800;
-  gap: 0.4rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
 }
 
-.response-card__items-head i {
-  color: #235931;
-}
-
-.response-card__item {
+.rpage__item {
   align-items: center;
   display: flex;
   gap: 0.65rem;
-  padding: 0.4rem 0;
+  padding: 0.45rem 0;
 }
 
-.response-card__item:not(:last-child) {
-  border-bottom: 1px solid rgba(8, 17, 13, 0.04);
+.rpage__item + .rpage__item {
+  border-top: 1px solid rgba(35, 89, 49, 0.04);
 }
 
-.response-card__item-media {
+.rpage__item-media {
   background: linear-gradient(145deg, #eef1e6, #dfe8d9);
   border-radius: 10px;
   flex: 0 0 44px;
@@ -362,13 +370,13 @@ onMounted(async () => {
   overflow: hidden;
 }
 
-.response-card__item-media img {
+.rpage__item-media img {
   height: 100%;
   object-fit: cover;
   width: 100%;
 }
 
-.response-card__item-media > span {
+.rpage__item-media > span {
   align-items: center;
   color: #235931;
   display: flex;
@@ -377,7 +385,7 @@ onMounted(async () => {
   justify-content: center;
 }
 
-.response-card__item-copy {
+.rpage__item-info {
   align-items: center;
   display: flex;
   flex: 1 1 0;
@@ -385,46 +393,27 @@ onMounted(async () => {
   min-width: 0;
 }
 
-.response-card__item-copy strong {
+.rpage__item-info strong {
   font-size: 0.88rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.response-card__item-qty {
-  color: rgba(8, 17, 13, 0.45);
+.rpage__item-qty {
+  color: rgba(8, 17, 13, 0.4);
   flex: 0 0 auto;
   font-size: 0.78rem;
 }
 
-.response-card__item-price {
+.rpage__item-price {
   color: #235931;
   flex: 0 0 auto;
   font-size: 0.88rem;
   font-weight: 700;
 }
 
-.response-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 0.65rem;
-  max-width: 460px;
-  width: 100%;
-}
-
-.response-actions__btn {
-  align-items: center;
-  display: flex;
-  gap: 0.5rem;
-  justify-content: center;
-  min-height: 52px;
-  width: 100%;
-  font-size: 1rem;
-}
-
-@media (min-width: 480px) {
-.response-card__tracking {
+.rpage__tracking {
   align-items: center;
   background: #235931;
   border-radius: 14px;
@@ -434,19 +423,72 @@ onMounted(async () => {
   font-weight: 800;
   gap: 0.5rem;
   justify-content: center;
-  min-height: 48px;
-  padding: 0.65rem 1rem;
-  transition: background-color 0.2s ease, transform 0.2s ease;
+  min-height: 50px;
+  padding: 0.7rem 1rem;
+  text-decoration: none;
+  transition: background-color 0.25s ease, transform 0.25s ease;
+}
+
+.rpage__tracking:hover {
+  background: #00a523;
+  transform: translateY(-2px);
+}
+
+.rpage__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.rpage__btn {
+  align-items: center;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  display: flex;
+  font-size: 0.95rem;
+  font-weight: 800;
+  gap: 0.5rem;
+  justify-content: center;
+  min-height: 52px;
+  padding: 0.75rem 1.25rem;
+  transition: all 0.25s ease;
   width: 100%;
 }
 
-.response-card__tracking:hover {
-  background: #00a523;
-  transform: translateY(-1px);
+.rpage__btn--primary {
+  background: #235931;
+  color: #fff;
 }
 
-.response-actions {
-    flex-direction: row;
+.rpage__btn--primary:hover {
+  background: #00a523;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 165, 35, 0.3);
+}
+
+.rpage__btn--outline {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1.5px solid rgba(35, 89, 49, 0.12);
+  color: #235931;
+}
+
+.rpage__btn--outline:hover {
+  background: #fff;
+  border-color: #235931;
+  transform: translateY(-2px);
+}
+
+@media (min-width: 600px) {
+  .rpage__main {
+    max-width: 560px;
+    padding-left: 2rem;
+    padding-right: 2rem;
   }
+
+  .rpage__hero { border-radius: 32px; padding: 3rem 2rem 2rem; }
+  .rpage__check { height: 72px; width: 72px; font-size: 1.8rem; }
+  .rpage__card { border-radius: 28px; padding: 1.35rem 1.5rem; }
+  .rpage__actions { flex-direction: row; }
 }
 </style>

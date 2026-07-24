@@ -4,6 +4,7 @@ import { useRouter, RouterLink, useRoute } from 'vue-router'
 import logoImg from '@/assets/logos/logo.png'
 import { useCartStore } from '@/stores/cart'
 import { useUserStore } from '@/stores/user'
+import { useConfirm } from '@/composables/useConfirm'
 import imagesData from '@/assets/images.json'
 import { gsap } from 'gsap'
 
@@ -11,7 +12,9 @@ const cart = useCartStore()
 const user = useUserStore()
 const route = useRoute()
 const router = useRouter()
+const { confirm } = useConfirm()
 const mobileOpen = ref(false)
+const userDropdownOpen = ref(false)
 const menuBg = ref(imagesData[6]?.url || imagesData[0]?.url)
 const menuOverlay = ref<HTMLElement | null>(null)
 const menuLinks = ref<HTMLElement | null>(null)
@@ -24,6 +27,7 @@ const cartCount = computed(() => cart.count)
 const userLabel = computed(() => user.name || user.email || 'Mi cuenta')
 const userInitial = computed(() => (userLabel.value?.trim()?.[0] || 'U').toUpperCase())
 const isStaff = computed(() => ['admin', 'branch_admin'].includes(user.accountType || ''))
+
 
 function closeMenu() {
   if (!mobileOpen.value) return
@@ -84,15 +88,27 @@ function navigateAndClose(path: string) {
   router.push(path)
 }
 
-function logout() {
-  user.clear()
-  cart.persist()
-  closeMenu()
-  router.push('/login')
+async function logout() {
+  const ok = await confirm({
+    title: 'Cerrar sesión',
+    message: '¿Estás seguro de que quieres salir de tu cuenta?',
+    confirmText: 'Cerrar sesión',
+    cancelText: 'Cancelar',
+    type: 'danger',
+    icon: '<svg width="80" height="80" viewBox="0 0 80 80" fill="none"><rect x="4" y="4" width="72" height="72" rx="36" fill="#FEF2F2"/><rect x="4" y="4" width="72" height="72" rx="36" stroke="#FEE2E2" stroke-width="2"/><path d="M34 30l-6 6m0 0l6 6m-6-6h16M48 26h4a2 2 0 012 2v20a2 2 0 01-2 2h-4" stroke="#B42318" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  })
+  if (ok) {
+    user.clear()
+    cart.persist()
+    closeMenu()
+    userDropdownOpen.value = false
+    router.push('/')
+  }
 }
 
 watch(() => route.path, () => {
   if (mobileOpen.value) closeMenu()
+  userDropdownOpen.value = false
 })
 
 onBeforeUnmount(() => {
@@ -118,9 +134,41 @@ onBeforeUnmount(() => {
 
       <div class="store-header__actions">
         <template v-if="user.isAuthenticated">
-          <RouterLink class="store-header__avatar-link" :to="isStaff ? '/admin' : '/pedido'">
-            <span class="store-header__avatar">{{ userInitial }}</span>
-          </RouterLink>
+          <div class="store-header__user-dropdown" @click.stop>
+            <button
+              class="store-header__avatar-link"
+              @click="userDropdownOpen = !userDropdownOpen"
+              @keydown.escape="userDropdownOpen = false"
+            >
+              <span v-if="user.photo" class="store-header__avatar-img">
+                <img :src="user.photo" alt="" />
+              </span>
+              <span v-else class="store-header__avatar">{{ userInitial }}</span>
+            </button>
+            <Transition name="dropdown">
+              <div v-if="userDropdownOpen" class="store-header__dropdown" @click="userDropdownOpen = false">
+                <div class="store-header__dropdown-head">
+                  <span v-if="user.photo" class="store-header__dropdown-avatar">
+                    <img :src="user.photo" alt="" />
+                  </span>
+                  <span v-else class="store-header__dropdown-avatar store-header__dropdown-avatar--text">{{ userInitial }}</span>
+                  <div class="store-header__dropdown-info">
+                    <strong>{{ userLabel }}</strong>
+                    <small>{{ user.email }}</small>
+                  </div>
+                </div>
+                <RouterLink class="store-header__dropdown-item" to="/perfil">
+                  <i class="fa-solid fa-user" /> Mi perfil
+                </RouterLink>
+                <RouterLink class="store-header__dropdown-item" :to="isStaff ? '/admin' : '/mis-ordenes'">
+                  <i class="fa-solid fa-box" /> {{ isStaff ? 'Panel' : 'Mis pedidos' }}
+                </RouterLink>
+                <button class="store-header__dropdown-item store-header__dropdown-item--danger" @click.stop="logout">
+                  <i class="fa-solid fa-arrow-right-from-bracket" /> Cerrar sesión
+                </button>
+              </div>
+            </Transition>
+          </div>
         </template>
         <template v-else>
           <RouterLink class="store-header__login" to="/login">
@@ -181,13 +229,17 @@ onBeforeUnmount(() => {
                 </div>
               </div>
               <div class="store-menu__user-actions">
-                <RouterLink class="store-menu__user-btn" :to="isStaff ? '/admin' : '/pedido'" @click="closeMenu">
+                <RouterLink class="store-menu__user-btn" to="/perfil" @click="closeMenu">
                   <i class="fa-regular fa-user" />
-                  Mi cuenta
+                  Mi perfil
+                </RouterLink>
+                <RouterLink class="store-menu__user-btn" :to="isStaff ? '/admin' : '/mis-ordenes'" @click="closeMenu">
+                  <i class="fa-solid fa-box" />
+                  {{ isStaff ? 'Panel' : 'Mis pedidos' }}
                 </RouterLink>
                 <button class="store-menu__user-btn store-menu__user-btn--outline" @click="logout">
                   <i class="fa-solid fa-arrow-right-from-bracket" />
-                  Salir
+                  Cerrar sesión
                 </button>
               </div>
             </template>
@@ -336,12 +388,23 @@ onBeforeUnmount(() => {
   font-size: 0.9rem;
 }
 
+.store-header__user-dropdown {
+  position: relative;
+}
+
 .store-header__avatar-link {
   align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
   display: inline-flex;
   min-height: 38px;
   padding: 0 0.5rem 0 0.3rem;
+  transition: background 0.2s ease;
 }
+
+.store-header__avatar-link:hover { background: rgba(35, 89, 49, 0.08); }
 
 .store-header__avatar {
   align-items: center;
@@ -355,6 +418,117 @@ onBeforeUnmount(() => {
   justify-content: center;
   width: 32px;
 }
+
+.store-header__avatar-img {
+  border-radius: 50%;
+  display: inline-flex;
+  height: 32px;
+  overflow: hidden;
+  width: 32px;
+}
+
+.store-header__avatar-img img {
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.store-header__dropdown {
+  background: #fff;
+  border: 1px solid rgba(35, 89, 49, 0.08);
+  border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1);
+  min-width: 220px;
+  padding: 0.5rem;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 999;
+}
+
+.store-header__dropdown-head {
+  align-items: center;
+  border-bottom: 1px solid rgba(35, 89, 49, 0.06);
+  display: flex;
+  gap: 0.65rem;
+  margin-bottom: 0.25rem;
+  padding: 0.4rem 0.5rem 0.7rem;
+}
+
+.store-header__dropdown-avatar {
+  align-items: center;
+  background: #235931;
+  border-radius: 50%;
+  color: #fff;
+  display: flex;
+  flex: 0 0 36px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  height: 36px;
+  justify-content: center;
+  overflow: hidden;
+  width: 36px;
+}
+
+.store-header__dropdown-avatar img {
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.store-header__dropdown-avatar--text { background: rgba(35, 89, 49, 0.15); color: #235931; }
+
+.store-header__dropdown-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  min-width: 0;
+}
+
+.store-header__dropdown-info strong {
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.store-header__dropdown-info small {
+  color: rgba(8, 17, 13, 0.45);
+  font-size: 0.74rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.store-header__dropdown-item {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
+  color: rgba(8, 17, 13, 0.7);
+  cursor: pointer;
+  display: flex;
+  font-size: 0.85rem;
+  font-weight: 600;
+  gap: 0.5rem;
+  min-height: 38px;
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+  text-decoration: none;
+  transition: background 0.15s ease, color 0.15s ease;
+  width: 100%;
+}
+
+.store-header__dropdown-item i { font-size: 0.82rem; width: 18px; }
+
+.store-header__dropdown-item:hover { background: rgba(35, 89, 49, 0.06); color: #235931; }
+
+.store-header__dropdown-item--danger { color: #a02828; }
+.store-header__dropdown-item--danger:hover { background: rgba(160, 40, 40, 0.06); color: #a02828; }
+
+.dropdown-enter-active { transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
+.dropdown-leave-active { transition: all 0.15s ease; }
+.dropdown-enter-from { opacity: 0; transform: translateY(-6px) scale(0.96); }
+.dropdown-leave-to { opacity: 0; transform: translateY(-4px) scale(0.96); }
 
 .store-header__cart {
   align-items: center;
