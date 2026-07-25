@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import StoreHeader from '@/components/store/StoreHeader.vue'
 import StoreFooter from '@/components/store/StoreFooter.vue'
@@ -19,6 +19,9 @@ const loading = ref(false)
 const searching = ref(false)
 const errorMessage = ref('')
 const fromUrl = ref(false)
+const statusFlash = ref(false)
+let streamAbort: AbortController | null = null
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null
 
 const statusLabels: Record<string, string> = {
   pending: 'Pendiente',
@@ -36,6 +39,24 @@ const timeline = [
   { key: 'ready', label: 'Listo' },
   { key: 'delivered', label: 'Entregado' },
 ]
+
+const pickerSteps = [
+  { key: 'READY_FOR_PICKUP', label: 'Buscando delivery', icon: 'fa-magnifying-glass' },
+  { key: 'ACCEPTED', label: 'Motorizado asignado', icon: 'fa-motorcycle' },
+  { key: 'ARRIVED_AT_PICKUP', label: 'Llegó al local', icon: 'fa-store' },
+  { key: 'WAY_TO_DELIVER', label: 'En camino', icon: 'fa-truck-fast' },
+  { key: 'ARRIVED_AT_DELIVERY', label: 'Llegó a tu dirección', icon: 'fa-location-dot' },
+  { key: 'COMPLETED', label: 'Entregado', icon: 'fa-circle-check' },
+]
+
+const pickerStatus = computed(() => selectedOrder.value?.picker?.currentStatus || '')
+const pickerStepIndex = computed(() => pickerSteps.findIndex((step) => step.key === pickerStatus.value))
+const pickerEvents = computed(() => {
+  if (!selectedOrder.value?.audit) return []
+  return selectedOrder.value.audit
+    .filter((entry) => entry.action === 'status_change' && pickerSteps.some((step) => step.key === entry.toValue))
+    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+})
 
 const currentStepIndex = computed(() => {
   if (!selectedOrder.value) return -1
@@ -78,12 +99,14 @@ async function search() {
   selectedOrder.value = null
   searching.value = false
   fromUrl.value = false
+  stopRealtime()
 
   try {
     if (orderNumber.value.trim()) {
       const response = await OrderService.getByNumber(orderNumber.value.trim(), emailVal)
       selectedOrder.value = response.data
       searching.value = true
+      startRealtime()
     } else {
       const response = await OrderService.getByEmail(emailVal)
       orders.value = response.data
@@ -101,11 +124,38 @@ async function search() {
 
 function selectOrder(order: OrderDTO) {
   selectedOrder.value = order
+  startRealtime()
 }
 
 function backToOrders() {
+  stopRealtime()
   selectedOrder.value = null
   fromUrl.value = false
+}
+
+function applyOrderUpdate(order: OrderDTO) {
+  if (selectedOrder.value?.picker?.currentStatus !== order.picker?.currentStatus) {
+    statusFlash.value = true
+    setTimeout(() => { statusFlash.value = false }, 1800)
+  }
+  selectedOrder.value = order
+}
+
+function startRealtime() {
+  stopRealtime()
+  if (!selectedOrder.value || !email.value) return
+  streamAbort = OrderService.subscribeToPublic(selectedOrder.value.orderNumber, email.value.trim().toLowerCase(), applyOrderUpdate, () => {
+    reconnectTimer = setTimeout(startRealtime, 3000)
+  })
+}
+
+function stopRealtime() {
+  streamAbort?.abort()
+  streamAbort = null
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer)
+    reconnectTimer = null
+  }
 }
 
 onMounted(() => {
@@ -118,6 +168,8 @@ onMounted(() => {
     search()
   }
 })
+
+onUnmounted(stopRealtime)
 </script>
 
 <template>
@@ -172,6 +224,26 @@ onMounted(() => {
                 <span class="track-detail__status" :class="selectedOrder.status">{{ statusLabels[selectedOrder.status] || selectedOrder.status }}</span>
               </div>
             </div>
+
+            <section v-if="selectedOrder.deliveryType === 'delivery' && selectedOrder.picker?.bookingId" class="delivery-live" :class="{ flash: statusFlash }">
+              <div class="delivery-live__head">
+                <span class="delivery-live__live"><i class="fa-solid fa-circle" /> En vivo</span>
+                <span>{{ selectedOrder.picker.statusText || 'Actualizando delivery' }}</span>
+              </div>
+              <div class="delivery-live__progress">
+                <div v-for="(step, index) in pickerSteps" :key="step.key" class="delivery-live__step" :class="{ active: pickerStepIndex >= index, current: pickerStepIndex === index }">
+                  <span class="delivery-live__icon"><i :class="['fa-solid', pickerStepIndex > index ? 'fa-check' : step.icon]" /></span>
+                  <strong>{{ step.label }}</strong>
+                  <small v-if="pickerEvents.find((event) => event.toValue === step.key)">{{ formatDate(pickerEvents.find((event) => event.toValue === step.key)?.timestamp || '') }}</small>
+                </div>
+              </div>
+              <div v-if="selectedOrder.picker.driverName" class="delivery-live__driver">
+                <img v-if="selectedOrder.picker.driverPhoto" :src="selectedOrder.picker.driverPhoto" alt="Motorizado" />
+                <i v-else class="fa-solid fa-motorcycle" />
+                <div><strong>{{ selectedOrder.picker.driverName }}</strong><span>{{ selectedOrder.picker.driverVehicle || 'Tu motorizado' }}</span></div>
+                <a v-if="selectedOrder.picker.driverPhone" :href="`tel:${selectedOrder.picker.driverPhone}`"><i class="fa-solid fa-phone" /> Llamar</a>
+              </div>
+            </section>
 
             <div class="track-detail__cards">
               <div class="track-detail__card">
@@ -258,7 +330,7 @@ onMounted(() => {
               <i class="fa-solid fa-location-crosshairs" /> Seguir delivery en vivo
             </a>
 
-            <div v-if="currentStepIndex >= 0" class="track-detail__card">
+            <div v-if="currentStepIndex >= 0 && !selectedOrder.picker?.bookingId" class="track-detail__card">
               <div class="track-detail__card-head"><i class="fa-solid fa-clock" /> Estado del pedido</div>
               <div class="track-detail__card-body">
                 <div class="track-detail__timeline">
@@ -360,7 +432,7 @@ onMounted(() => {
   gap: clamp(1rem, 3vw, 1.5rem);
   margin: 0 auto;
   max-width: 1180px;
-  padding: clamp(1.25rem, 4vw, 2.5rem) 1rem clamp(2.5rem, 6vw, 5rem);
+  padding: calc(60px + clamp(1.25rem, 4vw, 2.5rem)) 1rem clamp(2.5rem, 6vw, 5rem);
   width: 100%;
 }
 
@@ -547,6 +619,38 @@ onMounted(() => {
   padding: 0.3rem 0.7rem;
   text-transform: capitalize;
 }
+
+.delivery-live {
+  background: linear-gradient(145deg, #102719, #235931);
+  border-radius: 22px;
+  color: #fff;
+  overflow: hidden;
+  padding: 1.1rem;
+  transition: box-shadow 0.35s ease, transform 0.35s ease;
+}
+
+.delivery-live.flash { box-shadow: 0 0 0 5px rgba(239, 213, 55, 0.55); transform: translateY(-2px); }
+.delivery-live__head { align-items: center; color: rgba(255, 255, 255, 0.72); display: flex; font-size: 0.8rem; font-weight: 700; gap: 0.6rem; justify-content: space-between; }
+.delivery-live__live { align-items: center; color: #efd537; display: flex; font-size: 0.7rem; font-weight: 900; gap: 0.35rem; letter-spacing: 0.1em; text-transform: uppercase; }
+.delivery-live__live i { animation: live-pulse 1.5s infinite; font-size: 0.45rem; }
+.delivery-live__progress { display: flex; flex-direction: column; gap: 0.7rem; margin: 1.25rem 0; }
+.delivery-live__step { align-items: center; color: rgba(255, 255, 255, 0.38); display: flex; gap: 0.65rem; min-height: 38px; position: relative; }
+.delivery-live__step:not(:last-child)::after { background: rgba(255, 255, 255, 0.14); content: ''; height: 14px; left: 17px; position: absolute; top: 38px; width: 2px; }
+.delivery-live__step.active { color: #fff; }
+.delivery-live__step.active:not(:last-child)::after { background: #efd537; }
+.delivery-live__icon { align-items: center; background: rgba(255, 255, 255, 0.12); border-radius: 50%; color: rgba(255, 255, 255, 0.45); display: flex; flex: 0 0 36px; height: 36px; justify-content: center; position: relative; width: 36px; z-index: 1; }
+.delivery-live__step.active .delivery-live__icon { background: #efd537; color: #102719; }
+.delivery-live__step.current .delivery-live__icon { box-shadow: 0 0 0 6px rgba(239, 213, 55, 0.18); }
+.delivery-live__step strong { flex: 1 1 0; font-size: 0.86rem; }
+.delivery-live__step small { color: rgba(255, 255, 255, 0.55); font-size: 0.68rem; text-align: right; }
+.delivery-live__driver { align-items: center; background: rgba(255, 255, 255, 0.1); border-radius: 14px; display: flex; gap: 0.65rem; padding: 0.65rem; }
+.delivery-live__driver > img, .delivery-live__driver > i { align-items: center; background: #efd537; border-radius: 50%; color: #102719; display: flex; flex: 0 0 38px; height: 38px; justify-content: center; object-fit: cover; width: 38px; }
+.delivery-live__driver div { display: flex; flex: 1 1 0; flex-direction: column; gap: 0.1rem; min-width: 0; }
+.delivery-live__driver strong { font-size: 0.84rem; }
+.delivery-live__driver span { color: rgba(255, 255, 255, 0.65); font-size: 0.72rem; }
+.delivery-live__driver a { color: #efd537; font-size: 0.75rem; font-weight: 800; text-decoration: none; }
+
+@keyframes live-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
 .track-detail__cards { display: flex; flex-direction: column; gap: 0.75rem; }
 

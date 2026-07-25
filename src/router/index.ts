@@ -111,6 +111,12 @@ const routes: Array<RouteRecordRaw> = [
     meta: { title: 'Productos | Boloncity', requiresAuth: true, requiresAdmin: true },
   },
   {
+    path: '/admin/rewards',
+    name: 'AdminRewards',
+    component: () => import('../views/admin/AdminRewards.vue'),
+    meta: { title: 'Rewards | Boloncity', requiresAuth: true, requiresAdmin: true },
+  },
+  {
     path: '/admin/ordenes',
     name: 'AdminOrdersKanban',
     component: () => import('../views/admin/AdminOrdersKanban.vue'),

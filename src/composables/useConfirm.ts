@@ -9,6 +9,7 @@ export interface ConfirmOptions {
   cancelText?: string
   type?: ConfirmType
   icon?: string
+  imageUrl?: string
 }
 
 interface ConfirmState extends ConfirmOptions {
@@ -23,6 +24,7 @@ const state = reactive<ConfirmState>({
   cancelText: 'Cancelar',
   type: 'warning',
   icon: '',
+  imageUrl: '',
 })
 
 let resolver: ((value: boolean) => void) | null = null
@@ -37,6 +39,7 @@ export function useConfirm() {
       state.cancelText = options.cancelText || 'Cancelar'
       state.type = options.type || 'warning'
       state.icon = options.icon || ''
+      state.imageUrl = options.imageUrl || ''
       resolver = resolve
     })
 

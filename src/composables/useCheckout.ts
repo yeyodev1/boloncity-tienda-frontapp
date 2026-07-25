@@ -21,6 +21,11 @@ export function useCheckout() {
   const deliveryAddress = ref('')
   const deliveryGoogleMapsUrl = ref('')
   const deliveryType = ref<'delivery' | 'pickup'>('delivery')
+  const paymentMethod = ref<'card' | 'cash'>('card')
+  const scheduleOrder = ref(false)
+  const scheduledDate = ref('')
+  const scheduledTime = ref('07:00')
+  const scheduleSlots = Array.from({ length: 12 }, (_, index) => `${String(7 + Math.floor(index / 2)).padStart(2, '0')}:${index % 2 ? '30' : '00'}`)
   const order = ref<OrderDTO | null>(null)
   const loading = ref(false)
   const ready = ref(false)
@@ -73,7 +78,7 @@ export function useCheckout() {
       const hasLocation = deliveryGoogleMapsUrl.value.trim().length > 0 || locationDetected.value
       return hasItems && hasName && hasEmail && hasAddress && hasLocation && !mapsError.value
     }
-    return hasItems && hasName && hasEmail && effectiveBranchId.value !== null
+    return hasItems && hasName && hasEmail && effectiveBranchId.value !== null && (!scheduleOrder.value || Boolean(scheduledDate.value && scheduledTime.value))
   })
 
   function onPayPhoneReady() { ready.value = true }
@@ -195,12 +200,15 @@ export function useCheckout() {
         customerEmail: customerEmail.value,
         customerPhone: `${phoneCountryCode.value} ${customerPhone.value.trim()}`,
         notes: notes.value, deliveryType: deliveryType.value, branchId: effectiveBranchId.value,
+        paymentMethod: paymentMethod.value,
         deliveryAddress: deliveryType.value === 'delivery' ? deliveryAddress.value.trim() : '',
         deliveryGoogleMapsUrl: deliveryType.value === 'delivery' ? deliveryGoogleMapsUrl.value.trim() : '',
         deliveryCost: deliveryType.value === 'delivery' ? deliveryCost.value : undefined,
+        scheduledFor: scheduleOrder.value ? `${scheduledDate.value}T${scheduledTime.value}:00-05:00` : undefined,
         ...billing, ...coords,
       })
       order.value = response.data
+      if (paymentMethod.value === 'cash') cart.clear()
     } catch { error('No se pudo iniciar el pago') }
     finally { loading.value = false }
   }
@@ -213,7 +221,7 @@ export function useCheckout() {
   return {
     branchStore, countries,
     customerFirstName, customerLastName, customerEmail, customerPhone, phoneCountryCode,
-    notes, deliveryAddress, deliveryGoogleMapsUrl, deliveryType, order,
+    notes, deliveryAddress, deliveryGoogleMapsUrl, deliveryType, paymentMethod, scheduleOrder, scheduledDate, scheduledTime, scheduleSlots, order,
     loading, ready, branch, branchLoading, publicBranches,
     deliveryCost, deliveryDistance, mapsError, locating, locationDetected,
     detectedLat, detectedLng, manualMapsLink, displayLat, displayLng,

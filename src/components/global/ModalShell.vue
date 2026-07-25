@@ -67,12 +67,13 @@ onBeforeUnmount(() => {
 
 <style scoped lang="scss">
 .modal-shell {
-  align-items: center;
+  align-items: flex-start;
   background: rgba(8, 17, 13, 0.72);
   backdrop-filter: blur(12px);
   display: flex;
   inset: 0;
   justify-content: center;
+  overflow-y: auto;
   padding: 0.5rem;
   position: fixed;
   z-index: 99997;
@@ -84,7 +85,8 @@ onBeforeUnmount(() => {
   box-shadow: 0 -24px 60px rgba(0, 0, 0, 0.35);
   display: flex;
   flex-direction: column;
-  max-height: calc(100vh - 1rem);
+  margin: 0 auto;
+  max-height: none;
   overflow: hidden;
   width: min(100%, 980px);
 }
@@ -204,6 +206,7 @@ onBeforeUnmount(() => {
 
 @media (min-width: 768px) {
   .modal-shell {
+    align-items: center;
     padding: 1rem;
   }
 

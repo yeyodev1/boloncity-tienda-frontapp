@@ -3,6 +3,7 @@ import { Transition } from 'vue'
 import StoreHeader from '@/components/store/StoreHeader.vue'
 import StoreFooter from '@/components/store/StoreFooter.vue'
 import PayPhoneBox from '@/components/checkout/PayPhoneBox.vue'
+import BaseDatePicker from '@/components/global/BaseDatePicker.vue'
 import { useCheckout } from '@/composables/useCheckout'
 import {
   CheckoutHero,
@@ -15,7 +16,7 @@ import {
 const {
   branchStore, countries,
   customerFirstName, customerLastName, customerEmail, customerPhone, phoneCountryCode,
-  notes, deliveryAddress, deliveryGoogleMapsUrl, deliveryType, order,
+  notes, deliveryAddress, deliveryGoogleMapsUrl, deliveryType, paymentMethod, scheduleOrder, scheduledDate, scheduledTime, scheduleSlots, order,
   loading, ready, branch, branchLoading, publicBranches,
   deliveryCost, deliveryDistance, mapsError, locating, locationDetected,
   manualMapsLink, displayLat, displayLng,
@@ -94,6 +95,24 @@ const {
                 />
               </template>
 
+              <div class="checkout-payment-method">
+                <span class="checkout-field__label"><i class="fa-solid fa-credit-card" /> Método de pago</span>
+                <div class="checkout-payment-method__options">
+                  <label class="checkout-payment-method__option" :class="{ active: paymentMethod === 'card' }">
+                    <input v-model="paymentMethod" type="radio" value="card" />
+                    <i class="fa-solid fa-credit-card" />
+                    <span><strong>Tarjeta</strong><small>Pago seguro con PayPhone</small></span>
+                  </label>
+                  <label class="checkout-payment-method__option" :class="{ active: paymentMethod === 'cash' }">
+                    <input v-model="paymentMethod" type="radio" value="cash" />
+                    <i class="fa-solid fa-money-bill-wave" />
+                    <span><strong>Efectivo</strong><small>Paga al motorizado al recibir</small></span>
+                  </label>
+                </div>
+              </div>
+
+              <section class="checkout-schedule" :class="{ active: scheduleOrder }"><label><input v-model="scheduleOrder" type="checkbox" /><span><i class="fa-solid fa-calendar-clock" /><strong>Programar pedido</strong><small>Elige una fecha y horario de atención entre 07:00 y 13:00.</small></span></label><div v-if="scheduleOrder" class="checkout-schedule__fields"><BaseDatePicker v-model="scheduledDate" label="Fecha" :min-date="new Date().toLocaleDateString('en-CA', { timeZone: 'America/Guayaquil' })" /><label><span>Hora</span><select v-model="scheduledTime"><option v-for="slot in scheduleSlots" :key="slot" :value="slot">{{ slot }}</option></select></label></div></section>
+
               <label class="checkout-field">
                 <span class="checkout-field__label"><i class="fa-solid fa-pen" /> Notas</span>
                 <textarea class="checkout-field__input checkout-field__textarea" v-model.trim="notes" placeholder="Indicaciones opcionales para tu pedido"></textarea>
@@ -152,7 +171,7 @@ const {
     <StoreFooter />
 
     <Transition name="modal-fade">
-      <div v-if="order" class="payment-overlay">
+      <div v-if="order && paymentMethod === 'card'" class="payment-overlay">
         <div class="payment-modal">
           <div class="payment-modal__header">
             <button type="button" class="payment-modal__back" @click="closePayment">
@@ -163,18 +182,29 @@ const {
             <h2>Pedido {{ order.orderNumber }}</h2>
           </div>
 
-          <div class="payment-modal__box">
-            <PayPhoneBox
-              :token="payphoneToken"
-              :store-id="payphoneStoreId"
-              :client-transaction-id="order.payphone?.clientTransactionId || ''"
-              :amount="order.total"
-              :amount-with-tax="order.total"
-              :reference="`Pedido ${order.orderNumber}`"
-              :email="customerEmail"
-              :phone-number="`${phoneCountryCode} ${customerPhone}`"
-              :on-ready="onPayPhoneReady"
-            />
+          <div class="payment-modal__content">
+            <div class="payment-modal__summary">
+              <div class="payment-modal__summary-icon"><i class="fa-solid fa-credit-card" /></div>
+              <div>
+                <span>Total a pagar</span>
+                <strong>${{ (order.total / 100).toFixed(2) }}</strong>
+              </div>
+              <small><i class="fa-solid fa-shield-halved" /> Encriptado</small>
+            </div>
+
+            <div class="payment-modal__box">
+              <PayPhoneBox
+                :token="payphoneToken"
+                :store-id="payphoneStoreId"
+                :client-transaction-id="order.payphone?.clientTransactionId || ''"
+                :amount="order.total"
+                :amount-with-tax="order.total"
+                :reference="`Pedido ${order.orderNumber}`"
+                :email="customerEmail"
+                :phone-number="`${phoneCountryCode} ${customerPhone}`"
+                :on-ready="onPayPhoneReady"
+              />
+            </div>
           </div>
 
           <p v-if="ready" class="payment-modal__ready">
@@ -183,6 +213,13 @@ const {
         </div>
       </div>
     </Transition>
+
+    <section v-if="order && paymentMethod === 'cash'" class="cash-success">
+      <i class="fa-solid fa-circle-check" />
+      <h2>Pedido recibido</h2>
+      <p>Tu pedido {{ order.orderNumber }} se pagará en efectivo al motorizado cuando lo recibas.</p>
+      <a href="/pedido" class="btn-primary">Seguir mi pedido</a>
+    </section>
   </div>
 </template>
 
@@ -203,7 +240,7 @@ const {
   gap: 1.5rem;
   margin: 0 auto;
   max-width: 1400px;
-  padding: clamp(1.5rem, 4vw, 3rem) 1rem;
+  padding: calc(60px + clamp(1.5rem, 4vw, 3rem)) 1rem clamp(1.5rem, 4vw, 3rem);
   width: 100%;
 }
 
@@ -283,6 +320,18 @@ const {
   box-shadow: 0 18px 34px rgba(35, 89, 49, 0.18);
   font-size: 1.05rem;
 }
+
+.checkout-payment-method { display: flex; flex-direction: column; gap: 0.6rem; }
+.checkout-payment-method__options { display: flex; flex-direction: column; gap: 0.6rem; }
+.checkout-payment-method__option { align-items: center; background: #fff; border: 1px solid rgba(35, 89, 49, 0.12); border-radius: 16px; cursor: pointer; display: flex; gap: 0.7rem; min-height: 64px; padding: 0.85rem; position: relative; transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease; }
+.checkout-payment-method__option:hover { border-color: rgba(35, 89, 49, 0.35); transform: translateY(-1px); }
+.checkout-payment-method__option.active { background: linear-gradient(145deg, #f5f9f4, #e9f4eb); border-color: #235931; box-shadow: 0 10px 24px rgba(35, 89, 49, 0.12); }
+.checkout-payment-method__option input { height: 1px; opacity: 0; pointer-events: none; position: absolute; width: 1px; }
+.checkout-payment-method__option > i { align-items: center; background: rgba(35, 89, 49, 0.08); border-radius: 12px; color: #235931; display: flex; flex: 0 0 38px; font-size: 1rem; height: 38px; justify-content: center; }
+.checkout-payment-method__option.active > i { background: #235931; color: #fff; }
+.checkout-payment-method__option span { display: flex; flex-direction: column; gap: 0.12rem; }
+.checkout-payment-method__option strong { font-size: 0.92rem; }
+.checkout-payment-method__option small { color: rgba(8, 17, 13, 0.55); font-size: 0.75rem; }
 
 .checkout-branch {
   background: rgba(35, 89, 49, 0.03);
@@ -408,6 +457,14 @@ const {
   text-transform: uppercase;
 }
 
+.payment-modal__summary { align-items: center; background: linear-gradient(135deg, #102719, #235931); border-radius: 20px; color: #fff; display: flex; gap: 0.75rem; padding: 1rem; }
+.payment-modal__summary-icon { align-items: center; background: #efd537; border-radius: 14px; color: #102719; display: flex; flex: 0 0 44px; height: 44px; justify-content: center; }
+.payment-modal__summary div { display: flex; flex: 1 1 0; flex-direction: column; }
+.payment-modal__summary span { color: rgba(255, 255, 255, 0.65); font-size: 0.72rem; font-weight: 700; text-transform: uppercase; }
+.payment-modal__summary strong { font-size: 1.35rem; letter-spacing: -0.04em; }
+.payment-modal__summary small { color: #efd537; font-size: 0.68rem; font-weight: 800; }
+.payment-modal__content { display: flex; flex-direction: column; gap: 1rem; }
+
 .payment-modal__box {
   background: rgba(35, 89, 49, 0.03);
   border: 1px solid rgba(26, 26, 26, 0.08);
@@ -417,6 +474,12 @@ const {
 
 .payment-modal__ready { align-items: center; color: #00a523; display: flex; font-size: 0.85rem; font-weight: 700; gap: 0.4rem; justify-content: center; }
 
+.cash-success { align-items: center; background: #fff; border-radius: 24px; box-shadow: 0 24px 60px rgba(28, 22, 12, 0.12); display: flex; flex-direction: column; gap: 0.8rem; left: 50%; max-width: 420px; padding: 2rem; position: fixed; text-align: center; top: 50%; transform: translate(-50%, -50%); width: calc(100% - 2rem); z-index: 1000; }
+.cash-success > i { color: #00a523; font-size: 2.5rem; }
+.cash-success h2 { font-size: 1.5rem; }
+.cash-success p { color: rgba(8, 17, 13, 0.65); line-height: 1.5; }
+.cash-success a { padding: 0.8rem 1.2rem; text-decoration: none; }
+
 .modal-fade-enter-active,
 .modal-fade-leave-active { transition: opacity 0.35s cubic-bezier(0.65, 0, 0.35, 1); }
 .modal-fade-enter-from,
@@ -425,5 +488,18 @@ const {
 @media (min-width: 980px) {
   .checkout-layout { align-items: start; flex-direction: row; }
   .checkout-form { flex: 1 1 0; }
+  .payment-modal { max-width: 820px; padding: 2rem; width: min(90vw, 820px); }
+  .payment-modal__header { text-align: left; }
+  .payment-modal__eyebrow { justify-content: flex-start; }
+  .payment-modal__content { align-items: stretch; flex-direction: row; }
+  .payment-modal__summary { align-items: flex-start; flex: 0 0 230px; flex-direction: column; justify-content: center; padding: 1.5rem; }
+  .payment-modal__summary div { flex: 0 0 auto; }
+  .payment-modal__summary strong { font-size: 2rem; }
+  .payment-modal__box { display: flex; flex: 1 1 0; flex-direction: column; justify-content: center; padding: 1.75rem; }
+  .checkout-payment-method__options { flex-direction: row; }
+  .checkout-payment-method__option { align-items: flex-start; flex: 1 1 0; flex-direction: column; min-height: 108px; padding: 1rem 1.1rem; position: relative; }
+  .checkout-payment-method__option > i { flex-basis: 44px; font-size: 1.15rem; height: 44px; width: 44px; }
+  .checkout-payment-method__option small { max-width: 14rem; }
 }
+.checkout-schedule { background:rgba(35,89,49,.04); border:1px solid rgba(35,89,49,.14); border-radius:16px; display:flex; flex-direction:column; gap:.8rem; padding:.85rem; }.checkout-schedule.active { background:rgba(35,89,49,.08); border-color:rgba(35,89,49,.3); }.checkout-schedule > label { align-items:flex-start; cursor:pointer; display:flex; gap:.65rem; }.checkout-schedule input[type='checkbox'] { accent-color:#235931; margin-top:.2rem; }.checkout-schedule label > span { display:flex; flex-direction:column; gap:.15rem; }.checkout-schedule label > span > i { color:#235931; }.checkout-schedule strong { color:#152019; font-size:.9rem; }.checkout-schedule small { color:rgba(8,17,13,.58); font-size:.75rem; }.checkout-schedule__fields { display:flex; flex-wrap:wrap; gap:.65rem; }.checkout-schedule__fields > * { flex:1 1 150px; }.checkout-schedule__fields label { display:flex; flex-direction:column; gap:.3rem; }.checkout-schedule__fields label > span { color:#235931; font-size:.7rem; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }.checkout-schedule__fields select { background:#fff; border:1px solid rgba(8,17,13,.12); border-radius:12px; color:#152019; min-height:42px; padding:.55rem .65rem; }
 </style>

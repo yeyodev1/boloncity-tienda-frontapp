@@ -12,6 +12,9 @@ export interface BranchDTO {
   imageUrl?: string
   imagePublicId?: string
   coordinates?: { lat: number; lng: number } | null
+  timezone?: string
+  openingHours?: Array<{ day: string; opensAt: string; closesAt: string; isOpen: boolean }>
+  pickerStore?: { storeId?: string; createdAt?: string; creationStatus?: string }
   isActive: boolean
 }
 
@@ -40,6 +43,10 @@ class BranchService extends APIBase {
     const formData = new FormData()
     formData.append('image', file)
     return this.post<BranchDTO>(`branches/${id}/image`, formData)
+  }
+
+  provisionPickerStore(id: string) {
+    return this.post<BranchDTO>(`branches/${id}/picker-store`, {})
   }
 
   nearest(lat: number, lng: number) {

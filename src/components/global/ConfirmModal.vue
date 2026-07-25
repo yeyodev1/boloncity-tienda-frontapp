@@ -9,27 +9,11 @@ const { confirmState, accept, cancel } = useConfirm()
     <Transition name="confirm-modal">
       <div v-if="confirmState.open" class="confirm-backdrop" @click.self="cancel">
         <div class="confirm-modal" :class="`type-${confirmState.type}`">
-          <div class="confirm-icon" :class="{ 'confirm-icon--custom': !!confirmState.icon }">
-            <div v-if="confirmState.icon" v-html="confirmState.icon" />
-            <template v-else>
-              <svg v-if="confirmState.type === 'danger'" width="56" height="56" viewBox="0 0 56 56" fill="none">
-                <rect x="4" y="4" width="48" height="48" rx="24" fill="#FEF2F2" />
-                <rect x="4" y="4" width="48" height="48" rx="24" stroke="#FEE2E2" stroke-width="2" />
-                <path d="M28 20v8m0 4v.01M38 28A10 10 0 1118 28a10 10 0 0120 0z" stroke="#B42318" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <svg v-else-if="confirmState.type === 'warning'" width="56" height="56" viewBox="0 0 56 56" fill="none">
-                <rect x="4" y="4" width="48" height="48" rx="24" fill="#FFFBEB" />
-                <rect x="4" y="4" width="48" height="48" rx="24" stroke="#FEF3C7" stroke-width="2" />
-                <path d="M28 22v8m0 4v.01M24 34h8M22.5 22.5l-5 5A2 2 0 0017 29v7a2 2 0 002 2h18a2 2 0 002-2v-7a2 2 0 00-.5-1.5l-5-5A2 2 0 0024 22v.5z" stroke="#B45309" stroke-width="2" stroke-linecap="round"/>
-              </svg>
-              <svg v-else width="56" height="56" viewBox="0 0 56 56" fill="none">
-                <rect x="4" y="4" width="48" height="48" rx="24" fill="#EFF6FF" />
-                <rect x="4" y="4" width="48" height="48" rx="24" stroke="#DBEAFE" stroke-width="2" />
-                <circle cx="28" cy="28" r="10" stroke="#1D4ED8" stroke-width="2.5"/>
-                <path d="M28 24v4m0 4v.01" stroke="#1D4ED8" stroke-width="2.5" stroke-linecap="round"/>
-              </svg>
-            </template>
+          <div v-if="confirmState.imageUrl" class="confirm-product-image">
+            <img :src="confirmState.imageUrl" alt="" />
+            <span><i class="fa-solid fa-trash" /></span>
           </div>
+          <div v-else class="confirm-icon" :class="{ 'confirm-icon--custom': !!confirmState.icon }"><i :class="confirmState.icon || (confirmState.type === 'danger' ? 'fa-solid fa-triangle-exclamation' : confirmState.type === 'warning' ? 'fa-solid fa-circle-exclamation' : 'fa-solid fa-circle-info')" /></div>
           <h3>{{ confirmState.title }}</h3>
           <p class="confirm-modal__message">{{ confirmState.message }}</p>
           <div class="actions">
@@ -78,6 +62,25 @@ const { confirmState, accept, cancel } = useConfirm()
   height: auto;
   max-width: 120px;
 }
+
+.confirm-icon { background: #eff6ff; border: 1px solid #dbeafe; border-radius: 50%; color: #1d4ed8; height: 56px; width: 56px; }
+.confirm-icon i { font-size: 1.45rem; }
+.type-danger .confirm-icon { background: #fef2f2; border-color: #fee2e2; color: #b42318; }
+.type-warning .confirm-icon { background: #fffbeb; border-color: #fef3c7; color: #b45309; }
+.confirm-icon--custom i { font-size: 1.45rem; }
+
+.confirm-product-image {
+  border: 3px solid #fee2e2;
+  border-radius: 18px;
+  height: 88px;
+  margin: 0 auto 1rem;
+  overflow: visible;
+  position: relative;
+  width: 88px;
+}
+
+.confirm-product-image img { border-radius: 15px; display: block; height: 100%; object-fit: cover; width: 100%; }
+.confirm-product-image span { align-items: center; background: #b42318; border: 3px solid #fff; border-radius: 50%; bottom: -9px; color: #fff; display: flex; font-size: .75rem; height: 30px; justify-content: center; position: absolute; right: -9px; width: 30px; }
 
 .confirm-icon--emoji span {
   font-size: 3rem;

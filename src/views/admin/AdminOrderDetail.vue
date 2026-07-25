@@ -4,10 +4,13 @@ import { useRoute } from 'vue-router'
 import AdminLayout from '@/components/admin/AdminLayout.vue'
 import SkeletonLoader from '@/components/global/SkeletonLoader.vue'
 import OrderService, { type OrderDTO } from '@/services/OrderService'
+import { useToast } from '@/composables/useToast'
 
 const route = useRoute()
 const order = ref<OrderDTO | null>(null)
 const loading = ref(true)
+const startingSearch = ref(false)
+const { success, error } = useToast()
 
 const statusLabels: Record<string, string> = {
   pending: 'Pendiente',
@@ -32,6 +35,8 @@ const itemCount = computed(() => order.value?.items?.reduce((sum, item) => sum +
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(amount / 100)
 }
+
+async function startDriverSearch() { if (!order.value) return; try { startingSearch.value = true; order.value = (await OrderService.startPickerSearch(order.value._id)).data.order; success('Búsqueda de conductor iniciada') } catch { error('No se pudo iniciar la búsqueda de conductor') } finally { startingSearch.value = false } }
 
 onMounted(async () => {
   const response = await OrderService.getById(String(route.params.id))
@@ -89,6 +94,8 @@ onMounted(async () => {
             </div>
           </div>
         </article>
+
+        <article v-if="order.scheduledFor" class="panel summary-card"><div class="section-head"><div><p class="section-head__eyebrow">Pedido programado</p><h2>{{ new Date(order.scheduledFor).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' }) }}</h2></div><button v-if="order.picker?.searchState === 'on_hold' || order.picker?.searchState === 'failed'" type="button" :disabled="startingSearch" @click="startDriverSearch"><i class="fa-solid fa-motorcycle" /> {{ startingSearch ? 'Buscando...' : 'Buscar conductor' }}</button><span v-else>{{ order.picker?.searchState === 'started' ? 'Búsqueda iniciada' : 'En espera' }}</span></div><p v-if="order.picker?.searchError">{{ order.picker.searchError }}</p></article>
 
         <article class="panel items-card">
           <div class="section-head">

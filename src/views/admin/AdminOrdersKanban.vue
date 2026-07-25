@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import AdminLayout from '@/components/admin/AdminLayout.vue'
 import OrderColumn from '@/components/admin/OrderColumn.vue'
+import { AdminDateRangeFilter } from '@/components/admin'
+import { AdminOrdersLineChart } from '@/components/admin'
 import ModalShell from '@/components/global/ModalShell.vue'
 import SkeletonLoader from '@/components/global/SkeletonLoader.vue'
 import type { OrderDTO } from '@/services/OrderService'
@@ -20,6 +22,10 @@ const {
   loading,
   searchQuery,
   statusFilter,
+   periodFilter,
+   startDate,
+   endDate,
+   activeDatePreset,
   visibleOrders,
   orders,
   grouped,
@@ -27,7 +33,8 @@ const {
   load,
   move,
   addNote,
-  resetFilters,
+   resetFilters,
+   applyDateRange,
   findOrder,
 } = useOrdersBoard()
 
@@ -40,13 +47,13 @@ const searchLoading = ref(false)
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 
 const noteHistory = computed(() => (noteTarget.value ? getOrderNotes(noteTarget.value) : []))
-const hasActiveFilters = computed(() => Boolean(searchQuery.value.trim()) || statusFilter.value !== 'all')
+const hasActiveFilters = computed(() => Boolean(searchQuery.value.trim()) || statusFilter.value !== 'all' || periodFilter.value !== 'today')
 const visibleColumnStatuses = computed(() => {
   if (!hasActiveFilters.value) return orderStatuses
   return orderStatuses.filter((status) => grouped.value[status].length > 0)
 })
 const resultSummary = computed(() => {
-  if (!hasActiveFilters.value) return 'Mostrando todas las órdenes'
+  if (!hasActiveFilters.value) return 'Órdenes de hoy'
   return `${visibleOrders.value.length} de ${orders.value.length} órdenes`
 })
 const searchFeedback = computed(() => {
@@ -69,6 +76,11 @@ function openDetail(orderId: string) {
 
 function setStatusFilter(status: OrderStatus | 'all') {
   statusFilter.value = status
+}
+
+async function setPeriodFilter(period: 'today' | 'all') {
+  periodFilter.value = period
+  await load()
 }
 
 function clearSearch() {
@@ -121,7 +133,12 @@ async function handleAdvance(order: OrderDTO, status: OrderStatus) {
   openNoteModal(findOrder(order._id) || { ...order, status }, 'status-change', status)
 }
 
-onMounted(load)
+onMounted(() => {
+  void load()
+  window.addEventListener('admin:branch-change', load)
+})
+
+onUnmounted(() => window.removeEventListener('admin:branch-change', load))
 </script>
 
 <template>
@@ -159,7 +176,16 @@ onMounted(load)
         </article>
       </section>
 
+      <AdminDateRangeFilter :start-date="startDate" :end-date="endDate" :active-preset="activeDatePreset" eyebrow="Filtro de órdenes" title="Selecciona el período" :loading="loading" @update:start-date="startDate = $event; activeDatePreset = ''" @update:end-date="endDate = $event; activeDatePreset = ''" @preset="activeDatePreset = $event" @apply="applyDateRange" />
+
+      <AdminOrdersLineChart :orders="orders" :period="periodFilter" />
+
       <section class="panel admin-orders__toolbar">
+        <div class="period-filter">
+          <span><i class="fa-solid fa-calendar-day" /> Periodo</span>
+          <button type="button" :class="{ active: periodFilter === 'today' }" @click="setPeriodFilter('today')">Hoy</button>
+          <button type="button" :class="{ active: periodFilter === 'all' }" @click="setPeriodFilter('all')">Historial</button>
+        </div>
         <div class="toolbar-search">
           <div class="toolbar-search__head">
             <span>Buscar pedido</span>
@@ -365,6 +391,12 @@ onMounted(load)
   gap: 1rem;
   padding: 0.9rem;
 }
+
+.period-filter { align-items: center; display: flex; flex: 1 1 100%; flex-wrap: wrap; gap: 0.45rem; }
+.period-filter > span { color: rgba($text-dark, 0.58); font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; margin-right: 0.2rem; text-transform: uppercase; }
+.period-filter > span i { color: $primary-dark; }
+.period-filter button { background: rgba($primary-dark, 0.07); border: 1px solid rgba($primary-dark, 0.12); border-radius: 999px; color: $primary-dark; font-size: 0.78rem; font-weight: 800; min-height: 36px; padding: 0.4rem 0.8rem; }
+.period-filter button.active { background: $primary-dark; border-color: $primary-dark; color: $white; }
 
 .toolbar-search {
   background: linear-gradient(135deg, rgba($white, 0.98), rgba($secondary, 0.1));

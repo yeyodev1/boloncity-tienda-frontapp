@@ -15,6 +15,8 @@ const props = withDefaults(
     multiple?: boolean
     bare?: boolean
     disabled?: boolean
+    searchable?: boolean
+    inlinePanel?: boolean
   }>(),
   {
     label: '',
@@ -22,14 +24,18 @@ const props = withDefaults(
     multiple: false,
     bare: false,
     disabled: false,
+    searchable: false,
+    inlinePanel: false,
   },
 )
 
 const emit = defineEmits<{
   (event: 'update:modelValue', value: string | string[]): void
+  (event: 'toggle', open: boolean): void
 }>()
 
 const open = ref(false)
+const search = ref('')
 const triggerRef = ref<HTMLElement | null>(null)
 const panelRef = ref<HTMLElement | null>(null)
 
@@ -43,10 +49,16 @@ const selectedLabels = computed(() => {
   if (!val) return props.placeholder
   return props.options.find((o) => o.value === val)?.label || val
 })
+const filteredOptions = computed(() => {
+  const query = search.value.trim().toLocaleLowerCase()
+  return query ? props.options.filter((option) => option.label.toLocaleLowerCase().includes(query)) : props.options
+})
 
 function toggle() {
   if (props.disabled) return
   open.value = !open.value
+  emit('toggle', open.value)
+  if (!open.value) search.value = ''
 }
 
 function select(value: string) {
@@ -62,6 +74,7 @@ function select(value: string) {
   } else {
     emit('update:modelValue', value)
     open.value = false
+    emit('toggle', false)
   }
 }
 
@@ -75,6 +88,8 @@ function isSelected(value: string) {
 function onKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape' && open.value) {
     open.value = false
+    emit('toggle', false)
+    search.value = ''
     triggerRef.value?.focus()
   }
   if (event.key === 'Enter' || event.key === ' ') {
@@ -88,6 +103,8 @@ function onClickOutside(event: MouseEvent) {
   if (triggerRef.value?.contains(target)) return
   if (panelRef.value?.contains(target)) return
   open.value = false
+  emit('toggle', false)
+  search.value = ''
 }
 
 watch(open, (isOpen) => {
@@ -109,7 +126,8 @@ onBeforeUnmount(() => {
     :class="{
       'base-select--open': open,
       'base-select--multi': multiple,
-      'base-select--bare': bare,
+       'base-select--bare': bare,
+       'base-select--inline': inlinePanel,
       'base-select--disabled': disabled,
       'base-select--has-value': multiple ? (modelValue as string[]).length > 0 : !!modelValue,
     }"
@@ -126,15 +144,12 @@ onBeforeUnmount(() => {
       @keydown="onKeydown"
     >
       <span class="base-select__text">{{ selectedLabels }}</span>
-      <span class="base-select__caret">
-        <svg width="12" height="8" viewBox="0 0 12 8" fill="none">
-          <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </span>
+      <span class="base-select__caret"><i class="fa-solid fa-chevron-down" /></span>
     </div>
 
     <Transition name="base-select-drop">
       <div v-if="open" ref="panelRef" class="base-select__panel" @keydown="onKeydown">
+        <label v-if="searchable" class="base-select__search"><i class="fa-solid fa-magnifying-glass" /><input v-model="search" type="search" placeholder="Buscar sucursal" @click.stop /></label>
         <button
           v-if="!multiple && placeholder"
           class="base-select__option"
@@ -143,15 +158,11 @@ onBeforeUnmount(() => {
           @click="select('')"
         >
           <span>{{ placeholder }}</span>
-          <span v-if="!modelValue" class="base-select__check">
-            <svg width="14" height="11" viewBox="0 0 14 11" fill="none">
-              <path d="M1 5.5L5 9.5L13 1.5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </span>
+          <i v-if="!modelValue" class="base-select__check fa-solid fa-check" />
         </button>
 
         <button
-          v-for="opt in options"
+          v-for="opt in filteredOptions"
           :key="opt.value"
           class="base-select__option"
           :class="{ 'base-select__option--selected': isSelected(opt.value) }"
@@ -159,12 +170,9 @@ onBeforeUnmount(() => {
           @click="select(opt.value)"
         >
           <span>{{ opt.label }}</span>
-          <span v-if="isSelected(opt.value)" class="base-select__check">
-            <svg width="14" height="11" viewBox="0 0 14 11" fill="none">
-              <path d="M1 5.5L5 9.5L13 1.5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </span>
+          <i v-if="isSelected(opt.value)" class="base-select__check fa-solid fa-check" />
         </button>
+        <p v-if="!filteredOptions.length" class="base-select__empty">No encontramos una sucursal con ese nombre.</p>
       </div>
     </Transition>
   </div>
@@ -247,6 +255,14 @@ onBeforeUnmount(() => {
   z-index: 50;
 }
 
+.base-select--inline .base-select__panel { margin-top: 0.5rem; position: static; }
+.base-select--inline .base-select__panel { border-color: rgba($primary-dark, 0.18); box-shadow: none; }
+
+.base-select__search { align-items: center; background: $white; border-bottom: 1px solid rgba($text-dark, .08); display: flex; gap: .55rem; padding: .7rem .85rem; position: sticky; top: 0; z-index: 1; }
+.base-select__search i { color: rgba($text-dark, .45); font-size: .8rem; }
+.base-select__search input { border: 0; color: $text-dark; min-width: 0; outline: 0; padding: .2rem 0; width: 100%; }
+.base-select__empty { color: rgba($text-dark, .55); font-size: .82rem; padding: 1rem; text-align: center; }
+
 .base-select__option {
   align-items: center;
   background: transparent;
@@ -269,6 +285,11 @@ onBeforeUnmount(() => {
 .base-select__option--selected {
   background: rgba($primary-dark, 0.08);
   font-weight: 700;
+}
+
+.base-select--multi .base-select__option--selected {
+  background: rgba($primary-dark, 0.1);
+  color: $primary-dark;
 }
 
 .base-select__option span {

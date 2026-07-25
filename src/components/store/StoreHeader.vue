@@ -95,7 +95,7 @@ async function logout() {
     confirmText: 'Cerrar sesión',
     cancelText: 'Cancelar',
     type: 'danger',
-    icon: '<svg width="80" height="80" viewBox="0 0 80 80" fill="none"><rect x="4" y="4" width="72" height="72" rx="36" fill="#FEF2F2"/><rect x="4" y="4" width="72" height="72" rx="36" stroke="#FEE2E2" stroke-width="2"/><path d="M34 30l-6 6m0 0l6 6m-6-6h16M48 26h4a2 2 0 012 2v20a2 2 0 01-2 2h-4" stroke="#B42318" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    icon: 'fa-solid fa-right-from-bracket',
   })
   if (ok) {
     user.clear()

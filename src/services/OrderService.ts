@@ -11,8 +11,10 @@ export interface CreateOrderInput {
   lng?: number
   deliveryCost?: number
   deliveryType?: 'delivery' | 'pickup'
+  paymentMethod?: 'card' | 'cash'
   deliveryAddress?: string
   deliveryGoogleMapsUrl?: string
+  scheduledFor?: string
   billingDocType?: string
   billingName?: string
   billingDocNumber?: string
@@ -24,6 +26,9 @@ export interface OrderDTO {
   _id: string
   orderNumber: string
   status: string
+  paymentMethod?: 'card' | 'cash'
+  pointsEarned?: number
+  pointsRedeemed?: number
   total: number
   subtotal: number
   tax: number
@@ -54,9 +59,13 @@ export interface OrderDTO {
     driverPhoto?: string
     validationCode?: string
     proofOfDelivery?: string
+    deliveryFee?: number
+    searchState?: 'on_hold' | 'started' | 'failed'
+    searchError?: string
   }
   createdAt?: string
   updatedAt?: string
+  scheduledFor?: string
 }
 
 class OrderService extends APIBase {
@@ -81,8 +90,16 @@ class OrderService extends APIBase {
     return this.get<OrderDTO>(`orders/by-id/${id}`)
   }
 
-  getAll() {
-    return this.get<OrderDTO[]>('orders')
+  getAll(params: { period?: 'today' | 'all'; date?: string; from?: string; to?: string; status?: string; limit?: number } = {}) {
+    const search = new URLSearchParams()
+    if (params.period) search.set('period', params.period)
+    if (params.date) search.set('date', params.date)
+    if (params.from) search.set('from', params.from)
+    if (params.to) search.set('to', params.to)
+    if (params.status) search.set('status', params.status)
+    if (params.limit) search.set('limit', String(params.limit))
+    const query = search.toString()
+    return this.get<OrderDTO[]>(`orders${query ? `?${query}` : ''}`)
   }
 
   updateStatus(id: string, status: string, note?: string) {
@@ -103,6 +120,10 @@ class OrderService extends APIBase {
 
   retryPicker(id: string) {
     return this.post<{ success: boolean; order: OrderDTO }>(`orders/${id}/retry-picker`, {})
+  }
+
+  startPickerSearch(id: string) {
+    return this.post<{ order: OrderDTO }>(`orders/${id}/start-picker-search`, {})
   }
 
   subscribeToMine(id: string, onOrder: (order: OrderDTO) => void, onError?: () => void) {
@@ -134,6 +155,38 @@ class OrderService extends APIBase {
         }
       }
 
+      if (!controller.signal.aborted) onError?.()
+    })().catch(() => {
+      if (!controller.signal.aborted) onError?.()
+    })
+
+    return controller
+  }
+
+  subscribeToPublic(orderNumber: string, email: string, onOrder: (order: OrderDTO) => void, onError?: () => void) {
+    const controller = new AbortController()
+
+    void (async () => {
+      const endpoint = `orders/${encodeURIComponent(orderNumber)}/stream?email=${encodeURIComponent(email)}`
+      const response = await fetch(this.buildUrl(endpoint), { signal: controller.signal })
+      if (!response.ok || !response.body) throw new Error('No se pudo conectar a las actualizaciones')
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      while (!controller.signal.aborted) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        let boundary = buffer.indexOf('\n\n')
+        while (boundary >= 0) {
+          const event = buffer.slice(0, boundary)
+          buffer = buffer.slice(boundary + 2)
+          const data = event.split('\n').find((line) => line.startsWith('data: '))
+          if (data) onOrder(JSON.parse(data.slice(6)))
+          boundary = buffer.indexOf('\n\n')
+        }
+      }
       if (!controller.signal.aborted) onError?.()
     })().catch(() => {
       if (!controller.signal.aborted) onError?.()

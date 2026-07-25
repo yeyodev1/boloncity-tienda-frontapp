@@ -7,6 +7,7 @@ export interface UserDTO {
   accountType: 'customer' | 'branch_admin' | 'admin'
   branches?: Array<{ _id: string; name: string }>
   allBranches?: boolean
+  points?: number
 }
 
 class UserService extends APIBase {

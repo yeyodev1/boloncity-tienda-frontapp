@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import AdminLayout from '@/components/admin/AdminLayout.vue'
+import { AdminDateRangeFilter, AdminHourlyChart, AdminRevenueChart } from '@/components/admin'
 import SkeletonLoader from '@/components/global/SkeletonLoader.vue'
 import OrderService, { type OrderDTO } from '@/services/OrderService'
 import ProductService, { type ProductDTO } from '@/services/ProductService'
@@ -17,6 +18,9 @@ const products = ref<ProductDTO[]>([])
 const categories = ref<CategoryDTO[]>([])
 const branches = ref<BranchDTO[]>([])
 const users = ref<UserDTO[]>([])
+const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Guayaquil' }).format(new Date())
+const startDate = ref(today)
+const endDate = ref(today)
 
 const pendingOrders = computed(() => orders.value.filter((o) => o.status === 'pending').length)
 const preparingOrders = computed(() => orders.value.filter((o) => o.status === 'preparing').length)
@@ -27,6 +31,10 @@ const totalRevenue = computed(() => {
     .filter((o) => o.status !== 'cancelled')
     .reduce((sum, o) => sum + (o.total || 0), 0)
 })
+const deliveryCharged = computed(() => orders.value.filter((o) => o.status !== 'cancelled').reduce((sum, o) => sum + (o.deliveryCost || 0), 0))
+const pickerDeliveryCost = computed(() => orders.value.filter((o) => o.status !== 'cancelled').reduce((sum, o) => sum + Math.round((o.picker?.deliveryFee || 0) * 100), 0))
+const deliveryDifference = computed(() => deliveryCharged.value - pickerDeliveryCost.value)
+const pointsGranted = computed(() => orders.value.reduce((sum, o) => sum + (o.pointsEarned || 0), 0))
 
 const totalProducts = computed(() => products.value.length)
 const activeProducts = computed(() => products.value.filter((p) => p.isAvailable).length)
@@ -52,22 +60,34 @@ const statusGroups = computed(() => {
 
 async function load() {
   loading.value = true
-  const [ordersRes, productsRes, categoriesRes, branchesRes, usersRes] = await Promise.all([
-    OrderService.getAll(),
+  try {
+    const ordersResponse = await OrderService.getAll({ from: startDate.value, to: endDate.value, limit: 200 })
+    orders.value = ordersResponse.data
+  } catch {
+    orders.value = []
+  } finally {
+    loading.value = false
+  }
+
+  const results = await Promise.allSettled([
     ProductService.getAll(),
     CategoryService.getAll(),
     BranchService.getAll(),
     UserService.getAll(),
   ])
-  orders.value = ordersRes.data
-  products.value = productsRes.data
-  categories.value = categoriesRes.data
-  branches.value = branchesRes.data
-  users.value = usersRes.data
-  loading.value = false
+  const [productsRes, categoriesRes, branchesRes, usersRes] = results
+  if (productsRes.status === 'fulfilled') products.value = productsRes.value.data
+  if (categoriesRes.status === 'fulfilled') categories.value = categoriesRes.value.data
+  if (branchesRes.status === 'fulfilled') branches.value = branchesRes.value.data
+  if (usersRes.status === 'fulfilled') users.value = usersRes.value.data
 }
 
-onMounted(load)
+onMounted(() => {
+  void load()
+  window.addEventListener('admin:branch-change', load)
+})
+
+onUnmounted(() => window.removeEventListener('admin:branch-change', load))
 
 function goStore() {
   window.open('/', '_blank')
@@ -75,6 +95,11 @@ function goStore() {
 
 function goCatalog() {
   window.open('/catalogo', '_blank')
+}
+
+function applyDateRange() {
+  if (startDate.value > endDate.value) [startDate.value, endDate.value] = [endDate.value, startDate.value]
+  void load()
 }
 </script>
 
@@ -102,6 +127,7 @@ function goCatalog() {
       <SkeletonLoader v-if="loading" type="card" :count="4" />
 
       <template v-else>
+        <AdminDateRangeFilter v-model:start-date="startDate" v-model:end-date="endDate" :loading="loading" @apply="applyDateRange" />
         <section class="stats-grid">
           <article class="panel stat-card stat-card--orders">
             <i class="stat-card__icon fa-solid fa-receipt" />
@@ -153,7 +179,25 @@ function goCatalog() {
             <span class="stat-card__value">${{ (totalRevenue / 100).toLocaleString('es-EC') }}</span>
             <span class="stat-card__label">Ingresos</span>
           </article>
+          <article class="panel stat-card stat-card--delivery">
+            <i class="stat-card__icon fa-solid fa-truck-fast" />
+            <span class="stat-card__value">${{ (deliveryCharged / 100).toLocaleString('es-EC') }}</span>
+            <span class="stat-card__label">Delivery cobrado</span>
+          </article>
+          <article class="panel stat-card stat-card--picker">
+            <i class="stat-card__icon fa-solid fa-scale-balanced" />
+            <span class="stat-card__value">${{ (deliveryDifference / 100).toLocaleString('es-EC') }}</span>
+            <span class="stat-card__label">Diferencia delivery</span>
+          </article>
+          <article class="panel stat-card stat-card--points">
+            <i class="stat-card__icon fa-solid fa-star" />
+            <span class="stat-card__value">{{ pointsGranted }}</span>
+            <span class="stat-card__label">Puntos entregados</span>
+          </article>
         </section>
+
+        <AdminHourlyChart :orders="orders" />
+        <AdminRevenueChart :orders="orders" />
 
         <section class="dashboard-main">
           <div class="panel dashboard-recent">
@@ -325,6 +369,10 @@ function goCatalog() {
 .stat-card--branches { border-left: 4px solid #3b82f6; .stat-card__icon { color: #3b82f6; } }
 .stat-card--users { border-left: 4px solid #14b8a6; .stat-card__icon { color: #14b8a6; } }
 .stat-card--revenue { border-left: 4px solid $primary-dark; .stat-card__icon { color: $primary-dark; } }
+.stat-card--delivery { border-left: 4px solid $alert-info; .stat-card__icon { color: $alert-info; } }
+.stat-card--picker { border-left: 4px solid $secondary; .stat-card__icon { color: darken($secondary, 25%); } }
+.stat-card--points { border-left: 4px solid #b79200; .stat-card__icon { color: #b79200; } }
+
 
 .dashboard-main {
   display: flex;

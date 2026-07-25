@@ -74,12 +74,21 @@ export function useOrdersBoard() {
   const loading = ref(true)
   const searchQuery = ref('')
   const statusFilter = ref<OrderStatus | 'all'>('all')
+  const today = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Guayaquil', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date())
+  const todayValue = `${today.find((part) => part.type === 'year')?.value}-${today.find((part) => part.type === 'month')?.value}-${today.find((part) => part.type === 'day')?.value}`
+  const monthStart = `${today.find((part) => part.type === 'year')?.value}-${today.find((part) => part.type === 'month')?.value}-01`
+  const periodFilter = ref<'today' | 'all' | 'range'>('range')
+  const startDate = ref(monthStart)
+  const endDate = ref(todayValue)
+  const activeDatePreset = ref('month')
   const { success, error } = useToast()
 
   async function load() {
     loading.value = true
     try {
-      const response = await OrderService.getAll()
+      const response = await OrderService.getAll(periodFilter.value === 'range'
+        ? { from: startDate.value, to: endDate.value, limit: 200 }
+        : { period: periodFilter.value, limit: 100 })
       orders.value = response.data
     } finally {
       loading.value = false
@@ -145,7 +154,17 @@ export function useOrdersBoard() {
   function resetFilters() {
     searchQuery.value = ''
     statusFilter.value = 'all'
-    load()
+    periodFilter.value = 'today'
+    startDate.value = todayValue
+    endDate.value = todayValue
+    activeDatePreset.value = 'today'
+    void load()
+  }
+
+  function applyDateRange() {
+    if (startDate.value > endDate.value) [startDate.value, endDate.value] = [endDate.value, startDate.value]
+    periodFilter.value = 'range'
+    void load()
   }
 
   function findOrder(orderId: string) {
@@ -157,6 +176,10 @@ export function useOrdersBoard() {
     loading,
     searchQuery,
     statusFilter,
+    periodFilter,
+    startDate,
+    endDate,
+    activeDatePreset,
     visibleOrders,
     grouped,
     totals,
@@ -164,6 +187,7 @@ export function useOrdersBoard() {
     move,
     addNote,
     resetFilters,
+    applyDateRange,
     findOrder,
   }
 }
