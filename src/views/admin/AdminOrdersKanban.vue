@@ -5,12 +5,12 @@ import AdminLayout from '@/components/admin/AdminLayout.vue'
 import OrderColumn from '@/components/admin/OrderColumn.vue'
 import { AdminDateRangeFilter } from '@/components/admin'
 import { AdminOrdersLineChart } from '@/components/admin'
-import ModalShell from '@/components/global/ModalShell.vue'
 import SkeletonLoader from '@/components/global/SkeletonLoader.vue'
+import OrderNoteModal from '@/components/admin/order-notes/OrderNoteModal.vue'
 import type { OrderDTO } from '@/services/OrderService'
+import { printOrderTicket } from '@/utils/printOrderTicket'
 import {
-  getOrderNotes,
-  orderStatusShortLabels,
+  orderStatusIcons,
   orderStatuses,
   orderStatusLabels,
   type OrderStatus,
@@ -32,7 +32,8 @@ const {
   totals,
   load,
   move,
-  addNote,
+   addNote,
+    requestDriver,
    resetFilters,
    applyDateRange,
   findOrder,
@@ -41,13 +42,13 @@ const {
 const noteModalOpen = ref(false)
 const noteText = ref('')
 const noteTarget = ref<OrderDTO | null>(null)
-const noteContext = ref<'general' | 'status-change'>('general')
-const droppedStatus = ref<OrderStatus | null>(null)
+const noteSaving = ref(false)
 const searchLoading = ref(false)
+const driverLoadingId = ref('')
 let searchTimer: ReturnType<typeof setTimeout> | null = null
+let refreshTimer: ReturnType<typeof setInterval> | null = null
 
-const noteHistory = computed(() => (noteTarget.value ? getOrderNotes(noteTarget.value) : []))
-const hasActiveFilters = computed(() => Boolean(searchQuery.value.trim()) || statusFilter.value !== 'all' || periodFilter.value !== 'today')
+const hasActiveFilters = computed(() => Boolean(searchQuery.value.trim()) || statusFilter.value !== 'all')
 const visibleColumnStatuses = computed(() => {
   if (!hasActiveFilters.value) return orderStatuses
   return orderStatuses.filter((status) => grouped.value[status].length > 0)
@@ -61,13 +62,6 @@ const searchFeedback = computed(() => {
   if (!term) return 'Busca por número de orden, cliente, correo, teléfono, producto o sucursal.'
   if (visibleOrders.value.length === 1) return `1 resultado para "${term}"`
   return `${visibleOrders.value.length} resultados para "${term}"`
-})
-const noteTitle = computed(() => {
-  if (!noteTarget.value) return 'Nota de orden'
-  if (noteContext.value === 'status-change' && droppedStatus.value) {
-    return `Nota opcional: ${orderStatusLabels[droppedStatus.value]}`
-  }
-  return `Nota: ${noteTarget.value.orderNumber}`
 })
 
 function openDetail(orderId: string) {
@@ -87,6 +81,14 @@ function clearSearch() {
   searchQuery.value = ''
 }
 
+function refreshBoard() {
+  if (document.visibilityState === 'visible' && !loading.value) void load(true)
+}
+
+function reloadBoard() {
+  void load()
+}
+
 watch(searchQuery, () => {
   searchLoading.value = true
   if (searchTimer) clearTimeout(searchTimer)
@@ -95,10 +97,8 @@ watch(searchQuery, () => {
   }, 260)
 })
 
-function openNoteModal(order: OrderDTO, context: 'general' | 'status-change' = 'general', status: OrderStatus | null = null) {
+function openNoteModal(order: OrderDTO) {
   noteTarget.value = order
-  noteContext.value = context
-  droppedStatus.value = status
   noteText.value = ''
   noteModalOpen.value = true
 }
@@ -107,17 +107,17 @@ function closeNoteModal() {
   noteModalOpen.value = false
   noteText.value = ''
   noteTarget.value = null
-  droppedStatus.value = null
 }
 
 async function submitNote() {
-  if (!noteTarget.value || !noteText.value.trim()) {
+  if (!noteTarget.value || !noteText.value.trim()) return
+  noteSaving.value = true
+  try {
+    await addNote(noteTarget.value, noteText.value.trim())
     closeNoteModal()
-    return
+  } finally {
+    noteSaving.value = false
   }
-
-  await addNote(noteTarget.value, noteText.value.trim())
-  closeNoteModal()
 }
 
 async function handleDrop(orderId: string, status: OrderStatus) {
@@ -125,20 +125,30 @@ async function handleDrop(orderId: string, status: OrderStatus) {
   if (!order || order.status === status) return
 
   await move(order, status)
-  openNoteModal(findOrder(orderId) || { ...order, status }, 'status-change', status)
 }
 
 async function handleAdvance(order: OrderDTO, status: OrderStatus) {
   await move(order, status)
-  openNoteModal(findOrder(order._id) || { ...order, status }, 'status-change', status)
+}
+
+async function handleDriver(order: OrderDTO) {
+  driverLoadingId.value = order._id
+  await requestDriver(order)
+  driverLoadingId.value = ''
 }
 
 onMounted(() => {
   void load()
-  window.addEventListener('admin:branch-change', load)
+  window.addEventListener('admin:branch-change', reloadBoard)
+  document.addEventListener('visibilitychange', refreshBoard)
+  refreshTimer = setInterval(refreshBoard, 10_000)
 })
 
-onUnmounted(() => window.removeEventListener('admin:branch-change', load))
+onUnmounted(() => {
+  window.removeEventListener('admin:branch-change', reloadBoard)
+  document.removeEventListener('visibilitychange', refreshBoard)
+  if (refreshTimer) clearInterval(refreshTimer)
+})
 </script>
 
 <template>
@@ -152,7 +162,7 @@ onUnmounted(() => window.removeEventListener('admin:branch-change', load))
         </div>
 
         <div class="admin-orders__hero-actions">
-          <button type="button" class="hero-button" @click="load">Actualizar</button>
+          <button type="button" class="hero-button" @click="reloadBoard">Actualizar</button>
           <button type="button" class="hero-button hero-button--ghost" @click="resetFilters">Limpiar filtros</button>
         </div>
       </header>
@@ -212,7 +222,7 @@ onUnmounted(() => window.removeEventListener('admin:branch-change', load))
             :class="{ active: statusFilter === status }"
             @click="setStatusFilter(status)"
           >
-            {{ orderStatusShortLabels[status] }}
+            <i :class="['fa-solid', orderStatusIcons[status]]" /> {{ orderStatusLabels[status] }}
           </button>
         </div>
 
@@ -226,11 +236,14 @@ onUnmounted(() => window.removeEventListener('admin:branch-change', load))
           v-for="status in visibleColumnStatuses"
           :key="status"
           :status="status"
-          :orders="grouped[status]"
+           :orders="grouped[status]"
+           :driver-loading-id="driverLoadingId"
           @open="openDetail"
           @note="openNoteModal"
           @advance="handleAdvance"
-          @drop="handleDrop"
+           @drop="handleDrop"
+           @driver="handleDriver"
+           @print="printOrderTicket"
         />
       </div>
 
@@ -241,37 +254,7 @@ onUnmounted(() => window.removeEventListener('admin:branch-change', load))
       </div>
     </section>
 
-    <ModalShell :open="noteModalOpen" :title="noteTitle" subtitle="Registra contexto operativo sin salir del tablero." size="md" @close="closeNoteModal">
-      <div class="note-modal">
-        <div v-if="noteTarget" class="note-modal__summary panel">
-          <span>{{ noteTarget.orderNumber }}</span>
-          <strong>{{ noteTarget.customerName || noteTarget.customerEmail }}</strong>
-          <small v-if="noteContext === 'status-change' && droppedStatus">
-            Cambio realizado a {{ orderStatusLabels[droppedStatus] }}. La nota es opcional.
-          </small>
-        </div>
-
-        <label class="note-modal__field">
-          <span>Nueva nota</span>
-          <textarea v-model="noteText" placeholder="Ej: Cliente pidió retirar en sucursal a las 18h00."></textarea>
-        </label>
-
-        <div class="note-modal__history">
-          <p>Historial</p>
-          <article v-for="entry in noteHistory" :key="`${entry.action}-${entry.timestamp}`">
-            <strong>{{ entry.action === 'note_added' ? 'Nota' : 'Cambio' }}</strong>
-            <small>{{ entry.performedByEmail || 'system' }}</small>
-            <span>{{ entry.details || `${entry.fromValue || '—'} → ${entry.toValue || '—'}` }}</span>
-          </article>
-          <small v-if="noteHistory.length === 0">Sin notas registradas todavía.</small>
-        </div>
-
-        <div class="note-modal__actions">
-          <button type="button" class="secondary" @click="closeNoteModal">Omitir</button>
-          <button type="button" @click="submitNote">Guardar nota</button>
-        </div>
-      </div>
-    </ModalShell>
+    <OrderNoteModal :open="noteModalOpen" :order="noteTarget" :text="noteText" :saving="noteSaving" @update:text="noteText = $event" @close="closeNoteModal" @submit="submitNote" />
   </AdminLayout>
 </template>
 

@@ -32,7 +32,8 @@ export const STATUS_LABELS: Record<string, string> = {
   pending: 'Pendiente',
   paid: 'Pagado',
   preparing: 'Preparando',
-  ready: 'Listo',
+  awaiting_pickup: 'Esperando recolección',
+  ready: 'En entrega',
   delivered: 'Entregado',
   cancelled: 'Cancelado',
 }
@@ -41,7 +42,8 @@ export const STATUS_ICONS: Record<string, string> = {
   pending: 'fa-hourglass-half',
   paid: 'fa-credit-card',
   preparing: 'fa-kitchen-set',
-  ready: 'fa-bag-shopping',
+  awaiting_pickup: 'fa-motorcycle',
+  ready: 'fa-truck-fast',
   delivered: 'fa-circle-check',
   cancelled: 'fa-ban',
 }

@@ -5,6 +5,8 @@ import AdminLayout from '@/components/admin/AdminLayout.vue'
 import SkeletonLoader from '@/components/global/SkeletonLoader.vue'
 import OrderService, { type OrderDTO } from '@/services/OrderService'
 import { useToast } from '@/composables/useToast'
+import AdminOrderDeliveryPanel from '@/components/admin/AdminOrderDeliveryPanel.vue'
+import { printOrderTicket } from '@/utils/printOrderTicket'
 
 const route = useRoute()
 const order = ref<OrderDTO | null>(null)
@@ -16,7 +18,8 @@ const statusLabels: Record<string, string> = {
   pending: 'Pendiente',
   paid: 'Pagada',
   preparing: 'En preparación',
-  ready: 'Lista',
+  awaiting_pickup: 'Esperando recolección',
+  ready: 'En entrega',
   delivered: 'Entregada',
   cancelled: 'Cancelada',
 }
@@ -25,10 +28,13 @@ const statusTones: Record<string, string> = {
   pending: 'tone--amber',
   paid: 'tone--blue',
   preparing: 'tone--green',
-  ready: 'tone--violet',
+  awaiting_pickup: 'tone--violet',
+  ready: 'tone--blue',
   delivered: 'tone--neutral',
   cancelled: 'tone--red',
 }
+const statusIcons: Record<string, string> = { pending:'fa-clock', paid:'fa-credit-card', preparing:'fa-kitchen-set', awaiting_pickup:'fa-motorcycle', ready:'fa-truck-fast', delivered:'fa-circle-check', cancelled:'fa-ban' }
+const auditLabels: Record<string, string> = { created:'Pedido recibido', payment_confirmed:'Pago confirmado', status_change:'Estado actualizado', note_added:'Nota agregada', user_assigned:'Usuario asignado', branch_assigned:'Sucursal asignada' }
 
 const itemCount = computed(() => order.value?.items?.reduce((sum, item) => sum + item.quantity, 0) || 0)
 
@@ -55,9 +61,7 @@ onMounted(async () => {
           <p>{{ order.customerName || order.customerEmail }}</p>
         </div>
 
-        <div class="admin-order-detail__status" :class="statusTones[order.status]">
-          <span>{{ statusLabels[order.status] || order.status }}</span>
-        </div>
+        <div class="hero-actions"><div class="admin-order-detail__status" :class="statusTones[order.status]"><i :class="['fa-solid', statusIcons[order.status] || 'fa-circle-info']" /> <span>{{ statusLabels[order.status] || order.status }}</span></div><button type="button" class="print-ticket" @click="printOrderTicket(order)"><i class="fa-solid fa-print" /> IMPRIMIR TICKET</button></div>
       </header>
 
       <SkeletonLoader v-if="loading" type="card" :count="2" />
@@ -95,6 +99,8 @@ onMounted(async () => {
           </div>
         </article>
 
+        <AdminOrderDeliveryPanel :order="order" />
+
         <article v-if="order.scheduledFor" class="panel summary-card"><div class="section-head"><div><p class="section-head__eyebrow">Pedido programado</p><h2>{{ new Date(order.scheduledFor).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' }) }}</h2></div><button v-if="order.picker?.searchState === 'on_hold' || order.picker?.searchState === 'failed'" type="button" :disabled="startingSearch" @click="startDriverSearch"><i class="fa-solid fa-motorcycle" /> {{ startingSearch ? 'Buscando...' : 'Buscar conductor' }}</button><span v-else>{{ order.picker?.searchState === 'started' ? 'Búsqueda iniciada' : 'En espera' }}</span></div><p v-if="order.picker?.searchError">{{ order.picker.searchError }}</p></article>
 
         <article class="panel items-card">
@@ -108,10 +114,14 @@ onMounted(async () => {
 
           <div class="item-list">
             <article v-for="item in order.items || []" :key="`${item.name}-${item.quantity}`" class="item-row">
+            <div class="item-row__info">
+              <img v-if="item.image" :src="item.image" :alt="item.name" />
+              <i v-else class="fa-solid fa-utensils" />
               <div>
                 <strong>{{ item.name }}</strong>
                 <p>Cantidad: {{ item.quantity }}</p>
               </div>
+            </div>
               <span>{{ formatCurrency(item.price * item.quantity) }}</span>
             </article>
           </div>
@@ -128,7 +138,7 @@ onMounted(async () => {
           <div v-if="order.audit?.length" class="audit">
             <div v-for="entry in order.audit || []" :key="`${entry.action}-${entry.timestamp}`" class="audit-item">
               <div class="audit-item__head">
-                <strong>{{ entry.action }}</strong>
+                <strong>{{ auditLabels[entry.action] || 'Actualización' }}</strong>
                 <small>{{ entry.performedByEmail || 'system' }}</small>
               </div>
               <p v-if="entry.fromValue || entry.toValue">{{ entry.fromValue || '—' }} → {{ entry.toValue || '—' }}</p>
@@ -187,6 +197,8 @@ onMounted(async () => {
   padding: 0.75rem 1rem;
   text-transform: uppercase;
 }
+
+.hero-actions { align-items:stretch; display:flex; flex-wrap:wrap; gap:.6rem; }.hero-actions > * { flex:1 1 170px; }.admin-order-detail__status { align-items:center; display:flex; justify-content:center; gap:.4rem; }.print-ticket { align-items:center; background:linear-gradient(135deg,#efd537,#f7e36a); border:0; border-radius:12px; box-shadow:0 5px 0 #b89e12; color:#18211b; cursor:pointer; display:flex; font-size:.8rem; font-weight:900; gap:.5rem; justify-content:center; letter-spacing:.06em; min-height:48px; padding:.7rem 1rem; }.print-ticket:active { box-shadow:none; transform:translateY(5px); }
 
 .admin-order-detail__grid {
   display: flex;
@@ -271,6 +283,8 @@ onMounted(async () => {
   color: rgba($text-dark, 0.66);
   line-height: 1.5;
 }
+
+.item-row__info { align-items:center; display:flex; gap:.7rem; }.item-row__info > img,.item-row__info > i { align-items:center; background:rgba(35,89,49,.1); border-radius:10px; color:#235931; display:flex; flex:0 0 42px; height:42px; justify-content:center; object-fit:cover; width:42px; }
 
 .audit {
   display: flex;

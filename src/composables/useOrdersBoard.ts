@@ -2,41 +2,55 @@ import { computed, ref } from 'vue'
 import OrderService, { type OrderDTO } from '@/services/OrderService'
 import { useToast } from '@/composables/useToast'
 
-export const orderStatuses = ['pending', 'paid', 'preparing', 'ready', 'delivered', 'cancelled'] as const
+export const orderStatuses = ['pending', 'paid', 'preparing', 'awaiting_pickup', 'ready', 'delivered', 'cancelled'] as const
 export type OrderStatus = (typeof orderStatuses)[number]
 
 export const orderStatusLabels: Record<OrderStatus, string> = {
   pending: 'Pendientes',
-  paid: 'Pagadas',
+  paid: 'Por preparar',
   preparing: 'En preparación',
-  ready: 'Listas',
-  delivered: 'Entregadas',
+  awaiting_pickup: 'Listas para recolección',
+  ready: 'En reparto',
+  delivered: 'Finalizadas',
   cancelled: 'Canceladas',
 }
 
 export const orderStatusDescriptions: Record<OrderStatus, string> = {
   pending: 'Validar pago',
-  paid: 'Por preparar',
+  paid: 'Iniciar cocina',
   preparing: 'En cocina',
-  ready: 'Para entregar',
-  delivered: 'Cerradas',
+  awaiting_pickup: 'Esperando motorizado o retiro',
+  ready: 'El pedido ya salió del local',
+  delivered: 'Entrega confirmada por Picker',
   cancelled: 'Canceladas',
 }
 
 export const orderStatusShortLabels: Record<OrderStatus, string> = {
   pending: 'Pend.',
-  paid: 'Pag.',
+  paid: 'Preparar',
   preparing: 'Prep.',
-  ready: 'Listas',
-  delivered: 'Ent.',
+  awaiting_pickup: 'Recolección',
+  ready: 'Reparto',
+  delivered: 'Finalizada',
   cancelled: 'Canc.',
+}
+
+export const orderStatusIcons: Record<OrderStatus, string> = {
+  pending: 'fa-clock',
+  paid: 'fa-credit-card',
+  preparing: 'fa-kitchen-set',
+  awaiting_pickup: 'fa-motorcycle',
+  ready: 'fa-truck-fast',
+  delivered: 'fa-circle-check',
+  cancelled: 'fa-ban',
 }
 
 export const orderStatusTones: Record<OrderStatus, string> = {
   pending: 'tone--amber',
   paid: 'tone--blue',
   preparing: 'tone--green',
-  ready: 'tone--violet',
+  awaiting_pickup: 'tone--violet',
+  ready: 'tone--blue',
   delivered: 'tone--neutral',
   cancelled: 'tone--red',
 }
@@ -83,15 +97,15 @@ export function useOrdersBoard() {
   const activeDatePreset = ref('month')
   const { success, error } = useToast()
 
-  async function load() {
-    loading.value = true
+  async function load(silent = false) {
+    if (!silent) loading.value = true
     try {
       const response = await OrderService.getAll(periodFilter.value === 'range'
         ? { from: startDate.value, to: endDate.value, limit: 200 }
         : { period: periodFilter.value, limit: 100 })
       orders.value = response.data
     } finally {
-      loading.value = false
+      if (!silent) loading.value = false
     }
   }
 
@@ -117,7 +131,9 @@ export function useOrdersBoard() {
 
   const grouped = computed(() =>
     orderStatuses.reduce((acc, status) => {
-      acc[status] = visibleOrders.value.filter((order) => order.status === status)
+      acc[status] = visibleOrders.value
+        .filter((order) => order.status === status)
+        .sort((a, b) => new Date(b.updatedAt || b.createdAt || 0).getTime() - new Date(a.updatedAt || a.createdAt || 0).getTime())
       return acc
     }, {} as Record<OrderStatus, OrderDTO[]>),
   )
@@ -125,18 +141,21 @@ export function useOrdersBoard() {
   const totals = computed(() => {
     const count = orders.value.length
     const pending = orders.value.filter((order) => order.status === 'pending').length
-    const active = orders.value.filter((order) => ['paid', 'preparing', 'ready'].includes(order.status)).length
+    const active = orders.value.filter((order) => ['paid', 'preparing', 'awaiting_pickup', 'ready'].includes(order.status)).length
     const completed = orders.value.filter((order) => order.status === 'delivered').length
 
     return { count, pending, active, completed }
   })
 
   async function move(order: OrderDTO, status: OrderStatus, note?: string) {
+    const previousOrders = [...orders.value]
+    orders.value = orders.value.map((item) => item._id === order._id ? { ...item, status, updatedAt: new Date().toISOString() } : item)
     try {
       await OrderService.updateStatus(order._id, status, note)
       success('Estado actualizado')
-      await load()
+      await load(true)
     } catch {
+      orders.value = previousOrders
       error('No se pudo actualizar el pedido')
     }
   }
@@ -145,9 +164,19 @@ export function useOrdersBoard() {
     try {
       await OrderService.addNote(order._id, note)
       success('Nota guardada')
-      await load()
+      await load(true)
     } catch {
       error('No se pudo guardar la nota')
+    }
+  }
+
+  async function requestDriver(order: OrderDTO) {
+    try {
+      await OrderService.startPickerSearch(order._id)
+      success('Picker está buscando un motorizado')
+      await load()
+    } catch {
+      error('No se pudo iniciar la búsqueda de motorizado')
     }
   }
 
@@ -186,6 +215,7 @@ export function useOrdersBoard() {
     load,
     move,
     addNote,
+    requestDriver,
     resetFilters,
     applyDateRange,
     findOrder,

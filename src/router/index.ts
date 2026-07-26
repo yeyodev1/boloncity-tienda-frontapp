@@ -123,6 +123,12 @@ const routes: Array<RouteRecordRaw> = [
     meta: { title: 'Ordenes | Boloncity', requiresAuth: true, requiresAdmin: true },
   },
   {
+    path: '/admin/operacion',
+    name: 'BranchOrders',
+    component: () => import('../views/admin/BranchOrdersView.vue'),
+    meta: { title: 'Operación de sucursal | Boloncity', requiresAuth: true, requiresAdmin: true },
+  },
+  {
     path: '/admin/ordenes/:id',
     name: 'AdminOrderDetail',
     component: () => import('../views/admin/AdminOrderDetail.vue'),
@@ -163,7 +169,8 @@ const router = createRouter({
 })
 
 function getAuthenticatedLanding(role: string | null) {
-  if (['admin', 'branch_admin'].includes(role || '')) {
+  if (role === 'branch_admin') return '/admin/operacion'
+  if (role === 'admin') {
     return '/admin'
   }
 

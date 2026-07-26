@@ -4,6 +4,7 @@ import OrderCard from '@/components/admin/OrderCard.vue'
 import type { OrderDTO } from '@/services/OrderService'
 import {
   orderStatusDescriptions,
+  orderStatusIcons,
   orderStatusLabels,
   orderStatusTones,
   type OrderStatus,
@@ -12,6 +13,7 @@ import {
 const props = defineProps<{
   status: OrderStatus
   orders: OrderDTO[]
+  driverLoadingId?: string
 }>()
 
 const emit = defineEmits<{
@@ -19,6 +21,8 @@ const emit = defineEmits<{
   (event: 'advance', order: OrderDTO, status: OrderStatus): void
   (event: 'note', order: OrderDTO): void
   (event: 'drop', orderId: string, status: OrderStatus): void
+  (event: 'driver', order: OrderDTO): void
+  (event: 'print', order: OrderDTO): void
 }>()
 
 function onAdd(event: { item?: HTMLElement }) {
@@ -31,13 +35,18 @@ function onAdd(event: { item?: HTMLElement }) {
 function emitAdvance(order: OrderDTO, status: OrderStatus) {
   emit('advance', order, status)
 }
+
+function canDrop(event: { draggedContext?: { element?: OrderDTO } }) {
+  const order = event.draggedContext?.element
+  return !(order?.deliveryType === 'delivery' && ['ready', 'delivered'].includes(props.status))
+}
 </script>
 
 <template>
   <section class="column panel" :class="orderStatusTones[status]">
     <header class="column__header">
       <div>
-        <p>{{ orderStatusLabels[status] }}</p>
+        <p><i :class="['fa-solid', orderStatusIcons[status]]" /> {{ orderStatusLabels[status] }}</p>
         <small>{{ orderStatusDescriptions[status] }}</small>
       </div>
       <strong>{{ orders.length }}</strong>
@@ -48,6 +57,11 @@ function emitAdvance(order: OrderDTO, status: OrderStatus) {
       :model-value="orders"
       :group="{ name: 'orders' }"
       :animation="180"
+      :force-fallback="true"
+      :fallback-on-body="true"
+      :delay-on-touch-only="true"
+      :touch-start-threshold="5"
+      :move="canDrop"
       handle=".order-card__drag-handle"
       ghost-class="order-card--ghost"
       chosen-class="order-card--chosen"
@@ -58,9 +72,12 @@ function emitAdvance(order: OrderDTO, status: OrderStatus) {
         :key="order._id"
         :order="order"
         :status="status"
+        :driver-loading="driverLoadingId === order._id"
         @open="emit('open', $event)"
         @advance="emitAdvance"
         @note="emit('note', $event)"
+        @driver="emit('driver', $event)"
+        @print="emit('print', $event)"
       />
     </VueDraggable>
   </section>
@@ -134,10 +151,16 @@ function emitAdvance(order: OrderDTO, status: OrderStatus) {
 
 :deep(.order-card--ghost) {
   opacity: 0.45;
+  transform: rotate(1deg) scale(0.98);
 }
 
 :deep(.order-card--chosen) {
   box-shadow: 0 20px 44px rgba(0, 0, 0, 0.32);
+  cursor: grabbing;
+}
+
+:deep(.sortable-fallback) {
+  cursor: grabbing !important;
 }
 
 .column {

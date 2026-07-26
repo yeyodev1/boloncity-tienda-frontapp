@@ -12,7 +12,9 @@ export function useAdminNavigation() {
   const route = useRoute()
   const userStore = useUserStore()
   const isAdmin = computed(() => userStore.allBranches || userStore.accountType === 'admin')
-  const items = computed<AdminNavItem[]>(() => [
+  const items = computed<AdminNavItem[]>(() => userStore.accountType === 'branch_admin' ? [
+    { label: 'Mi operación', path: '/admin/operacion', icon: 'fa-solid fa-kitchen-set' },
+  ] : [
     { label: 'Resumen', path: '/admin', icon: 'fa-solid fa-chart-pie' },
     { label: 'Órdenes', path: '/admin/ordenes', icon: 'fa-solid fa-clipboard-list' },
     { label: 'Productos', path: '/admin/productos', icon: 'fa-solid fa-box-open' },

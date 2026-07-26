@@ -24,7 +24,8 @@ const statusLabels: Record<string, string> = {
   pending: 'Pendiente',
   paid: 'Pagado',
   preparing: 'Preparando',
-  ready: 'Listo',
+  awaiting_pickup: 'Esperando recolección',
+  ready: 'En entrega',
   delivered: 'Entregado',
   cancelled: 'Cancelado',
 }
@@ -34,7 +35,8 @@ const filterOptions = [
   { key: 'pending', label: 'Pendientes' },
   { key: 'paid', label: 'Pagados' },
   { key: 'preparing', label: 'Preparando' },
-  { key: 'ready', label: 'Listos' },
+  { key: 'awaiting_pickup', label: 'Esperando recolección' },
+  { key: 'ready', label: 'En entrega' },
   { key: 'delivered', label: 'Entregados' },
   { key: 'cancelled', label: 'Cancelados' },
 ]
@@ -83,7 +85,7 @@ function hasPickerFailed(order: OrderDTO): boolean {
 }
 
 function timelineEntries(order: OrderDTO) {
-  const steps = ['pending', 'paid', 'preparing', 'ready', 'delivered']
+  const steps = ['pending', 'paid', 'preparing', 'awaiting_pickup', 'ready', 'delivered']
   const idx = steps.indexOf(order.status)
   return steps.map((key, i) => ({
     key,

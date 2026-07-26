@@ -27,7 +27,8 @@ const statusLabels: Record<string, string> = {
   pending: 'Pendiente',
   paid: 'Pagado',
   preparing: 'Preparando',
-  ready: 'Listo',
+  awaiting_pickup: 'Esperando recolección',
+  ready: 'En entrega',
   delivered: 'Entregado',
   cancelled: 'Cancelado',
 }
@@ -36,7 +37,8 @@ const timeline = [
   { key: 'pending', label: 'Pendiente' },
   { key: 'paid', label: 'Pagado' },
   { key: 'preparing', label: 'Preparando' },
-  { key: 'ready', label: 'Listo' },
+  { key: 'awaiting_pickup', label: 'Esperando recolección' },
+  { key: 'ready', label: 'En entrega' },
   { key: 'delivered', label: 'Entregado' },
 ]
 
