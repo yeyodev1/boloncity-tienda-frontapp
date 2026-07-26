@@ -95,7 +95,7 @@ export function useOrdersBoard() {
   const startDate = ref(monthStart)
   const endDate = ref(todayValue)
   const activeDatePreset = ref('month')
-  const { success, error } = useToast()
+  const { success, error, info } = useToast()
 
   async function load(silent = false) {
     if (!silent) loading.value = true
@@ -103,7 +103,19 @@ export function useOrdersBoard() {
       const response = await OrderService.getAll(periodFilter.value === 'range'
         ? { from: startDate.value, to: endDate.value, limit: 200 }
         : { period: periodFilter.value, limit: 100 })
+      const previousOrders = new Map(orders.value.map((order) => [order._id, order]))
       orders.value = response.data
+      if (silent) {
+        response.data.forEach((order) => {
+          const previous = previousOrders.get(order._id)
+          if (!previous) return
+          if (previous.picker?.currentStatus !== order.picker?.currentStatus && order.picker?.currentStatus) {
+            info(`${order.orderNumber}: ${order.picker.statusText || 'Picker actualizó la entrega'}`)
+          } else if (previous.status !== order.status) {
+            info(`${order.orderNumber}: ${orderStatusLabels[order.status as OrderStatus] || 'Estado actualizado'}`)
+          }
+        })
+      }
     } finally {
       if (!silent) loading.value = false
     }
