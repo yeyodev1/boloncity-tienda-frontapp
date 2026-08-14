@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useCartStore } from '@/stores/cart'
 import { useBranchStore } from '@/stores/branch'
 import BranchService, { type BranchDTO } from '@/services/BranchService'
@@ -24,8 +24,7 @@ export function useCheckout() {
   const paymentMethod = ref<'card' | 'cash'>('card')
   const scheduleOrder = ref(false)
   const scheduledDate = ref('')
-  const scheduledTime = ref('07:00')
-  const scheduleSlots = Array.from({ length: 12 }, (_, index) => `${String(7 + Math.floor(index / 2)).padStart(2, '0')}:${index % 2 ? '30' : '00'}`)
+  const scheduledTime = ref('')
   const order = ref<OrderDTO | null>(null)
   const loading = ref(false)
   const ready = ref(false)
@@ -64,6 +63,115 @@ export function useCheckout() {
 
   const total = computed(() => cart.subtotal + (deliveryType.value === 'delivery' ? deliveryCost.value : 0))
 
+  // ─── Programar pedido ───────────────────────────────────────────────────────
+  // Los horarios salen de openingHours de la sucursal, no de un rango fijo: cada
+  // local abre distinto y el backend rechaza un scheduledFor fuera de atención.
+  const ECUADOR_TZ = 'America/Guayaquil'
+  const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+  const SCHEDULE_DAYS_AHEAD = 7
+  /** Colchón para que la sucursal alcance a preparar el pedido. */
+  const SCHEDULE_LEAD_MINUTES = 45
+  const SLOT_STEP_MINUTES = 30
+
+  interface ScheduleDay {
+    date: string
+    weekdayLabel: string
+    dayNumber: string
+    isToday: boolean
+    isOpen: boolean
+    slots: string[]
+  }
+
+  function ecuadorDate(instant: Date) {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: ECUADOR_TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(instant)
+  }
+
+  function ecuadorMinutesNow(instant: Date) {
+    const [hour, minute] = new Intl.DateTimeFormat('en-GB', { timeZone: ECUADOR_TZ, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+      .format(instant)
+      .split(':')
+    return Number(hour) * 60 + Number(minute)
+  }
+
+  function toMinutes(time: string) {
+    const [hour, minute] = time.split(':')
+    return Number(hour) * 60 + Number(minute)
+  }
+
+  function toTime(minutes: number) {
+    return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
+  }
+
+  const scheduleDays = computed<ScheduleDay[]>(() => {
+    const hours = branch.value?.openingHours?.length
+      ? branch.value.openingHours
+      : WEEKDAYS.map((day) => ({ day, opensAt: '07:00', closesAt: '13:00', isOpen: true }))
+    const now = new Date()
+    const today = ecuadorDate(now)
+    const minutesNow = ecuadorMinutesNow(now)
+
+    return Array.from({ length: SCHEDULE_DAYS_AHEAD }, (_, offset) => {
+      const instant = new Date(now.getTime() + offset * 86_400_000)
+      const date = ecuadorDate(instant)
+      const parts = date.split('-')
+      // Mediodía UTC evita que el desfase de zona corra el día del calendario.
+      const local = new Date(Date.UTC(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 12))
+      const dayHours = hours.find((item) => item.day === WEEKDAYS[local.getUTCDay()])
+      const isToday = date === today
+
+      let slots: string[] = []
+      if (dayHours?.isOpen) {
+        const opensAt = toMinutes(dayHours.opensAt)
+        const closesAt = toMinutes(dayHours.closesAt)
+        const earliest = isToday ? Math.max(opensAt, minutesNow + SCHEDULE_LEAD_MINUTES) : opensAt
+        // Se redondea hacia arriba al siguiente bloque de media hora.
+        const first = Math.ceil(earliest / SLOT_STEP_MINUTES) * SLOT_STEP_MINUTES
+        for (let minutes = first; minutes < closesAt; minutes += SLOT_STEP_MINUTES) slots.push(toTime(minutes))
+      }
+
+      return {
+        date,
+        weekdayLabel: isToday ? 'Hoy' : offset === 1 ? 'Mañana' : new Intl.DateTimeFormat('es-EC', { timeZone: 'UTC', weekday: 'short' }).format(local).replace('.', ''),
+        dayNumber: String(local.getUTCDate()),
+        isToday,
+        isOpen: Boolean(dayHours?.isOpen),
+        slots,
+      }
+    })
+  })
+
+  const availableScheduleDays = computed(() => scheduleDays.value.filter((day) => day.slots.length > 0))
+  const selectedScheduleDay = computed(() => scheduleDays.value.find((day) => day.date === scheduledDate.value) || null)
+  const scheduleSlots = computed(() => selectedScheduleDay.value?.slots || [])
+  const isScheduleValid = computed(() => Boolean(scheduledDate.value && scheduledTime.value && scheduleSlots.value.includes(scheduledTime.value)))
+
+  function selectScheduleDay(date: string) {
+    scheduledDate.value = date
+    const slots = scheduleDays.value.find((day) => day.date === date)?.slots || []
+    if (!slots.includes(scheduledTime.value)) scheduledTime.value = slots[0] || ''
+  }
+
+  /** Al activar la programación se preselecciona el primer turno disponible. */
+  function toggleScheduleOrder(value: boolean) {
+    scheduleOrder.value = value
+    if (!value) return
+    const firstDay = availableScheduleDays.value[0]
+    if (!firstDay) { scheduledDate.value = ''; scheduledTime.value = ''; return }
+    if (!selectedScheduleDay.value?.slots.length) selectScheduleDay(firstDay.date)
+  }
+
+  // Cambiar de sucursal cambia los horarios: el turno elegido puede dejar de existir.
+  watch(
+    () => branch.value?._id,
+    () => {
+      if (!scheduleOrder.value) return
+      if (isScheduleValid.value) return
+      const firstDay = availableScheduleDays.value[0]
+      if (firstDay) selectScheduleDay(firstDay.date)
+      else { scheduledDate.value = ''; scheduledTime.value = '' }
+    }
+  )
+
   const effectiveBranchId = computed(() => {
     if (deliveryType.value === 'pickup') return branchStore.selectedBranchId || branch.value?._id || null
     return branch.value?._id || null
@@ -73,12 +181,13 @@ export function useCheckout() {
     const hasItems = cart.items.length > 0
     const hasName = customerFirstName.value.trim().length > 0 && customerLastName.value.trim().length > 0
     const hasEmail = customerEmail.value.trim().length > 0
+    const scheduleOk = !scheduleOrder.value || isScheduleValid.value
     if (deliveryType.value === 'delivery') {
       const hasAddress = deliveryAddress.value.trim().length > 0
       const hasLocation = deliveryGoogleMapsUrl.value.trim().length > 0 || locationDetected.value
-      return hasItems && hasName && hasEmail && hasAddress && hasLocation && !mapsError.value
+      return hasItems && hasName && hasEmail && hasAddress && hasLocation && !mapsError.value && scheduleOk
     }
-    return hasItems && hasName && hasEmail && effectiveBranchId.value !== null && (!scheduleOrder.value || Boolean(scheduledDate.value && scheduledTime.value))
+    return hasItems && hasName && hasEmail && effectiveBranchId.value !== null && scheduleOk
   })
 
   function onPayPhoneReady() { ready.value = true }
@@ -216,12 +325,18 @@ export function useCheckout() {
   function selectBranch(item: BranchDTO) { branch.value = item; branchStore.setSelectedBranch(item._id) }
 
   const payphoneToken = import.meta.env.VITE_PAYPHONE_TOKEN as string
-  const payphoneStoreId = import.meta.env.VITE_PAYPHONE_STORE_ID as string
+  // Cada sucursal cobra en su propia tienda de PayPhone; la global solo cubre el caso
+  // en que la sucursal todavía no tenga storeId cargado.
+  const payphoneStoreId = computed(
+    () => branch.value?.payphone?.storeId || (import.meta.env.VITE_PAYPHONE_STORE_ID as string) || ''
+  )
 
   return {
     branchStore, countries,
     customerFirstName, customerLastName, customerEmail, customerPhone, phoneCountryCode,
-    notes, deliveryAddress, deliveryGoogleMapsUrl, deliveryType, paymentMethod, scheduleOrder, scheduledDate, scheduledTime, scheduleSlots, order,
+    notes, deliveryAddress, deliveryGoogleMapsUrl, deliveryType, paymentMethod, order,
+    scheduleOrder, scheduledDate, scheduledTime, scheduleSlots, scheduleDays, availableScheduleDays,
+    selectedScheduleDay, isScheduleValid, selectScheduleDay, toggleScheduleOrder,
     loading, ready, branch, branchLoading, publicBranches,
     deliveryCost, deliveryDistance, mapsError, locating, locationDetected,
     detectedLat, detectedLng, manualMapsLink, displayLat, displayLng,

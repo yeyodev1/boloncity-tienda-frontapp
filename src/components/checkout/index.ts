@@ -1,6 +1,7 @@
 export { default as CheckoutHero } from './CheckoutHero.vue'
 export { default as CheckoutDeliveryType } from './CheckoutDeliveryType.vue'
 export { default as CheckoutLocation } from './CheckoutLocation.vue'
+export { default as CheckoutSchedule } from './CheckoutSchedule.vue'
 export { default as CheckoutBilling } from './CheckoutBilling.vue'
 export { default as CheckoutSummary } from './CheckoutSummary.vue'
 export { default as CheckoutPayment } from './CheckoutPayment.vue'

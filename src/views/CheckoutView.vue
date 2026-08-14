@@ -3,12 +3,12 @@ import { Transition } from 'vue'
 import StoreHeader from '@/components/store/StoreHeader.vue'
 import StoreFooter from '@/components/store/StoreFooter.vue'
 import PayPhoneBox from '@/components/checkout/PayPhoneBox.vue'
-import BaseDatePicker from '@/components/global/BaseDatePicker.vue'
 import { useCheckout } from '@/composables/useCheckout'
 import {
   CheckoutHero,
   CheckoutDeliveryType,
   CheckoutLocation,
+  CheckoutSchedule,
   CheckoutBilling,
   CheckoutSummary,
 } from '@/components/checkout'
@@ -16,7 +16,8 @@ import {
 const {
   branchStore, countries,
   customerFirstName, customerLastName, customerEmail, customerPhone, phoneCountryCode,
-  notes, deliveryAddress, deliveryGoogleMapsUrl, deliveryType, paymentMethod, scheduleOrder, scheduledDate, scheduledTime, scheduleSlots, order,
+  notes, deliveryAddress, deliveryGoogleMapsUrl, deliveryType, paymentMethod, order,
+  scheduleOrder, scheduledDate, scheduledTime, scheduleSlots, scheduleDays, selectScheduleDay, toggleScheduleOrder,
   loading, ready, branch, branchLoading, publicBranches,
   deliveryCost, deliveryDistance, mapsError, locating, locationDetected,
   manualMapsLink, displayLat, displayLng,
@@ -111,7 +112,17 @@ const {
                 </div>
               </div>
 
-              <section class="checkout-schedule" :class="{ active: scheduleOrder }"><label><input v-model="scheduleOrder" type="checkbox" /><span><i class="fa-solid fa-calendar-clock" /><strong>Programar pedido</strong><small>Elige una fecha y horario de atención entre 07:00 y 13:00.</small></span></label><div v-if="scheduleOrder" class="checkout-schedule__fields"><BaseDatePicker v-model="scheduledDate" label="Fecha" :min-date="new Date().toLocaleDateString('en-CA', { timeZone: 'America/Guayaquil' })" /><label><span>Hora</span><select v-model="scheduledTime"><option v-for="slot in scheduleSlots" :key="slot" :value="slot">{{ slot }}</option></select></label></div></section>
+              <CheckoutSchedule
+                :enabled="scheduleOrder"
+                :days="scheduleDays"
+                :slots="scheduleSlots"
+                :selected-date="scheduledDate"
+                :selected-time="scheduledTime"
+                :branch-name="branch?.name"
+                @update:enabled="toggleScheduleOrder"
+                @select-day="selectScheduleDay"
+                @update:selected-time="scheduledTime = $event"
+              />
 
               <label class="checkout-field">
                 <span class="checkout-field__label"><i class="fa-solid fa-pen" /> Notas</span>
@@ -501,5 +512,4 @@ const {
   .checkout-payment-method__option > i { flex-basis: 44px; font-size: 1.15rem; height: 44px; width: 44px; }
   .checkout-payment-method__option small { max-width: 14rem; }
 }
-.checkout-schedule { background:rgba(35,89,49,.04); border:1px solid rgba(35,89,49,.14); border-radius:16px; display:flex; flex-direction:column; gap:.8rem; padding:.85rem; }.checkout-schedule.active { background:rgba(35,89,49,.08); border-color:rgba(35,89,49,.3); }.checkout-schedule > label { align-items:flex-start; cursor:pointer; display:flex; gap:.65rem; }.checkout-schedule input[type='checkbox'] { accent-color:#235931; margin-top:.2rem; }.checkout-schedule label > span { display:flex; flex-direction:column; gap:.15rem; }.checkout-schedule label > span > i { color:#235931; }.checkout-schedule strong { color:#152019; font-size:.9rem; }.checkout-schedule small { color:rgba(8,17,13,.58); font-size:.75rem; }.checkout-schedule__fields { display:flex; flex-wrap:wrap; gap:.65rem; }.checkout-schedule__fields > * { flex:1 1 150px; }.checkout-schedule__fields label { display:flex; flex-direction:column; gap:.3rem; }.checkout-schedule__fields label > span { color:#235931; font-size:.7rem; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }.checkout-schedule__fields select { background:#fff; border:1px solid rgba(8,17,13,.12); border-radius:12px; color:#152019; min-height:42px; padding:.55rem .65rem; }
 </style>
