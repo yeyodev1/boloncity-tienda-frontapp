@@ -17,6 +17,7 @@ const orders = ref<OrderDTO[]>([])
 const selectedOrder = ref<OrderDTO | null>(null)
 const loading = ref(false)
 const searching = ref(false)
+const retryingPicker = ref(false)
 const errorMessage = ref('')
 const fromUrl = ref(false)
 const statusFlash = ref(false)
@@ -52,6 +53,10 @@ const pickerSteps = [
 ]
 
 const pickerStatus = computed(() => selectedOrder.value?.picker?.currentStatus || '')
+const canRetryPicker = computed(() => {
+  const order = selectedOrder.value
+  return Boolean(order && order.status === 'paid' && order.deliveryType === 'delivery' && !order.picker?.bookingId && order.audit?.some((entry) => entry.action === 'note_added' && /picker booking fall[oó]|intento de delivery fall[oó]/i.test(entry.details || '')))
+})
 const pickerStepIndex = computed(() => pickerSteps.findIndex((step) => step.key === pickerStatus.value))
 const pickerEvents = computed(() => {
   if (!selectedOrder.value?.audit) return []
@@ -157,6 +162,21 @@ function stopRealtime() {
   if (reconnectTimer) {
     clearTimeout(reconnectTimer)
     reconnectTimer = null
+  }
+}
+
+async function retryPicker() {
+  if (!selectedOrder.value || !email.value) return
+  retryingPicker.value = true
+  errorMessage.value = ''
+  try {
+    const response = await OrderService.retryPickerPublic(selectedOrder.value.orderNumber, email.value.trim().toLowerCase())
+    applyOrderUpdate(response.data.order)
+    startRealtime()
+  } catch (requestError: any) {
+    errorMessage.value = requestError?.message || 'No pudimos solicitar el delivery. Intenta de nuevo.'
+  } finally {
+    retryingPicker.value = false
   }
 }
 
@@ -331,6 +351,12 @@ onUnmounted(stopRealtime)
             <a v-if="selectedOrder.picker?.smrURL" :href="selectedOrder.picker.smrURL" target="_blank" rel="noopener noreferrer" class="track-detail__tracking">
               <i class="fa-solid fa-location-crosshairs" /> Seguir delivery en vivo
             </a>
+
+            <section v-if="canRetryPicker" class="track-detail__retry">
+              <i class="fa-solid fa-triangle-exclamation" />
+              <div><strong>No pudimos asignar tu delivery.</strong><span>Cuando el servicio esté disponible puedes volver a solicitarlo.</span></div>
+              <button type="button" :disabled="retryingPicker" @click="retryPicker"><i class="fa-solid fa-truck-fast" /> {{ retryingPicker ? 'Solicitando...' : 'Solicitar delivery ahora' }}</button>
+            </section>
 
             <div v-if="currentStepIndex >= 0 && !selectedOrder.picker?.bookingId" class="track-detail__card">
               <div class="track-detail__card-head"><i class="fa-solid fa-clock" /> Estado del pedido</div>
@@ -788,6 +814,8 @@ onUnmounted(stopRealtime)
 }
 
 .track-detail__tracking:hover { background: #00a523; transform: translateY(-1px); }
+
+.track-detail__retry { align-items:center; background:rgba(239,213,55,.18); border:1px solid rgba(184,158,18,.3); border-radius:14px; color:#4d4210; display:flex; flex-direction:column; gap:.75rem; padding:1rem; }.track-detail__retry > i { color:#b89e12; font-size:1.25rem; }.track-detail__retry div { display:flex; flex-direction:column; gap:.2rem; text-align:center; }.track-detail__retry span { font-size:.85rem; }.track-detail__retry button { align-items:center; background:#235931; border:0; border-radius:10px; color:#fff; cursor:pointer; display:flex; font-weight:800; gap:.45rem; justify-content:center; min-height:44px; padding:.65rem 1rem; width:100%; }.track-detail__retry button:disabled { cursor:wait; opacity:.65; }
 
 .track-detail__timeline { display: flex; flex-direction: column; gap: 0.5rem; }
 

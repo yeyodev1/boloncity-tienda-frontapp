@@ -38,6 +38,12 @@ const routes: Array<RouteRecordRaw> = [
     meta: { title: 'Confirmando pago | Boloncity' },
   },
   {
+    path: '/pago/:orderNumber',
+    name: 'WhatsAppPayment',
+    component: () => import('../views/WhatsAppPaymentView.vue'),
+    meta: { title: 'Pago seguro | Boloncity' },
+  },
+  {
     path: '/checkout/response',
     name: 'CheckoutResponse',
     component: () => import('../views/CheckoutResponseView.vue'),
