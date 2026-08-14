@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Boloncity">
+  <!--
+    El logotipo de Boloncity es horizontal (415x73) y a 16px no se lee. Esta marca
+    cuadrada usa los mismos colores: verde urbano de fondo y la B en amarillo
+    metropolitano. La B va como trazado vectorial, no como texto, para que se vea
+    igual en cualquier sistema aunque no tenga la tipografia instalada.
+  -->
+  <rect width="512" height="512" rx="112" fill="#235931"/>
+  <path
+    fill="#efd537"
+    d="M150 104h150c53 0 90 33 90 79 0 27-13 48-35 60 30 11 48 35 48 66 0 50-40 85-99 85H150V104zm74 62v72h68c22 0 36-14 36-36s-14-36-36-36h-68zm0 134v76h78c25 0 40-15 40-38s-15-38-40-38h-78z"
+  />
+</svg>
