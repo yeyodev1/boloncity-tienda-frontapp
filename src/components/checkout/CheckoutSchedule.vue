@@ -43,7 +43,8 @@ function formatSlot(slot: string) {
 function selectedSummary() {
   const day = props.days.find((item) => item.date === props.selectedDate)
   if (!day || !props.selectedTime) return ''
-  return `${day.isToday ? 'hoy' : day.isOpen ? `${day.weekdayLabel} ${day.dayNumber}` : ''} a las ${formatSlot(props.selectedTime)}`
+  const cuando = day.isToday ? 'hoy' : `el ${day.weekdayLabel} ${day.dayNumber}`
+  return `${cuando} a las ${formatSlot(props.selectedTime)}`
 }
 </script>
 
@@ -54,9 +55,9 @@ function selectedSummary() {
         <strong><i class="fa-regular fa-clock" /> ¿Cuándo lo quieres?</strong>
         <small>{{ enabled ? 'Elige el día y la hora de entrega.' : 'Lo preparamos apenas confirmes el pago.' }}</small>
       </div>
-      <div class="schedule__switch">
-        <button type="button" :class="{ active: !enabled }" @click="emit('update:enabled', false)">Lo antes posible</button>
-        <button type="button" :class="{ active: enabled }" @click="emit('update:enabled', true)">Programar</button>
+      <div class="schedule__switch" role="group" aria-label="Cuándo entregar el pedido">
+        <button type="button" :class="{ active: !enabled }" :aria-pressed="!enabled" @click="emit('update:enabled', false)">Lo antes posible</button>
+        <button type="button" :class="{ active: enabled }" :aria-pressed="enabled" @click="emit('update:enabled', true)">Programar</button>
       </div>
     </div>
 
@@ -70,7 +71,7 @@ function selectedSummary() {
         <template v-else>
           <div class="schedule__block">
             <span class="schedule__label">Día</span>
-            <div class="schedule__days">
+            <div class="schedule__days" role="group" aria-label="Día de entrega">
               <button
                 v-for="day in days"
                 :key="day.date"
@@ -78,6 +79,8 @@ function selectedSummary() {
                 class="schedule__day"
                 :class="{ active: day.date === selectedDate, disabled: dayDisabled(day) }"
                 :disabled="dayDisabled(day)"
+                :aria-pressed="day.date === selectedDate"
+                :aria-label="`${day.weekdayLabel} ${day.dayNumber}, ${dayHint(day)}`"
                 @click="emit('select-day', day.date)"
               >
                 <em>{{ day.weekdayLabel }}</em>
@@ -89,13 +92,14 @@ function selectedSummary() {
 
           <div class="schedule__block">
             <span class="schedule__label">Hora de atención</span>
-            <div class="schedule__slots">
+            <div class="schedule__slots" role="group" aria-label="Hora de entrega">
               <button
                 v-for="slot in slots"
                 :key="slot"
                 type="button"
                 class="schedule__slot"
                 :class="{ active: slot === selectedTime }"
+                :aria-pressed="slot === selectedTime"
                 @click="emit('update:selectedTime', slot)"
               >
                 {{ formatSlot(slot) }}
