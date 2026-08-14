@@ -15,6 +15,13 @@ export interface BranchDTO {
   timezone?: string
   openingHours?: Array<{ day: string; opensAt: string; closesAt: string; isOpen: boolean }>
   pickerStore?: { storeId?: string; createdAt?: string; creationStatus?: string }
+  /** Tienda de PayPhone de la sucursal: define en qué local cae el cobro. */
+  payphone?: { storeId?: string }
+  availability?: {
+    isOpenNow: boolean
+    timezone: string
+    nextOpening: { date: string; opensAt: string; closesAt: string; at: string } | null
+  }
   isActive: boolean
 }
 
