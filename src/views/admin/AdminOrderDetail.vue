@@ -6,12 +6,14 @@ import SkeletonLoader from '@/components/global/SkeletonLoader.vue'
 import OrderService, { type OrderDTO } from '@/services/OrderService'
 import { useToast } from '@/composables/useToast'
 import AdminOrderDeliveryPanel from '@/components/admin/AdminOrderDeliveryPanel.vue'
+import AdminOrderRefundPanel from '@/components/admin/AdminOrderRefundPanel.vue'
 import { printOrderTicket } from '@/utils/printOrderTicket'
 
 const route = useRoute()
 const order = ref<OrderDTO | null>(null)
 const loading = ref(true)
 const startingSearch = ref(false)
+const retryingPicker = ref(false)
 const { success, error } = useToast()
 
 const statusLabels: Record<string, string> = {
@@ -34,15 +36,29 @@ const statusTones: Record<string, string> = {
   cancelled: 'tone--red',
 }
 const statusIcons: Record<string, string> = { pending:'fa-clock', paid:'fa-credit-card', preparing:'fa-kitchen-set', awaiting_pickup:'fa-motorcycle', ready:'fa-truck-fast', delivered:'fa-circle-check', cancelled:'fa-ban' }
-const auditLabels: Record<string, string> = { created:'Pedido recibido', payment_confirmed:'Pago confirmado', status_change:'Estado actualizado', note_added:'Nota agregada', user_assigned:'Usuario asignado', branch_assigned:'Sucursal asignada' }
+const auditLabels: Record<string, string> = { created:'Pedido recibido', payment_confirmed:'Pago confirmado', status_change:'Estado actualizado', note_added:'Nota agregada', user_assigned:'Usuario asignado', branch_assigned:'Sucursal asignada', refund_requested:'Devolución solicitada', refunded:'Pago devuelto', refund_failed:'Devolución rechazada' }
 
 const itemCount = computed(() => order.value?.items?.reduce((sum, item) => sum + item.quantity, 0) || 0)
+const canRetryPicker = computed(() => Boolean(order.value && order.value.deliveryType === 'delivery' && !order.value.picker?.bookingId && order.value.status !== 'pending' && order.value.status !== 'cancelled'))
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(amount / 100)
 }
 
 async function startDriverSearch() { if (!order.value) return; try { startingSearch.value = true; order.value = (await OrderService.startPickerSearch(order.value._id)).data.order; success('Búsqueda de conductor iniciada') } catch { error('No se pudo iniciar la búsqueda de conductor') } finally { startingSearch.value = false } }
+
+async function retryPicker() {
+  if (!order.value) return
+  try {
+    retryingPicker.value = true
+    order.value = (await OrderService.retryPicker(order.value._id)).data.order
+    success('Delivery solicitado a Picker.')
+  } catch (requestError: any) {
+    error(requestError?.message || 'No se pudo solicitar el delivery.')
+  } finally {
+    retryingPicker.value = false
+  }
+}
 
 onMounted(async () => {
   const response = await OrderService.getById(String(route.params.id))
@@ -61,7 +77,7 @@ onMounted(async () => {
           <p>{{ order.customerName || order.customerEmail }}</p>
         </div>
 
-        <div class="hero-actions"><div class="admin-order-detail__status" :class="statusTones[order.status]"><i :class="['fa-solid', statusIcons[order.status] || 'fa-circle-info']" /> <span>{{ statusLabels[order.status] || order.status }}</span></div><button type="button" class="print-ticket" @click="printOrderTicket(order)"><i class="fa-solid fa-print" /> IMPRIMIR TICKET</button></div>
+        <div class="hero-actions"><div class="admin-order-detail__status" :class="statusTones[order.status]"><i :class="['fa-solid', statusIcons[order.status] || 'fa-circle-info']" /> <span>{{ statusLabels[order.status] || order.status }}</span></div><button v-if="canRetryPicker" type="button" class="delivery-retry" :disabled="retryingPicker" @click="retryPicker"><i class="fa-solid fa-truck-fast" /> {{ retryingPicker ? 'SOLICITANDO...' : 'REINTENTAR DELIVERY' }}</button><button type="button" class="print-ticket" @click="printOrderTicket(order)"><i class="fa-solid fa-print" /> IMPRIMIR TICKET</button></div>
       </header>
 
       <SkeletonLoader v-if="loading" type="card" :count="2" />
@@ -100,6 +116,8 @@ onMounted(async () => {
         </article>
 
         <AdminOrderDeliveryPanel :order="order" />
+
+        <AdminOrderRefundPanel :order="order" @refunded="order = $event" />
 
         <article v-if="order.scheduledFor" class="panel summary-card"><div class="section-head"><div><p class="section-head__eyebrow">Pedido programado</p><h2>{{ new Date(order.scheduledFor).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' }) }}</h2></div><button v-if="order.picker?.searchState === 'on_hold' || order.picker?.searchState === 'failed'" type="button" :disabled="startingSearch" @click="startDriverSearch"><i class="fa-solid fa-motorcycle" /> {{ startingSearch ? 'Buscando...' : 'Buscar conductor' }}</button><span v-else>{{ order.picker?.searchState === 'started' ? 'Búsqueda iniciada' : 'En espera' }}</span></div><p v-if="order.picker?.searchError">{{ order.picker.searchError }}</p></article>
 
@@ -199,6 +217,7 @@ onMounted(async () => {
 }
 
 .hero-actions { align-items:stretch; display:flex; flex-wrap:wrap; gap:.6rem; }.hero-actions > * { flex:1 1 170px; }.admin-order-detail__status { align-items:center; display:flex; justify-content:center; gap:.4rem; }.print-ticket { align-items:center; background:linear-gradient(135deg,#efd537,#f7e36a); border:0; border-radius:12px; box-shadow:0 5px 0 #b89e12; color:#18211b; cursor:pointer; display:flex; font-size:.8rem; font-weight:900; gap:.5rem; justify-content:center; letter-spacing:.06em; min-height:48px; padding:.7rem 1rem; }.print-ticket:active { box-shadow:none; transform:translateY(5px); }
+.delivery-retry { align-items:center; background:#235931; border:0; border-radius:12px; color:#fff; cursor:pointer; display:flex; font-size:.8rem; font-weight:900; gap:.5rem; justify-content:center; letter-spacing:.06em; min-height:48px; padding:.7rem 1rem; }.delivery-retry:disabled { cursor:wait; opacity:.65; }
 
 .admin-order-detail__grid {
   display: flex;

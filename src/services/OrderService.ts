@@ -44,7 +44,25 @@ export interface OrderDTO {
   branch?: { _id: string; name: string }
   audit?: Array<{ action: string; performedByEmail?: string; fromValue?: string; toValue?: string; details?: string; timestamp: string }>
   items?: Array<{ name: string; quantity: number; price: number; image?: string }>
-  payphone?: { clientTransactionId?: string; transactionId?: number; statusCode?: number }
+  payphone?: {
+    clientTransactionId?: string
+    storeId?: string
+    transactionId?: number
+    statusCode?: number
+    cardBrand?: string
+    lastDigits?: string
+    confirmedAt?: string
+    refund?: {
+      status: 'none' | 'processing' | 'refunded' | 'failed'
+      amount?: number
+      reason?: string
+      requestedByEmail?: string
+      requestedAt?: string
+      refundedAt?: string
+      errorCode?: number
+      errorMessage?: string
+    }
+  }
   picker?: {
     smrURL?: string
     bookingNumericId?: number
@@ -106,6 +124,11 @@ class OrderService extends APIBase {
     return this.put<OrderDTO>(`orders/${id}/status`, { status, note })
   }
 
+  /** Reverso en PayPhone: siempre por el total, la API no admite montos parciales. */
+  refund(id: string, reason: string) {
+    return this.post<{ message: string; order: OrderDTO }>(`orders/${id}/refund`, { reason })
+  }
+
   addNote(id: string, note: string) {
     return this.post<OrderDTO>(`orders/${id}/notes`, { note })
   }
@@ -120,6 +143,10 @@ class OrderService extends APIBase {
 
   retryPicker(id: string) {
     return this.post<{ success: boolean; order: OrderDTO }>(`orders/${id}/retry-picker`, {})
+  }
+
+  retryPickerPublic(orderNumber: string, email: string) {
+    return this.post<{ success: boolean; order: OrderDTO }>(`orders/${orderNumber}/retry-picker-public`, { email })
   }
 
   startPickerSearch(id: string) {
