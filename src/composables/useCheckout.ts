@@ -266,7 +266,17 @@ export function useCheckout() {
   async function detectBranch() {
     branchLoading.value = true
     try {
-      if (branchStore.selectedBranchId) { branchLoading.value = false; branch.value = null; return }
+      // Con una sucursal ya elegida hay que traer su ficha igual: de ahí salen los
+      // horarios para programar y el storeId de PayPhone que cobra el pedido.
+      if (branchStore.selectedBranchId) {
+        try {
+          const res = await BranchService.getPublic()
+          publicBranches.value = res.data
+          branch.value = res.data.find((item) => item._id === branchStore.selectedBranchId) || null
+          if (!branch.value) branchStore.setSelectedBranch(null)
+        } finally { branchLoading.value = false }
+        return
+      }
       if (!navigator.geolocation) { branchLoading.value = false; return }
       navigator.geolocation.getCurrentPosition(async (position) => {
         try {
