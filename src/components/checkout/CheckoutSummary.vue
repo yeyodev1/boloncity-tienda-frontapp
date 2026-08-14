@@ -6,6 +6,9 @@ defineProps<{
   deliveryCost: number
   deliveryDistance: number
   total: number
+  /** IVA vigente en porcentaje; los precios del catálogo ya lo incluyen. */
+  ivaRate?: number
+  pricesIncludeIva?: boolean
 }>()
 
 const cart = useCartStore()
@@ -57,6 +60,10 @@ const cart = useCartStore()
       <span>Total</span>
       <strong>${{ total.toFixed(2) }}</strong>
     </div>
+
+    <p v-if="pricesIncludeIva !== false" class="checkout-summary__iva">
+      <i class="fa-solid fa-receipt" /> Precios con IVA {{ ivaRate ?? 15 }}% incluido
+    </p>
 
     <RouterLink class="checkout-summary__link" to="/carrito">
       <i class="fa-solid fa-arrow-left" /> Volver al carrito
@@ -164,6 +171,8 @@ const cart = useCartStore()
 .checkout-summary__delivery-copy span { color: rgba(26, 26, 26, 0.55); font-size: 0.75rem; margin-top: 0.15rem; }
 .checkout-summary__delivery-price { color: #235931; font-size: 0.95rem; }
 
+.checkout-summary__iva { align-items: center; color: rgba(26, 26, 26, 0.5); display: flex; font-size: 0.74rem; font-weight: 700; gap: 0.35rem; margin-top: 0.4rem; }
+.checkout-summary__iva i { color: #235931; }
 .checkout-summary__total { align-items: center; display: flex; justify-content: space-between; }
 .checkout-summary__total span { color: rgba(26, 26, 26, 0.6); font-size: 1rem; font-weight: 700; }
 .checkout-summary__total strong { color: #235931; font-size: 1.6rem; }

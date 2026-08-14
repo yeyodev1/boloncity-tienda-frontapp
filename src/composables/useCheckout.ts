@@ -4,6 +4,7 @@ import { useBranchStore } from '@/stores/branch'
 import BranchService, { type BranchDTO } from '@/services/BranchService'
 import DeliveryService from '@/services/DeliveryService'
 import OrderService, { type OrderDTO } from '@/services/OrderService'
+import SettingsService from '@/services/SettingsService'
 import { useToast } from '@/composables/useToast'
 
 export function useCheckout() {
@@ -334,6 +335,40 @@ export function useCheckout() {
 
   function selectBranch(item: BranchDTO) { branch.value = item; branchStore.setSelectedBranch(item._id) }
 
+  // ─── IVA ────────────────────────────────────────────────────────────────────
+  // Los precios ya lo incluyen; el backend devuelve `order.tax` con el impuesto
+  // desglosado. PayPhone exige el desglose por separado y que la suma cuadre con
+  // el total, si no rechaza la transacción.
+  const ivaRate = ref(15)
+  const pricesIncludeIva = ref(true)
+
+  void SettingsService.fetch()
+    .then((response) => {
+      ivaRate.value = response.data.ivaRate ?? 15
+      pricesIncludeIva.value = response.data.pricesIncludeIva ?? true
+    })
+    .catch(() => undefined)
+
+  const payphoneAmounts = computed(() => {
+    const current = order.value
+    if (!current) return { amount: 0, amountWithTax: 0, amountWithoutTax: 0, tax: 0 }
+
+    const tax = current.tax || 0
+    if (!tax || ivaRate.value <= 0) {
+      return { amount: current.total, amountWithTax: 0, amountWithoutTax: current.total, tax: 0 }
+    }
+
+    // Base gravada que generó ese impuesto; el resto del total no paga IVA.
+    const taxedBase = Math.round(tax / (ivaRate.value / 100))
+    const untaxed = current.total - taxedBase - tax
+    return {
+      amount: current.total,
+      amountWithTax: taxedBase,
+      amountWithoutTax: Math.max(0, untaxed),
+      tax,
+    }
+  })
+
   const payphoneToken = import.meta.env.VITE_PAYPHONE_TOKEN as string
   // Cada sucursal cobra en su propia tienda de PayPhone; la global solo cubre el caso
   // en que la sucursal todavía no tenga storeId cargado.
@@ -352,6 +387,7 @@ export function useCheckout() {
     detectedLat, detectedLng, manualMapsLink, displayLat, displayLng,
     showBilling, billingDocType, billingName, billingDocNumber, billingEmail, billingAddress,
     total, effectiveBranchId, isFormValid,
+    ivaRate, pricesIncludeIva, payphoneAmounts,
     payphoneToken, payphoneStoreId,
     onPayPhoneReady, closePayment, toggleDeliveryType,
     detectLocation, useManualLink, clearLocation,

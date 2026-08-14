@@ -23,6 +23,7 @@ const {
   manualMapsLink, displayLat, displayLng,
   showBilling, billingDocType, billingName, billingDocNumber, billingEmail, billingAddress,
   total, isFormValid,
+  ivaRate, pricesIncludeIva, payphoneAmounts,
   payphoneToken, payphoneStoreId,
   onPayPhoneReady, closePayment, toggleDeliveryType,
   detectLocation, useManualLink, clearLocation,
@@ -174,6 +175,8 @@ const {
             :delivery-cost="deliveryCost"
             :delivery-distance="deliveryDistance"
             :total="total"
+            :iva-rate="ivaRate"
+            :prices-include-iva="pricesIncludeIva"
           />
         </section>
       </Transition>
@@ -208,8 +211,10 @@ const {
                 :token="payphoneToken"
                 :store-id="payphoneStoreId"
                 :client-transaction-id="order.payphone?.clientTransactionId || ''"
-                :amount="order.total"
-                :amount-with-tax="order.total"
+                :amount="payphoneAmounts.amount"
+                :amount-with-tax="payphoneAmounts.amountWithTax"
+                :amount-without-tax="payphoneAmounts.amountWithoutTax"
+                :tax="payphoneAmounts.tax"
                 :reference="`Pedido ${order.orderNumber}`"
                 :email="customerEmail"
                 :phone-number="`${phoneCountryCode} ${customerPhone}`"

@@ -14,7 +14,20 @@ export interface BranchDTO {
   coordinates?: { lat: number; lng: number } | null
   timezone?: string
   openingHours?: Array<{ day: string; opensAt: string; closesAt: string; isOpen: boolean }>
-  pickerStore?: { storeId?: string; createdAt?: string; creationStatus?: string }
+  /**
+   * Las API keys nunca salen del backend; `hasDevKey`/`hasProdKey` dicen si la sucursal
+   * ya está conectada en cada entorno de Picker.
+   */
+  pickerStore?: {
+    storeId?: string
+    createdAt?: string
+    creationStatus?: string
+    createdBy?: string
+    hasDevKey?: boolean
+    hasProdKey?: boolean
+  }
+  /** Entorno de Picker que está usando este backend (`development` | `production`). */
+  pickerEnv?: string
   /** Tienda de PayPhone de la sucursal: define en qué local cae el cobro. */
   payphone?: { storeId?: string }
   availability?: {
@@ -54,6 +67,18 @@ class BranchService extends APIBase {
 
   provisionPickerStore(id: string) {
     return this.post<BranchDTO>(`branches/${id}/picker-store`, {})
+  }
+
+  /** Tiendas que ya existen en Picker, para vincular en vez de crear un duplicado. */
+  pickerStores(environment: 'development' | 'production') {
+    return this.get<{
+      environment: string
+      stores: Array<{ companyName: string; token: string; linkedTo: string | null }>
+    }>(`branches/picker-stores?environment=${environment}`)
+  }
+
+  linkPickerStore(id: string, token: string, environment: 'development' | 'production') {
+    return this.post<BranchDTO>(`branches/${id}/picker-link`, { token, environment })
   }
 
   nearest(lat: number, lng: number) {
