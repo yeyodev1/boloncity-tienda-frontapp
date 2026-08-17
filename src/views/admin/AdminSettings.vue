@@ -9,6 +9,10 @@ const settings = ref<SettingsDTO | null>(null)
 const ivaRate = ref(15)
 const pricesIncludeIva = ref(true)
 const deliveryPricePerKm = ref(0)
+const pointsEnabled = ref(true)
+const pointsEarnDollars = ref(1)
+const pointsEarnAmount = ref(1)
+const pointsRedeemPerDollar = ref(100)
 const loading = ref(true)
 const saving = ref(false)
 const applying = ref(false)
@@ -21,6 +25,10 @@ function hydrate(data: SettingsDTO) {
   pricesIncludeIva.value = data.pricesIncludeIva ?? true
   // El precio por km se guarda en centavos.
   deliveryPricePerKm.value = (data.deliveryPricePerKm ?? 0) / 100
+  pointsEnabled.value = data.pointsEnabled ?? true
+  pointsEarnDollars.value = data.pointsEarnDollars || 1
+  pointsEarnAmount.value = data.pointsEarnAmount ?? 1
+  pointsRedeemPerDollar.value = data.pointsRedeemPerDollar || 100
 }
 
 async function load() {
@@ -37,6 +45,10 @@ async function save() {
       ivaRate: Number(ivaRate.value),
       pricesIncludeIva: pricesIncludeIva.value,
       deliveryPricePerKm: Math.round(Number(deliveryPricePerKm.value) * 100),
+      pointsEnabled: pointsEnabled.value,
+      pointsEarnDollars: Math.max(0.01, Number(pointsEarnDollars.value) || 1),
+      pointsEarnAmount: Math.max(0, Number(pointsEarnAmount.value) || 0),
+      pointsRedeemPerDollar: Math.max(1, Number(pointsRedeemPerDollar.value) || 100),
     })).data)
     success('Configuración guardada')
   } catch { error('No se pudo guardar la configuración') }
@@ -126,6 +138,54 @@ onMounted(load)
         <small class="iva-card__hint">
           Guardar cambia la tasa por defecto de los productos nuevos. Para reescribir los
           productos que ya existen, usa el botón de aplicar a todo el catálogo.
+        </small>
+      </article>
+
+      <article class="panel iva-card">
+        <header>
+          <div class="icon"><i class="fa-solid fa-star" /></div>
+          <div><p>Fidelidad</p><h2>Programa de puntos</h2></div>
+        </header>
+
+        <p class="iva-card__lead">
+          El cliente <strong>gana puntos por cada compra</strong> y puede canjearlos como descuento
+          escribiendo su correo en el checkout. Con los valores de abajo:
+          cada <strong>${{ pointsEarnDollars }}</strong> de compra entrega
+          <strong>{{ pointsEarnAmount }} punto(s)</strong>, y
+          <strong>{{ pointsRedeemPerDollar }} puntos valen $1</strong> de descuento.
+        </p>
+
+        <div class="iva-card__fields">
+          <label>
+            <span>Cada cuántos dólares se dan puntos</span>
+            <input v-model.number="pointsEarnDollars" type="number" min="0.01" step="0.5" :disabled="loading || saving" />
+          </label>
+          <label>
+            <span>Puntos que entrega ese bloque</span>
+            <input v-model.number="pointsEarnAmount" type="number" min="0" step="1" :disabled="loading || saving" />
+          </label>
+          <label>
+            <span>Puntos que valen $1 al canjear</span>
+            <input v-model.number="pointsRedeemPerDollar" type="number" min="1" step="10" :disabled="loading || saving" />
+          </label>
+        </div>
+
+        <label class="iva-card__toggle" :class="{ active: pointsEnabled }">
+          <input v-model="pointsEnabled" type="checkbox" :disabled="loading || saving" />
+          <span>
+            <strong>Programa de puntos activo</strong>
+            <small>Al desactivarlo no se ganan ni canjean puntos; los saldos se conservan.</small>
+          </span>
+        </label>
+
+        <div class="iva-card__actions">
+          <button type="button" class="primary" :disabled="loading || saving" @click="save">
+            <i class="fa-solid fa-floppy-disk" /> {{ saving ? 'GUARDANDO...' : 'GUARDAR' }}
+          </button>
+        </div>
+        <small class="iva-card__hint">
+          Los puntos extra por producto (Rewards) se suman a la tarifa por dólar. Los puntos se
+          acreditan al confirmarse el pago y aparecen en el ticket de cada pedido.
         </small>
       </article>
 

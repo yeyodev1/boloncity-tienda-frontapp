@@ -20,6 +20,8 @@ export interface CreateOrderInput {
   billingDocNumber?: string
   billingEmail?: string
   billingAddress?: string
+  /** true = canjear los puntos disponibles de la cuenta asociada al correo. */
+  redeemPoints?: boolean
 }
 
 export interface OrderDTO {
@@ -29,6 +31,8 @@ export interface OrderDTO {
   paymentMethod?: 'card' | 'cash'
   pointsEarned?: number
   pointsRedeemed?: number
+  /** Descuento en centavos por canje de puntos. */
+  discount?: number
   total: number
   subtotal: number
   tax: number

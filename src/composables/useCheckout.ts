@@ -28,6 +28,17 @@ export function useCheckout() {
   const scheduledTime = ref('')
   /** Se llena cuando el backend rechaza el pedido porque la sucursal está cerrada (409 BRANCH_CLOSED). */
   const branchClosedInfo = ref<null | { message: string; date: string; opensAt: string }>(null)
+
+  // ─── Puntos ─────────────────────────────────────────────────────────────────
+  const pointsEnabled = ref(true)
+  const pointsEarnDollars = ref(1)
+  const pointsEarnAmount = ref(1)
+  const pointsRedeemPerDollar = ref(100)
+  /** Saldo del correo escrito, consultado al backend. */
+  const pointsBalance = ref<{ points: number; discountCents: number } | null>(null)
+  const pointsBalanceLoading = ref(false)
+  /** Checkbox opcional "usar mis puntos". */
+  const useMyPoints = ref(false)
   const order = ref<OrderDTO | null>(null)
   const loading = ref(false)
   const ready = ref(false)
@@ -162,11 +173,13 @@ export function useCheckout() {
     selectScheduleDay(info.date)
     const slots = scheduleDays.value.find((day) => day.date === info.date)?.slots || []
     if (slots.includes(info.opensAt)) scheduledTime.value = info.opensAt
-    branchClosedInfo.value = null
+    // branchClosedInfo se mantiene: mientras la sucursal siga cerrada solo se puede programar.
   }
 
   /** Al activar la programación se preselecciona el primer turno disponible. */
   function toggleScheduleOrder(value: boolean) {
+    // Con la sucursal cerrada, la programación es obligatoria: no se puede volver a "Lo antes posible".
+    if (!value && branchClosedInfo.value) return
     scheduleOrder.value = value
     if (!value) return
     const firstDay = availableScheduleDays.value[0]
@@ -338,6 +351,7 @@ export function useCheckout() {
         deliveryGoogleMapsUrl: deliveryType.value === 'delivery' ? deliveryGoogleMapsUrl.value.trim() : '',
         deliveryCost: deliveryType.value === 'delivery' ? deliveryCost.value : undefined,
         scheduledFor: scheduleOrder.value ? `${scheduledDate.value}T${scheduledTime.value}:00-05:00` : undefined,
+        redeemPoints: useMyPoints.value && Boolean(pointsBalance.value?.points) ? true : undefined,
         ...billing, ...coords,
       })
       order.value = response.data
@@ -351,6 +365,8 @@ export function useCheckout() {
           date: data.availability?.nextOpening?.date || '',
           opensAt: data.availability?.nextOpening?.opensAt || '',
         }
+        // Fuera de horario la programación es el único camino: se activa sola.
+        scheduleForNextOpening()
         error(data.message || 'La sucursal está cerrada en este momento.')
       } else {
         error(data?.message || 'No se pudo iniciar el pago')
@@ -372,8 +388,45 @@ export function useCheckout() {
     .then((response) => {
       ivaRate.value = response.data.ivaRate ?? 15
       pricesIncludeIva.value = response.data.pricesIncludeIva ?? true
+      pointsEnabled.value = response.data.pointsEnabled ?? true
+      pointsEarnDollars.value = response.data.pointsEarnDollars || 1
+      pointsEarnAmount.value = response.data.pointsEarnAmount ?? 1
+      pointsRedeemPerDollar.value = response.data.pointsRedeemPerDollar || 100
     })
     .catch(() => undefined)
+
+  // ─── Puntos: cuánto gana esta compra y saldo canjeable del correo ───────────
+  /** Estimado con la tarifa global (los extras por producto los suma el backend). */
+  const pointsToEarn = computed(() => {
+    if (!pointsEnabled.value) return 0
+    return Math.floor(cart.subtotal / Math.max(0.01, pointsEarnDollars.value)) * Math.max(0, pointsEarnAmount.value)
+  })
+
+  /** Descuento aplicable ahora: el saldo, con tope de total - $1 (PayPhone no cobra menos de $1). */
+  const pointsDiscount = computed(() => {
+    if (!useMyPoints.value || !pointsBalance.value) return 0
+    const totalCents = Math.round(total.value * 100)
+    return Math.max(0, Math.min(pointsBalance.value.discountCents, totalCents - 100)) / 100
+  })
+
+  let balanceTimer: ReturnType<typeof setTimeout> | null = null
+  watch(customerEmail, (email) => {
+    pointsBalance.value = null
+    useMyPoints.value = false
+    if (balanceTimer) clearTimeout(balanceTimer)
+    const clean = email.trim().toLowerCase()
+    if (!pointsEnabled.value || !clean.includes('@') || clean.length < 6) return
+    balanceTimer = setTimeout(async () => {
+      pointsBalanceLoading.value = true
+      try {
+        const response = await SettingsService.pointsBalance(clean)
+        pointsBalance.value = response.data.points > 0
+          ? { points: response.data.points, discountCents: response.data.discountCents }
+          : null
+      } catch { pointsBalance.value = null }
+      finally { pointsBalanceLoading.value = false }
+    }, 600)
+  })
 
   const payphoneAmounts = computed(() => {
     const current = order.value
@@ -409,6 +462,7 @@ export function useCheckout() {
     scheduleOrder, scheduledDate, scheduledTime, scheduleSlots, scheduleDays, availableScheduleDays,
     selectedScheduleDay, isScheduleValid, selectScheduleDay, toggleScheduleOrder,
     branchClosedInfo, scheduleForNextOpening,
+    pointsEnabled, pointsToEarn, pointsBalance, pointsBalanceLoading, useMyPoints, pointsDiscount, pointsRedeemPerDollar,
     loading, ready, branch, branchLoading, publicBranches,
     deliveryCost, deliveryDistance, mapsError, locating, locationDetected,
     detectedLat, detectedLng, manualMapsLink, displayLat, displayLng,

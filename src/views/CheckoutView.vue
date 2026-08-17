@@ -29,6 +29,7 @@ const {
   detectLocation, useManualLink, clearLocation,
   detectBranch, createOrder, selectBranch,
   branchClosedInfo, scheduleForNextOpening,
+  pointsEnabled, pointsToEarn, pointsBalance, pointsBalanceLoading, useMyPoints, pointsDiscount,
 } = useCheckout()
 
 function formatClosedDate(date: string) {
@@ -172,6 +173,23 @@ function formatClosedDate(date: string) {
                 <i class="fa-solid fa-check-circle" /> {{ branch?.name || 'Sucursal seleccionada' }}
               </p>
             </div>
+
+            <aside v-if="pointsEnabled && (pointsToEarn > 0 || pointsBalance || pointsBalanceLoading)" class="checkout-points">
+              <p v-if="pointsToEarn > 0" class="checkout-points__earn">
+                <i class="fa-solid fa-star" /> Con esta compra ganarás <b>{{ pointsToEarn }} puntos</b>.
+              </p>
+              <p v-if="pointsBalanceLoading" class="checkout-points__hint">Buscando tus puntos...</p>
+              <label v-else-if="pointsBalance" class="checkout-points__redeem">
+                <input type="checkbox" v-model="useMyPoints" />
+                <span>
+                  Usar mis <b>{{ pointsBalance.points }} puntos</b>
+                  (descuento de <b>${{ (pointsBalance.discountCents / 100).toFixed(2) }}</b>)
+                </span>
+              </label>
+              <p v-if="useMyPoints && pointsDiscount > 0" class="checkout-points__hint">
+                Se descontará ${{ pointsDiscount.toFixed(2) }} del total al confirmar el pedido.
+              </p>
+            </aside>
 
             <aside v-if="branchClosedInfo" class="checkout-closed" role="alert">
               <p class="checkout-closed__title"><i class="fa-solid fa-clock" /> {{ branchClosedInfo.message }}</p>
@@ -355,6 +373,46 @@ function formatClosedDate(date: string) {
   min-height: 56px;
   box-shadow: 0 18px 34px rgba(35, 89, 49, 0.18);
   font-size: 1.05rem;
+}
+
+.checkout-points {
+  background: #e9f7ec;
+  border: 1px solid rgba(0, 165, 35, 0.35);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.9rem 1rem;
+}
+
+.checkout-points__earn {
+  align-items: center;
+  color: #14682a;
+  display: flex;
+  font-weight: 700;
+  gap: 0.5rem;
+
+  i {
+    color: #efd537;
+  }
+}
+
+.checkout-points__redeem {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  gap: 0.6rem;
+
+  input {
+    accent-color: #235931;
+    height: 20px;
+    width: 20px;
+  }
+}
+
+.checkout-points__hint {
+  color: #4c6b53;
+  font-size: 0.85rem;
 }
 
 .checkout-closed {
