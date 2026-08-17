@@ -31,7 +31,10 @@ async function submit() {
       allBranches: currentUser.allBranches || false,
     })
     success('Sesión iniciada')
-    router.push('/')
+    // El personal aterriza directo en su panel; los clientes, en la tienda.
+    if (currentUser.accountType === 'branch_admin') router.push('/admin/operacion')
+    else if (currentUser.accountType === 'admin') router.push('/admin')
+    else router.push('/')
   } catch {
     error('No se pudo iniciar sesión')
   } finally {
