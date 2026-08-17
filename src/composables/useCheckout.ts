@@ -26,6 +26,8 @@ export function useCheckout() {
   const scheduleOrder = ref(false)
   const scheduledDate = ref('')
   const scheduledTime = ref('')
+  /** Se llena cuando el backend rechaza el pedido porque la sucursal está cerrada (409 BRANCH_CLOSED). */
+  const branchClosedInfo = ref<null | { message: string; date: string; opensAt: string }>(null)
   const order = ref<OrderDTO | null>(null)
   const loading = ref(false)
   const ready = ref(false)
@@ -150,6 +152,17 @@ export function useCheckout() {
     scheduledDate.value = date
     const slots = scheduleDays.value.find((day) => day.date === date)?.slots || []
     if (!slots.includes(scheduledTime.value)) scheduledTime.value = slots[0] || ''
+  }
+
+  /** Un toque desde el aviso de "sucursal cerrada": activa Programar con la próxima apertura. */
+  function scheduleForNextOpening() {
+    const info = branchClosedInfo.value
+    if (!info) return
+    scheduleOrder.value = true
+    selectScheduleDay(info.date)
+    const slots = scheduleDays.value.find((day) => day.date === info.date)?.slots || []
+    if (slots.includes(info.opensAt)) scheduledTime.value = info.opensAt
+    branchClosedInfo.value = null
   }
 
   /** Al activar la programación se preselecciona el primer turno disponible. */
@@ -328,8 +341,21 @@ export function useCheckout() {
         ...billing, ...coords,
       })
       order.value = response.data
+      branchClosedInfo.value = null
       if (paymentMethod.value === 'cash') cart.clear()
-    } catch { error('No se pudo iniciar el pago') }
+    } catch (err) {
+      const data = (err as { response?: { data?: { code?: string; message?: string; availability?: { nextOpening?: { date?: string; opensAt?: string } } } } })?.response?.data
+      if (data?.code === 'BRANCH_CLOSED') {
+        branchClosedInfo.value = {
+          message: data.message || 'La sucursal está cerrada en este momento.',
+          date: data.availability?.nextOpening?.date || '',
+          opensAt: data.availability?.nextOpening?.opensAt || '',
+        }
+        error(data.message || 'La sucursal está cerrada en este momento.')
+      } else {
+        error(data?.message || 'No se pudo iniciar el pago')
+      }
+    }
     finally { loading.value = false }
   }
 
@@ -382,6 +408,7 @@ export function useCheckout() {
     notes, deliveryAddress, deliveryGoogleMapsUrl, deliveryType, paymentMethod, order,
     scheduleOrder, scheduledDate, scheduledTime, scheduleSlots, scheduleDays, availableScheduleDays,
     selectedScheduleDay, isScheduleValid, selectScheduleDay, toggleScheduleOrder,
+    branchClosedInfo, scheduleForNextOpening,
     loading, ready, branch, branchLoading, publicBranches,
     deliveryCost, deliveryDistance, mapsError, locating, locationDetected,
     detectedLat, detectedLng, manualMapsLink, displayLat, displayLng,
