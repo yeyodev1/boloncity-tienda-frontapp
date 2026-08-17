@@ -45,6 +45,11 @@ function formatCurrency(amount: number) {
   return new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(amount / 100)
 }
 
+// items[].price viene en dolares (no en centavos como subtotal/total/deliveryCost).
+function formatDollars(amount: number) {
+  return new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(amount)
+}
+
 async function startDriverSearch() { if (!order.value) return; try { startingSearch.value = true; order.value = (await OrderService.startPickerSearch(order.value._id)).data.order; success('Búsqueda de conductor iniciada') } catch { error('No se pudo iniciar la búsqueda de conductor') } finally { startingSearch.value = false } }
 
 async function retryPicker() {
@@ -140,7 +145,7 @@ onMounted(async () => {
                 <p>Cantidad: {{ item.quantity }}</p>
               </div>
             </div>
-              <span>{{ formatCurrency(item.price * item.quantity) }}</span>
+              <span>{{ formatDollars(item.price * item.quantity) }}</span>
             </article>
           </div>
         </article>
