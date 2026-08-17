@@ -32,7 +32,7 @@ async function submit() {
     done.value = true
     success('Contraseña actualizada')
   } catch (e: any) {
-    error(e?.response?.data?.message || 'El enlace ha expirado. Solicita uno nuevo.')
+    error(e?.data?.message || e?.message || 'El enlace ha expirado. Solicita uno nuevo.')
   } finally {
     loading.value = false
   }

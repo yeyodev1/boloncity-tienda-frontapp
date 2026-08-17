@@ -358,7 +358,12 @@ export function useCheckout() {
       branchClosedInfo.value = null
       if (paymentMethod.value === 'cash') cart.clear()
     } catch (err) {
-      const data = (err as { response?: { data?: { code?: string; message?: string; availability?: { nextOpening?: { date?: string; opensAt?: string } } } } })?.response?.data
+      // httpBase no relanza el error de axios: lanza { status, message, data }.
+      // Leer err.response.data aqui dejaba data en undefined, el BRANCH_CLOSED
+      // nunca se detectaba y todo terminaba en el toast generico de pago.
+      type ErrorPayload = { code?: string; message?: string; availability?: { nextOpening?: { date?: string; opensAt?: string } } }
+      const raw = err as { data?: ErrorPayload; message?: string; response?: { data?: ErrorPayload } }
+      const data = raw?.data ?? raw?.response?.data
       if (data?.code === 'BRANCH_CLOSED') {
         branchClosedInfo.value = {
           message: data.message || 'La sucursal está cerrada en este momento.',
@@ -369,7 +374,7 @@ export function useCheckout() {
         scheduleForNextOpening()
         error(data.message || 'La sucursal está cerrada en este momento.')
       } else {
-        error(data?.message || 'No se pudo iniciar el pago')
+        error(data?.message || raw?.message || 'No se pudo iniciar el pago')
       }
     }
     finally { loading.value = false }

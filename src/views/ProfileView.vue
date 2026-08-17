@@ -160,7 +160,7 @@ async function changePasswordAction() {
     newPassword.value = ''
     confirmPassword.value = ''
   } catch (err: any) {
-    const msg = err?.response?.data?.message || 'Error al cambiar la contraseña'
+    const msg = err?.data?.message || err?.message || 'Error al cambiar la contraseña'
     toastError(msg)
   } finally {
     changingPassword.value = false

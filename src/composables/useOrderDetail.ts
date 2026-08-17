@@ -47,7 +47,8 @@ export function useOrderDetail() {
       order.value = response.data.order
       success('Delivery asignado con éxito.')
     } catch (requestError: any) {
-      error(requestError?.response?.data?.message || 'No pudimos crear el delivery. Intenta de nuevo.')
+      // httpBase lanza { status, message, data }; message ya trae el del backend.
+      error(requestError?.data?.message || requestError?.message || 'No pudimos crear el delivery. Intenta de nuevo.')
     } finally {
       retrying.value = false
     }

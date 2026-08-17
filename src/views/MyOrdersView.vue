@@ -114,7 +114,7 @@ async function retryPicker(orderId: string) {
     if (idx !== -1) orders.value[idx] = updated
     toastSuccess('Delivery asignado con éxito. Revisa el seguimiento.')
   } catch (err: any) {
-    const msg = err?.response?.data?.message || 'No pudimos crear el delivery. Intenta de nuevo más tarde.'
+    const msg = err?.data?.message || err?.message || 'No pudimos crear el delivery. Intenta de nuevo más tarde.'
     toastError(msg)
   } finally {
     retrying.value = null
