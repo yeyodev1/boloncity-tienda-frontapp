@@ -7,6 +7,16 @@ import { useCartStore } from './stores/cart'
 import { useBranchStore } from './stores/branch'
 import { useUserStore } from './stores/user'
 
+// La tienda nueva NO es una PWA. Si el navegador arrastra un service worker viejo
+// (la PWA anterior), sirve datos cacheados y "rompe" cosas como el filtro por
+// categoría. Al arrancar, desregistramos cualquier service worker: así el usuario
+// queda siempre con la versión real, sin tener que limpiar caché a mano.
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations()
+    .then((regs) => regs.forEach((registration) => registration.unregister().catch(() => undefined)))
+    .catch(() => undefined)
+}
+
 const app = createApp(App)
 const pinia = createPinia()
 
