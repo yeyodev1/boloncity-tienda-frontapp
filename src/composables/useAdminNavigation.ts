@@ -19,6 +19,7 @@ export function useAdminNavigation() {
     { label: 'Resumen', path: '/admin', icon: 'fa-solid fa-chart-pie' },
     { label: 'Órdenes', path: '/admin/ordenes', icon: 'fa-solid fa-clipboard-list' },
     { label: 'Productos', path: '/admin/productos', icon: 'fa-solid fa-box-open' },
+    { label: 'Disponibilidad', path: '/admin/disponibilidad', icon: 'fa-solid fa-list-check' },
     { label: 'Rewards', path: '/admin/rewards', icon: 'fa-solid fa-gift' },
     { label: 'Clientes', path: '/admin/clientes', icon: 'fa-solid fa-user-group' },
     { label: 'Categorías', path: '/admin/categorias', icon: 'fa-solid fa-layer-group' },
