@@ -290,6 +290,34 @@ export function useCheckout() {
     branch.value = null
   }
 
+  /**
+   * Recarga la lista de sucursales a mano (botón "Recargar sucursales"). Además limpia
+   * cualquier service worker / caché viejo: si el cliente arrastra la PWA anterior, esto
+   * lo saca de datos cacheados y lo deja con la data real de la tienda nueva.
+   */
+  async function reloadBranches() {
+    branchLoading.value = true
+    try {
+      if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations().catch(() => [])
+        await Promise.all(regs.map((registration) => registration.unregister().catch(() => undefined)))
+        if (typeof caches !== 'undefined') {
+          const keys = await caches.keys().catch(() => [] as string[])
+          await Promise.all(keys.map((key) => caches.delete(key).catch(() => undefined)))
+        }
+      }
+      const res = await BranchService.getPublic()
+      publicBranches.value = res.data
+    } catch {
+      // se deja la lista como estaba
+    } finally {
+      branchLoading.value = false
+    }
+  }
+
+  // Al entrar al checkout, precarga las sucursales (sobre todo para "Retiro").
+  void reloadBranches()
+
   async function detectBranch() {
     branchLoading.value = true
     try {
@@ -477,6 +505,6 @@ export function useCheckout() {
     payphoneToken, payphoneStoreId,
     onPayPhoneReady, closePayment, toggleDeliveryType,
     detectLocation, useManualLink, clearLocation,
-    detectBranch, createOrder, selectBranch,
+    detectBranch, reloadBranches, createOrder, selectBranch,
   }
 }

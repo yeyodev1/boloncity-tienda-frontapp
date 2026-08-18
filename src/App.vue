@@ -3,6 +3,7 @@ import ToastNotification from '@/components/global/ToastNotification.vue'
 import ConfirmModal from '@/components/global/ConfirmModal.vue'
 import SessionExpiredModal from '@/components/global/SessionExpiredModal.vue'
 import EnvironmentBadge from '@/components/global/EnvironmentBadge.vue'
+import NewVersionBanner from '@/components/global/NewVersionBanner.vue'
 </script>
 
 <template>
@@ -11,6 +12,7 @@ import EnvironmentBadge from '@/components/global/EnvironmentBadge.vue'
     <ConfirmModal />
     <SessionExpiredModal />
     <EnvironmentBadge />
+    <NewVersionBanner />
     <RouterView v-slot="{ Component, route }">
       <transition name="page-fade" mode="out-in">
         <component :is="Component" :key="route.path" />

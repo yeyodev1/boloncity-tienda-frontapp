@@ -27,7 +27,7 @@ const {
   payphoneToken, payphoneStoreId,
   onPayPhoneReady, closePayment, toggleDeliveryType,
   detectLocation, useManualLink, clearLocation,
-  detectBranch, createOrder, selectBranch,
+  detectBranch, reloadBranches, createOrder, selectBranch,
   branchClosedInfo, scheduleForNextOpening,
   pointsEnabled, pointsToEarn, pointsBalance, pointsBalanceLoading, useMyPoints, pointsDiscount,
 } = useCheckout()
@@ -169,6 +169,12 @@ function formatClosedDate(date: string) {
                   {{ item.name }}
                 </button>
               </div>
+              <p v-if="!branchStore.selectedBranchId && !publicBranches.length && !branchLoading" class="checkout-branch__empty">
+                No se cargaron las sucursales. Toca «Recargar sucursales».
+              </p>
+              <button v-if="!branchStore.selectedBranchId" type="button" class="checkout-branch__reload" :disabled="branchLoading" @click="reloadBranches">
+                <i :class="branchLoading ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-rotate'" /> {{ branchLoading ? 'Cargando...' : 'Recargar sucursales' }}
+              </button>
               <p v-if="branchStore.selectedBranchId || branch" class="checkout-branch__selected">
                 <i class="fa-solid fa-check-circle" /> {{ branch?.name || 'Sucursal seleccionada' }}
               </p>
@@ -514,6 +520,29 @@ function formatClosedDate(date: string) {
 
 .checkout-branch__nearby:hover { background: rgba(35, 89, 49, 0.12); transform: translateY(-1px); }
 .checkout-branch__pills { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+.checkout-branch__empty {
+  color: #8a6d1e;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.checkout-branch__reload {
+  align-items: center;
+  background: #235931;
+  border: 0;
+  border-radius: 999px;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  font-weight: 800;
+  gap: 0.5rem;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0.75rem 1rem;
+}
+
+.checkout-branch__reload:disabled { opacity: 0.7; cursor: default; }
 
 .checkout-branch__pill {
   background: rgba(26, 26, 26, 0.05);

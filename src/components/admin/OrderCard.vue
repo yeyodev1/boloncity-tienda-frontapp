@@ -27,9 +27,10 @@ const emit = defineEmits<{
 const isDelivery = computed(() => props.order.deliveryType === 'delivery')
 const nextStatus = computed(() => isDelivery.value && ['awaiting_pickup', 'ready'].includes(props.status) ? null : getNextOrderStatus(props.status))
 const picker = computed(() => props.order.picker)
-const canRequestDriver = computed(() => isDelivery.value && Boolean(props.order.scheduledFor) && picker.value?.currentStatus === 'ON_HOLD' && ['on_hold', 'failed'].includes(picker.value.searchState || 'on_hold'))
+// El bloque de delivery solo se muestra cuando ya existe una reserva de Picker real.
+// Los programados no la tienen hasta pasar a "Listas para recolección".
+const hasPickerBooking = computed(() => Boolean(picker.value?.bookingId))
 const deliveryStatus = computed(() => ({
-  ON_HOLD: 'Picker se activará al horario programado',
   READY_FOR_PICKUP: 'Picker está buscando motorizado',
   ACCEPTED: 'Motorizado asignado',
   ARRIVED_AT_PICKUP: 'El motorizado llegó al local',
@@ -39,6 +40,19 @@ const deliveryStatus = computed(() => ({
 }[picker.value?.currentStatus || ''] || picker.value?.statusText || 'Preparando información de delivery'))
 const deliveryIcon = computed(() => ({ WAY_TO_DELIVER: 'fa-truck-fast', ARRIVED_AT_DELIVERY: 'fa-location-dot', COMPLETED: 'fa-circle-check', ACCEPTED: 'fa-motorcycle', READY_FOR_PICKUP: 'fa-magnifying-glass' }[picker.value?.currentStatus || ''] || 'fa-motorcycle'))
 const auditEntries = computed(() => [...(props.order.audit || [])].slice(-3).reverse())
+// Estado de pago, claro para el cajero:
+//  - Efectivo: se cobra al entregar (normal que esté "pendiente").
+//  - Tarjeta pagada: PayPhone confirmó (hay transactionId).
+//  - Tarjeta SIN pagar: no completó el pago — NO preparar hasta validar.
+const payment = computed(() => {
+  if (props.order.paymentMethod === 'cash') {
+    return { tone: 'cash', icon: 'fa-money-bill-wave', label: 'Efectivo · cobrar al entregar' }
+  }
+  if (props.order.payphone?.transactionId) {
+    return { tone: 'ok', icon: 'fa-circle-check', label: 'Pagado con tarjeta' }
+  }
+  return { tone: 'danger', icon: 'fa-triangle-exclamation', label: 'Tarjeta · pago NO confirmado' }
+})
 const auditLabels: Record<string, string> = { created: 'Pedido recibido', payment_confirmed: 'Pago confirmado', status_change: 'Estado actualizado', note_added: 'Nota agregada', user_assigned: 'Usuario asignado', branch_assigned: 'Sucursal asignada' }
 function auditText(entry: NonNullable<OrderDTO['audit']>[number]) { return entry.details || (entry.toValue ? orderStatusLabels[entry.toValue as OrderStatus] || entry.toValue : auditLabels[entry.action] || 'Actualización') }
 function auditTime(timestamp: string) { return new Date(timestamp).toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' }) }
@@ -61,12 +75,21 @@ function auditTime(timestamp: string) { return new Date(timestamp).toLocaleTimeS
         <span>{{ order.branch?.name || 'Sin sucursal' }}</span>
       </div>
 
-      <div class="order-card__payment" :class="order.payphone?.transactionId ? 'ok' : 'muted'">
-        <span>{{ order.payphone?.transactionId ? `Pago ${order.payphone.transactionId}` : 'Pago pendiente' }}</span>
+      <div class="order-card__payment" :class="payment.tone">
+        <i :class="['fa-solid', payment.icon]" /><span>{{ payment.label }}</span>
       </div>
     </button>
 
-    <section v-if="isDelivery" class="order-card__delivery" :class="{ 'order-card__delivery--live': picker?.driverName }">
+    <div v-if="order.scheduledFor" class="order-card__scheduled">
+      <i class="fa-solid fa-calendar-clock" />
+      <span>
+        <strong>PROGRAMADO</strong>
+        para {{ new Date(order.scheduledFor).toLocaleString('es-EC', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) }}
+        <small>El motorizado se pide al mover el pedido a «Listas para recolección».</small>
+      </span>
+    </div>
+
+    <section v-if="isDelivery && hasPickerBooking" class="order-card__delivery" :class="{ 'order-card__delivery--live': picker?.driverName }">
       <div class="order-card__delivery-head"><span><i class="fa-solid fa-motorcycle" /> Delivery Picker</span><strong><i :class="['fa-solid', deliveryIcon]" /> {{ deliveryStatus }}</strong></div>
       <div v-if="picker?.driverName" class="order-card__driver"><span class="order-card__driver-avatar"><img v-if="picker.driverPhoto" :src="picker.driverPhoto" alt="Motorizado" /><i v-else class="fa-solid fa-helmet-safety" /></span><div><strong>{{ picker.driverName }}</strong><small>{{ picker.driverVehicle || 'Motorizado asignado' }}</small></div><a v-if="picker.driverPhone" :href="`tel:${picker.driverPhone}`"><i class="fa-solid fa-phone" /> Llamar delivery</a></div>
       <div class="order-card__delivery-meta"><span v-if="picker?.deliveryFee"><i class="fa-solid fa-receipt" /> {{ formatOrderCurrency(Math.round(picker.deliveryFee * 100)) }}</span><span v-if="order.deliveryDistance"><i class="fa-solid fa-road" /> {{ order.deliveryDistance }} km</span><a v-if="picker?.smrURL" :href="picker.smrURL" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-location-crosshairs" /> Seguir</a></div>
@@ -82,7 +105,6 @@ function auditTime(timestamp: string) { return new Date(timestamp).toLocaleTimeS
       <button type="button" class="ghost" @click="emit('open', order._id)"><i class="fa-solid fa-arrow-up-right-from-square" /> Detalle</button>
       <button type="button" class="ghost" @click="emit('note', order)"><i class="fa-solid fa-note-sticky" /> Nota</button>
       <button type="button" class="ghost" @click="emit('print', order)"><i class="fa-solid fa-print" /> Ticket</button>
-      <button v-if="canRequestDriver" type="button" class="driver-action" :disabled="driverLoading" @click="emit('driver', order)"><i :class="driverLoading ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-motorcycle'" /> {{ driverLoading ? 'Buscando...' : 'Buscar motorizado' }}</button>
       <button v-if="nextStatus" type="button" @click="emit('advance', order, nextStatus)">
         <i class="fa-solid fa-arrow-right" /> {{ `Mover a ${orderStatusLabels[nextStatus]}` }}
       </button>
@@ -98,6 +120,21 @@ function auditTime(timestamp: string) { return new Date(timestamp).toLocaleTimeS
   color: #18211b;
   overflow: hidden;
   transition: box-shadow .22s ease, transform .22s ease;
+}
+
+.order-card__scheduled {
+  align-items: flex-start;
+  background: #fff3d1;
+  border-top: 1px solid rgba(180, 140, 10, 0.25);
+  color: #6a4e05;
+  display: flex;
+  font-size: 0.82rem;
+  gap: 0.55rem;
+  padding: 0.7rem 1rem;
+
+  i { color: #b8860b; margin-top: 0.15rem; }
+  strong { color: #7a5a00; letter-spacing: 0.03em; }
+  small { color: #8a6d1e; display: block; margin-top: 0.15rem; }
 }
 
 .order-card__main {
@@ -176,9 +213,12 @@ function auditTime(timestamp: string) { return new Date(timestamp).toLocaleTimeS
 }
 
 .order-card__payment {
+  align-items: center;
   border-radius: 14px;
+  display: flex;
   font-size: 0.82rem;
   font-weight: 700;
+  gap: 0.5rem;
   padding: 0.75rem;
 }
 
@@ -187,9 +227,14 @@ function auditTime(timestamp: string) { return new Date(timestamp).toLocaleTimeS
   color: #235931;
 }
 
-.order-card__payment.muted {
-  background: rgba(8, 17, 13, 0.05);
-  color: rgba(24, 33, 27, 0.66);
+.order-card__payment.cash {
+  background: rgba(239, 213, 55, 0.22);
+  color: #6a4e05;
+}
+
+.order-card__payment.danger {
+  background: rgba(160, 40, 40, 0.12);
+  color: #a02828;
 }
 
 .order-card__actions {
