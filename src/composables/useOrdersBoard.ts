@@ -166,9 +166,13 @@ export function useOrdersBoard() {
       await OrderService.updateStatus(order._id, status, note)
       success('Estado actualizado')
       await load(true)
-    } catch {
+    } catch (err) {
       orders.value = previousOrders
-      error('No se pudo actualizar el pedido')
+      // Muestra el mensaje real del backend (p. ej. pedido no pagado) en vez del genérico.
+      const message = (err as { data?: { message?: string }; message?: string })?.data?.message
+        || (err as { message?: string })?.message
+        || 'No se pudo actualizar el pedido'
+      error(message)
     }
   }
 

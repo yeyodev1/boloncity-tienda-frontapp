@@ -105,9 +105,12 @@ function auditTime(timestamp: string) { return new Date(timestamp).toLocaleTimeS
       <button type="button" class="ghost" @click="emit('open', order._id)"><i class="fa-solid fa-arrow-up-right-from-square" /> Detalle</button>
       <button type="button" class="ghost" @click="emit('note', order)"><i class="fa-solid fa-note-sticky" /> Nota</button>
       <button type="button" class="ghost" @click="emit('print', order)"><i class="fa-solid fa-print" /> Ticket</button>
-      <button v-if="nextStatus" type="button" @click="emit('advance', order, nextStatus)">
+      <button v-if="nextStatus && payment.tone !== 'danger'" type="button" @click="emit('advance', order, nextStatus)">
         <i class="fa-solid fa-arrow-right" /> {{ `Mover a ${orderStatusLabels[nextStatus]}` }}
       </button>
+      <span v-else-if="nextStatus && payment.tone === 'danger'" class="order-card__blocked">
+        <i class="fa-solid fa-lock" /> No se puede preparar: sin pago
+      </span>
     </div>
   </article>
 </template>
@@ -235,6 +238,17 @@ function auditTime(timestamp: string) { return new Date(timestamp).toLocaleTimeS
 .order-card__payment.danger {
   background: rgba(160, 40, 40, 0.12);
   color: #a02828;
+}
+
+.order-card__blocked {
+  align-items: center;
+  color: #a02828;
+  display: flex;
+  font-size: 0.82rem;
+  font-weight: 800;
+  gap: 0.4rem;
+  justify-content: center;
+  padding: 0.5rem;
 }
 
 .order-card__actions {

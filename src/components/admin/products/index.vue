@@ -36,7 +36,18 @@ const categoryOptions = computed(() => categories.value.map(({ _id, name }) => (
 const activeBranchName = computed(() => branchesById.value.get(branchStore.selectedBranchId || '')?.name || '')
 const featuredCount = computed(() => products.value.filter((product) => product.isFeatured).length)
 const availableCount = computed(() => products.value.filter((product) => product.isAvailable).length)
-const filteredProducts = computed(() => products.value.filter((product) => (!selectedCategory.value || product.categories.some((category) => category._id === selectedCategory.value)) && (!searchQuery.value.trim() || [product.code, product.name, product.description || ''].join(' ').toLowerCase().includes(searchQuery.value.trim().toLowerCase()))))
+const filteredProducts = computed(() => {
+  const cat = selectedCategory.value
+  // Si el seleccionado es una categoría padre, también incluir sus subcategorías.
+  const childIds = cat ? categories.value.filter((c) => String((c as { parentCategory?: unknown }).parentCategory ?? '') === String(cat)).map((c) => c._id) : []
+  const q = searchQuery.value.trim().toLowerCase()
+  return products.value.filter((product) => {
+    const catIds = (product.categories || []).map((c) => (typeof c === 'string' ? c : c?._id)).filter(Boolean)
+    const matchesCat = !cat || catIds.includes(cat) || catIds.some((id) => childIds.includes(id))
+    const matchesSearch = !q || [product.code, product.name, product.description || ''].join(' ').toLowerCase().includes(q)
+    return matchesCat && matchesSearch
+  })
+})
 const totalPages = computed(() => Math.max(1, Math.ceil(filteredProducts.value.length / 12)))
 const paginatedProducts = computed(() => filteredProducts.value.slice((currentPage.value - 1) * 12, currentPage.value * 12))
 const resultRange = computed(() => !filteredProducts.value.length ? '0 productos' : `${(currentPage.value - 1) * 12 + 1}-${Math.min(currentPage.value * 12, filteredProducts.value.length)} de ${filteredProducts.value.length}`)
