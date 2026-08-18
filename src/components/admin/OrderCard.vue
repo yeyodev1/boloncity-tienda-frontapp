@@ -27,9 +27,10 @@ const emit = defineEmits<{
 const isDelivery = computed(() => props.order.deliveryType === 'delivery')
 const nextStatus = computed(() => isDelivery.value && ['awaiting_pickup', 'ready'].includes(props.status) ? null : getNextOrderStatus(props.status))
 const picker = computed(() => props.order.picker)
-const canRequestDriver = computed(() => isDelivery.value && Boolean(props.order.scheduledFor) && picker.value?.currentStatus === 'ON_HOLD' && ['on_hold', 'failed'].includes(picker.value.searchState || 'on_hold'))
+// El bloque de delivery solo se muestra cuando ya existe una reserva de Picker real.
+// Los programados no la tienen hasta pasar a "Listas para recolección".
+const hasPickerBooking = computed(() => Boolean(picker.value?.bookingId))
 const deliveryStatus = computed(() => ({
-  ON_HOLD: 'Picker se activará al horario programado',
   READY_FOR_PICKUP: 'Picker está buscando motorizado',
   ACCEPTED: 'Motorizado asignado',
   ARRIVED_AT_PICKUP: 'El motorizado llegó al local',
@@ -75,7 +76,7 @@ function auditTime(timestamp: string) { return new Date(timestamp).toLocaleTimeS
       </span>
     </div>
 
-    <section v-if="isDelivery" class="order-card__delivery" :class="{ 'order-card__delivery--live': picker?.driverName }">
+    <section v-if="isDelivery && hasPickerBooking" class="order-card__delivery" :class="{ 'order-card__delivery--live': picker?.driverName }">
       <div class="order-card__delivery-head"><span><i class="fa-solid fa-motorcycle" /> Delivery Picker</span><strong><i :class="['fa-solid', deliveryIcon]" /> {{ deliveryStatus }}</strong></div>
       <div v-if="picker?.driverName" class="order-card__driver"><span class="order-card__driver-avatar"><img v-if="picker.driverPhoto" :src="picker.driverPhoto" alt="Motorizado" /><i v-else class="fa-solid fa-helmet-safety" /></span><div><strong>{{ picker.driverName }}</strong><small>{{ picker.driverVehicle || 'Motorizado asignado' }}</small></div><a v-if="picker.driverPhone" :href="`tel:${picker.driverPhone}`"><i class="fa-solid fa-phone" /> Llamar delivery</a></div>
       <div class="order-card__delivery-meta"><span v-if="picker?.deliveryFee"><i class="fa-solid fa-receipt" /> {{ formatOrderCurrency(Math.round(picker.deliveryFee * 100)) }}</span><span v-if="order.deliveryDistance"><i class="fa-solid fa-road" /> {{ order.deliveryDistance }} km</span><a v-if="picker?.smrURL" :href="picker.smrURL" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-location-crosshairs" /> Seguir</a></div>
@@ -91,7 +92,6 @@ function auditTime(timestamp: string) { return new Date(timestamp).toLocaleTimeS
       <button type="button" class="ghost" @click="emit('open', order._id)"><i class="fa-solid fa-arrow-up-right-from-square" /> Detalle</button>
       <button type="button" class="ghost" @click="emit('note', order)"><i class="fa-solid fa-note-sticky" /> Nota</button>
       <button type="button" class="ghost" @click="emit('print', order)"><i class="fa-solid fa-print" /> Ticket</button>
-      <button v-if="canRequestDriver" type="button" class="driver-action" :disabled="driverLoading" @click="emit('driver', order)"><i :class="driverLoading ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-motorcycle'" /> {{ driverLoading ? 'Buscando...' : 'Buscar motorizado' }}</button>
       <button v-if="nextStatus" type="button" @click="emit('advance', order, nextStatus)">
         <i class="fa-solid fa-arrow-right" /> {{ `Mover a ${orderStatusLabels[nextStatus]}` }}
       </button>
