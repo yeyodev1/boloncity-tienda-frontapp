@@ -66,6 +66,15 @@ function auditTime(timestamp: string) { return new Date(timestamp).toLocaleTimeS
       </div>
     </button>
 
+    <div v-if="order.scheduledFor" class="order-card__scheduled">
+      <i class="fa-solid fa-calendar-clock" />
+      <span>
+        <strong>PROGRAMADO</strong>
+        para {{ new Date(order.scheduledFor).toLocaleString('es-EC', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) }}
+        <small>El motorizado se pide al mover el pedido a «Listas para recolección».</small>
+      </span>
+    </div>
+
     <section v-if="isDelivery" class="order-card__delivery" :class="{ 'order-card__delivery--live': picker?.driverName }">
       <div class="order-card__delivery-head"><span><i class="fa-solid fa-motorcycle" /> Delivery Picker</span><strong><i :class="['fa-solid', deliveryIcon]" /> {{ deliveryStatus }}</strong></div>
       <div v-if="picker?.driverName" class="order-card__driver"><span class="order-card__driver-avatar"><img v-if="picker.driverPhoto" :src="picker.driverPhoto" alt="Motorizado" /><i v-else class="fa-solid fa-helmet-safety" /></span><div><strong>{{ picker.driverName }}</strong><small>{{ picker.driverVehicle || 'Motorizado asignado' }}</small></div><a v-if="picker.driverPhone" :href="`tel:${picker.driverPhone}`"><i class="fa-solid fa-phone" /> Llamar delivery</a></div>
@@ -98,6 +107,21 @@ function auditTime(timestamp: string) { return new Date(timestamp).toLocaleTimeS
   color: #18211b;
   overflow: hidden;
   transition: box-shadow .22s ease, transform .22s ease;
+}
+
+.order-card__scheduled {
+  align-items: flex-start;
+  background: #fff3d1;
+  border-top: 1px solid rgba(180, 140, 10, 0.25);
+  color: #6a4e05;
+  display: flex;
+  font-size: 0.82rem;
+  gap: 0.55rem;
+  padding: 0.7rem 1rem;
+
+  i { color: #b8860b; margin-top: 0.15rem; }
+  strong { color: #7a5a00; letter-spacing: 0.03em; }
+  small { color: #8a6d1e; display: block; margin-top: 0.15rem; }
 }
 
 .order-card__main {
