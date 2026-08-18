@@ -2,9 +2,17 @@
 import { computed, onMounted, ref } from 'vue'
 import AdminLayout from '@/components/admin/AdminLayout.vue'
 import ProductService, { type BranchAvailabilityItem } from '@/services/ProductService'
+import BranchService, { type BranchDTO } from '@/services/BranchService'
+import { useUserStore } from '@/stores/user'
 import { useToast } from '@/composables/useToast'
 
 const { success, error } = useToast()
+const userStore = useUserStore()
+// El admin general elige la sucursal; el vendedor opera SIEMPRE la suya (no ve el selector).
+const isAdmin = computed(() => userStore.allBranches || userStore.accountType === 'admin')
+const branches = ref<BranchDTO[]>([])
+const selectedBranch = ref('')
+
 const products = ref<BranchAvailabilityItem[]>([])
 const summary = ref({ total: 0, available: 0, unavailable: 0 })
 const loading = ref(true)
@@ -16,9 +24,14 @@ const money = (value: number) => `$${Number(value || 0).toFixed(2)}`
 const filtered = computed(() => products.value)
 
 async function load() {
+  // El admin general debe elegir sucursal primero.
+  if (isAdmin.value && !selectedBranch.value) { products.value = []; loading.value = false; return }
   loading.value = true
   try {
-    const res = await ProductService.getBranchAvailability({ search: search.value.trim() })
+    const res = await ProductService.getBranchAvailability({
+      search: search.value.trim(),
+      ...(isAdmin.value ? { branchId: selectedBranch.value } : {}),
+    })
     products.value = res.data.products
     summary.value = res.data.summary
   } catch {
@@ -26,6 +39,12 @@ async function load() {
   } finally {
     loading.value = false
   }
+}
+
+function onBranchChange() {
+  products.value = []
+  summary.value = { total: 0, available: 0, unavailable: 0 }
+  load()
 }
 
 function onSearch() {
@@ -38,7 +57,7 @@ async function toggle(item: BranchAvailabilityItem) {
   const next = !item.available
   savingId.value = item._id
   try {
-    await ProductService.toggleBranchAvailability(item._id, next)
+    await ProductService.toggleBranchAvailability(item._id, next, isAdmin.value ? selectedBranch.value : undefined)
     item.available = next
     summary.value.available += next ? 1 : -1
     summary.value.unavailable += next ? -1 : 1
@@ -50,7 +69,14 @@ async function toggle(item: BranchAvailabilityItem) {
   }
 }
 
-onMounted(load)
+onMounted(async () => {
+  if (isAdmin.value) {
+    try {
+      branches.value = (await BranchService.getAll()).data.filter((b) => b.isActive !== false)
+    } catch { /* deja el selector vacío */ }
+  }
+  await load()
+})
 </script>
 
 <template>
@@ -58,24 +84,33 @@ onMounted(load)
     <main class="avail">
       <section class="hero">
         <div>
-          <p><i class="fa-solid fa-store" /> Tu sucursal</p>
+          <p><i class="fa-solid fa-store" /> {{ isAdmin ? 'Administración' : 'Tu sucursal' }}</p>
           <h1>Disponibilidad de productos</h1>
-          <span>Activa o desactiva lo que hoy vendes. Solo cambia tu sucursal — no crea ni elimina productos.</span>
+          <span>{{ isAdmin ? 'Elige una sucursal y activa o desactiva sus productos.' : 'Activa o desactiva lo que hoy vendes en tu local.' }} No crea ni elimina productos.</span>
         </div>
       </section>
 
-      <section class="stats">
+      <label v-if="isAdmin" class="branch-picker">
+        <span>Sucursal</span>
+        <select v-model="selectedBranch" @change="onBranchChange">
+          <option value="">— Elige una sucursal —</option>
+          <option v-for="b in branches" :key="b._id" :value="b._id">{{ b.name }}</option>
+        </select>
+      </label>
+
+      <div v-if="isAdmin && !selectedBranch" class="empty pick"><i class="fa-solid fa-store" /> Elige una sucursal para ver y editar su disponibilidad.</div>
+
+      <section v-if="!isAdmin || selectedBranch" class="stats">
         <article><small>Productos</small><strong>{{ summary.total }}</strong></article>
         <article class="on"><small>Disponibles</small><strong>{{ summary.available }}</strong></article>
         <article class="off"><small>Desactivados</small><strong>{{ summary.unavailable }}</strong></article>
       </section>
 
-      <div class="search">
+      <div v-if="!isAdmin || selectedBranch" class="search">
         <i class="fa-solid fa-magnifying-glass" />
         <input v-model="search" type="search" placeholder="Buscar producto…" @input="onSearch" />
       </div>
-
-      <section class="list">
+      <section v-if="!isAdmin || selectedBranch" class="list">
         <div v-if="loading" class="empty">Cargando productos…</div>
         <div v-else-if="!filtered.length" class="empty"><i class="fa-solid fa-box-open" /> Sin productos.</div>
         <article v-for="item in filtered" :key="item._id" class="row" :class="{ off: !item.available }">
@@ -108,6 +143,11 @@ onMounted(load)
 .hero p { color: #efd537; font-size: .7rem; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
 .hero h1 { font-size: clamp(1.5rem, 4vw, 2.2rem); margin: .35rem 0; }
 .hero span { color: rgba(255,255,255,.8); }
+
+.branch-picker { display: flex; flex-direction: column; gap: .4rem; }
+.branch-picker span { color: #667; font-size: .68rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+.branch-picker select { background: #fff; border: 1px solid rgba(8,17,13,.12); border-radius: 14px; font-size: .95rem; min-height: 48px; padding: .7rem 1rem; }
+.empty.pick { background: #fff; border: 1px dashed rgba(8,17,13,.18); border-radius: 16px; }
 
 .stats { display: flex; flex-wrap: wrap; gap: .65rem; }
 .stats article { align-items: center; background: #fff; border: 1px solid rgba(8,17,13,.08); border-radius: 16px; display: flex; flex: 1 1 110px; flex-direction: column; gap: .1rem; padding: .8rem; }
