@@ -82,6 +82,39 @@ class ProductService extends APIBase {
   deleteImage(id: string, publicId: string) {
     return this.delete<ProductDTO>(`products/${id}/images/${encodeURIComponent(publicId)}`)
   }
+
+  /** Disponibilidad por sucursal (vendedor ve su local; admin cualquiera con branchId). */
+  getBranchAvailability(params: { branchId?: string; search?: string } = {}) {
+    const qs = new URLSearchParams()
+    if (params.branchId) qs.set('branchId', params.branchId)
+    if (params.search) qs.set('search', params.search)
+    const query = qs.toString()
+    return this.get<BranchAvailabilityResponse>(`products/availability${query ? `?${query}` : ''}`)
+  }
+
+  /** Activa/desactiva un producto para una sucursal. */
+  toggleBranchAvailability(id: string, available: boolean, branchId?: string) {
+    return this.patch<{ _id: string; name: string; branchId: string; available: boolean }>(
+      `products/${id}/availability`,
+      { available, ...(branchId ? { branchId } : {}) },
+    )
+  }
+}
+
+export interface BranchAvailabilityItem {
+  _id: string
+  name: string
+  price: number
+  image: string
+  category: string
+  available: boolean
+  globallyOff: boolean
+}
+
+export interface BranchAvailabilityResponse {
+  branchId: string
+  products: BranchAvailabilityItem[]
+  summary: { total: number; available: number; unavailable: number }
 }
 
 export default new ProductService()

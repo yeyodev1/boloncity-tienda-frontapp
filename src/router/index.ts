@@ -141,6 +141,12 @@ const routes: Array<RouteRecordRaw> = [
     meta: { title: 'Operación de sucursal | Boloncity', requiresAuth: true, requiresAdmin: true },
   },
   {
+    path: '/admin/disponibilidad',
+    name: 'BranchAvailability',
+    component: () => import('../views/admin/AdminBranchAvailability.vue'),
+    meta: { title: 'Disponibilidad | Boloncity', requiresAuth: true, requiresAdmin: true },
+  },
+  {
     path: '/admin/ordenes/:id',
     name: 'AdminOrderDetail',
     component: () => import('../views/admin/AdminOrderDetail.vue'),
