@@ -123,6 +123,12 @@ const routes: Array<RouteRecordRaw> = [
     meta: { title: 'Rewards | Boloncity', requiresAuth: true, requiresAdmin: true },
   },
   {
+    path: '/admin/clientes',
+    name: 'AdminCustomers',
+    component: () => import('../views/admin/AdminCustomers.vue'),
+    meta: { title: 'Clientes | Boloncity', requiresAuth: true, requiresAdmin: true },
+  },
+  {
     path: '/admin/ordenes',
     name: 'AdminOrdersKanban',
     component: () => import('../views/admin/AdminOrdersKanban.vue'),

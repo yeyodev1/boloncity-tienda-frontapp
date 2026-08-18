@@ -40,6 +40,19 @@ const deliveryStatus = computed(() => ({
 }[picker.value?.currentStatus || ''] || picker.value?.statusText || 'Preparando información de delivery'))
 const deliveryIcon = computed(() => ({ WAY_TO_DELIVER: 'fa-truck-fast', ARRIVED_AT_DELIVERY: 'fa-location-dot', COMPLETED: 'fa-circle-check', ACCEPTED: 'fa-motorcycle', READY_FOR_PICKUP: 'fa-magnifying-glass' }[picker.value?.currentStatus || ''] || 'fa-motorcycle'))
 const auditEntries = computed(() => [...(props.order.audit || [])].slice(-3).reverse())
+// Estado de pago, claro para el cajero:
+//  - Efectivo: se cobra al entregar (normal que esté "pendiente").
+//  - Tarjeta pagada: PayPhone confirmó (hay transactionId).
+//  - Tarjeta SIN pagar: no completó el pago — NO preparar hasta validar.
+const payment = computed(() => {
+  if (props.order.paymentMethod === 'cash') {
+    return { tone: 'cash', icon: 'fa-money-bill-wave', label: 'Efectivo · cobrar al entregar' }
+  }
+  if (props.order.payphone?.transactionId) {
+    return { tone: 'ok', icon: 'fa-circle-check', label: 'Pagado con tarjeta' }
+  }
+  return { tone: 'danger', icon: 'fa-triangle-exclamation', label: 'Tarjeta · pago NO confirmado' }
+})
 const auditLabels: Record<string, string> = { created: 'Pedido recibido', payment_confirmed: 'Pago confirmado', status_change: 'Estado actualizado', note_added: 'Nota agregada', user_assigned: 'Usuario asignado', branch_assigned: 'Sucursal asignada' }
 function auditText(entry: NonNullable<OrderDTO['audit']>[number]) { return entry.details || (entry.toValue ? orderStatusLabels[entry.toValue as OrderStatus] || entry.toValue : auditLabels[entry.action] || 'Actualización') }
 function auditTime(timestamp: string) { return new Date(timestamp).toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' }) }
@@ -62,8 +75,8 @@ function auditTime(timestamp: string) { return new Date(timestamp).toLocaleTimeS
         <span>{{ order.branch?.name || 'Sin sucursal' }}</span>
       </div>
 
-      <div class="order-card__payment" :class="order.payphone?.transactionId ? 'ok' : 'muted'">
-        <span>{{ order.payphone?.transactionId ? `Pago ${order.payphone.transactionId}` : 'Pago pendiente' }}</span>
+      <div class="order-card__payment" :class="payment.tone">
+        <i :class="['fa-solid', payment.icon]" /><span>{{ payment.label }}</span>
       </div>
     </button>
 
@@ -200,9 +213,12 @@ function auditTime(timestamp: string) { return new Date(timestamp).toLocaleTimeS
 }
 
 .order-card__payment {
+  align-items: center;
   border-radius: 14px;
+  display: flex;
   font-size: 0.82rem;
   font-weight: 700;
+  gap: 0.5rem;
   padding: 0.75rem;
 }
 
@@ -211,9 +227,14 @@ function auditTime(timestamp: string) { return new Date(timestamp).toLocaleTimeS
   color: #235931;
 }
 
-.order-card__payment.muted {
-  background: rgba(8, 17, 13, 0.05);
-  color: rgba(24, 33, 27, 0.66);
+.order-card__payment.cash {
+  background: rgba(239, 213, 55, 0.22);
+  color: #6a4e05;
+}
+
+.order-card__payment.danger {
+  background: rgba(160, 40, 40, 0.12);
+  color: #a02828;
 }
 
 .order-card__actions {

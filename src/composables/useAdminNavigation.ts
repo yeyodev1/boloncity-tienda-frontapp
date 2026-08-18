@@ -19,6 +19,7 @@ export function useAdminNavigation() {
     { label: 'Órdenes', path: '/admin/ordenes', icon: 'fa-solid fa-clipboard-list' },
     { label: 'Productos', path: '/admin/productos', icon: 'fa-solid fa-box-open' },
     { label: 'Rewards', path: '/admin/rewards', icon: 'fa-solid fa-gift' },
+    { label: 'Clientes', path: '/admin/clientes', icon: 'fa-solid fa-user-group' },
     { label: 'Categorías', path: '/admin/categorias', icon: 'fa-solid fa-layer-group' },
     ...(isAdmin.value ? [{ label: 'Sucursales', path: '/admin/sucursales', icon: 'fa-solid fa-store' }] : []),
     { label: 'Usuarios', path: '/admin/usuarios', icon: 'fa-solid fa-users' },
