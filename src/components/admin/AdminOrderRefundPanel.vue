@@ -18,6 +18,16 @@ const refund = computed(() => props.order.payphone?.refund)
 const isCard = computed(() => props.order.paymentMethod === 'card')
 const isPaid = computed(() => Boolean(props.order.payphone?.confirmedAt))
 
+// Estado de pago claro e inequívoco para el cajero.
+const payState = computed(() => {
+  if (refund.value?.status === 'refunded') return { key: 'refunded', icon: 'fa-rotate-left', label: 'Reversado' }
+  if (refund.value?.status === 'processing') return { key: 'processing', icon: 'fa-spinner fa-spin', label: 'Reverso en curso' }
+  if (refund.value?.status === 'failed') return { key: 'failed', icon: 'fa-triangle-exclamation', label: 'Reverso fallido' }
+  if (!isCard.value) return { key: 'cash', icon: 'fa-money-bill-wave', label: 'Efectivo · cobra al entregar' }
+  if (isPaid.value) return { key: 'paid', icon: 'fa-circle-check', label: 'Pagado con tarjeta' }
+  return { key: 'unpaid', icon: 'fa-triangle-exclamation', label: 'SIN PAGO — no preparar' }
+})
+
 const windowState = computed(() => {
   if (!isCard.value) return { open: false, reason: 'Este pedido no se pagó con tarjeta.' }
   if (!isPaid.value) return { open: false, reason: 'El pedido no tiene un pago confirmado en PayPhone.' }
@@ -82,21 +92,20 @@ async function submit() {
         <p class="section-head__eyebrow">Pago</p>
         <h2>{{ isCard ? 'Tarjeta vía PayPhone' : 'Efectivo' }}</h2>
       </div>
-      <span class="refund-badge" :class="`refund-badge--${refund?.status || 'none'}`">
-        <i class="fa-solid" :class="{
-          'fa-rotate-left': refund?.status === 'refunded',
-          'fa-spinner': refund?.status === 'processing',
-          'fa-triangle-exclamation': refund?.status === 'failed',
-          'fa-circle-check': !refund?.status || refund?.status === 'none',
-        }" />
-        {{
-          refund?.status === 'refunded' ? 'Reversado'
-          : refund?.status === 'processing' ? 'Reverso en curso'
-          : refund?.status === 'failed' ? 'Reverso fallido'
-          : isPaid ? 'Cobrado' : 'Sin cobro'
-        }}
+      <span class="refund-badge" :class="`refund-badge--${payState.key}`">
+        <i class="fa-solid" :class="payState.icon" />
+        {{ payState.label }}
       </span>
     </div>
+
+    <p v-if="payState.key === 'unpaid'" class="pay-warning">
+      <i class="fa-solid fa-triangle-exclamation" />
+      <span><strong>Este pedido NO está pagado.</strong> El cliente no completó el pago con tarjeta. No lo prepares ni lo entregues hasta que el pago se confirme.</span>
+    </p>
+    <p v-else-if="payState.key === 'cash'" class="pay-info">
+      <i class="fa-solid fa-money-bill-wave" />
+      <span>Se paga en <strong>efectivo al entregar</strong>. El motorizado cobra ${{ (order.total / 100).toFixed(2) }}.</span>
+    </p>
 
     <div class="refund-facts">
       <div><span>Monto</span><strong>{{ formatCurrency(order.total) }}</strong></div>
@@ -170,7 +179,35 @@ async function submit() {
   text-transform: uppercase;
 }
 
-.refund-badge--none { background: rgba(35, 89, 49, 0.1); color: #235931; }
+.pay-warning {
+  align-items: flex-start;
+  background: rgba(165, 35, 35, 0.1);
+  border: 1px solid rgba(165, 35, 35, 0.3);
+  border-radius: 12px;
+  color: #a02828;
+  display: flex;
+  font-size: 0.9rem;
+  gap: 0.6rem;
+  margin: 0 0 0.9rem;
+  padding: 0.85rem 1rem;
+}
+.pay-warning i { margin-top: 0.15rem; }
+
+.pay-info {
+  align-items: center;
+  background: rgba(239, 213, 55, 0.18);
+  border-radius: 12px;
+  color: #6a4e05;
+  display: flex;
+  font-size: 0.9rem;
+  gap: 0.6rem;
+  margin: 0 0 0.9rem;
+  padding: 0.85rem 1rem;
+}
+
+.refund-badge--paid { background: rgba(0, 165, 35, 0.14); color: #14682a; }
+.refund-badge--cash { background: rgba(239, 213, 55, 0.24); color: #6a4e05; }
+.refund-badge--unpaid { background: rgba(165, 35, 35, 0.14); color: #a02828; }
 .refund-badge--processing { background: rgba(239, 213, 55, 0.24); color: #7a6a06; }
 .refund-badge--refunded { background: rgba(8, 17, 13, 0.08); color: rgba(8, 17, 13, 0.6); }
 .refund-badge--failed { background: rgba(165, 35, 35, 0.12); color: #a52323; }
