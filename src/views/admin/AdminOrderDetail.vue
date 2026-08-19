@@ -39,6 +39,10 @@ const statusIcons: Record<string, string> = { pending:'fa-clock', paid:'fa-credi
 const auditLabels: Record<string, string> = { created:'Pedido recibido', payment_confirmed:'Pago confirmado', status_change:'Estado actualizado', note_added:'Nota agregada', user_assigned:'Usuario asignado', branch_assigned:'Sucursal asignada', refund_requested:'Devolución solicitada', refunded:'Pago devuelto', refund_failed:'Devolución rechazada' }
 
 const itemCount = computed(() => order.value?.items?.reduce((sum, item) => sum + item.quantity, 0) || 0)
+const hasBilling = computed(() => {
+  const billing = order.value?.billing
+  return Boolean(billing && (billing.docNumber || billing.name || billing.address))
+})
 const canRetryPicker = computed(() => Boolean(order.value && order.value.deliveryType === 'delivery' && !order.value.picker?.bookingId && order.value.status !== 'pending' && order.value.status !== 'cancelled'))
 
 function formatCurrency(amount: number) {
@@ -148,6 +152,38 @@ onMounted(async () => {
               <span>{{ formatDollars(item.price * item.quantity) }}</span>
             </article>
           </div>
+
+          <div class="cost-breakdown">
+            <div><span>Subtotal</span><strong>{{ formatCurrency(order.subtotal) }}</strong></div>
+            <div v-if="order.tax"><span>IVA incluido</span><strong>{{ formatCurrency(order.tax) }}</strong></div>
+            <div v-if="order.deliveryType === 'delivery'">
+              <span>Envío cobrado al cliente{{ order.deliveryDistance ? ` · ${order.deliveryDistance.toFixed(1)} km` : '' }}</span>
+              <strong>{{ formatCurrency(order.deliveryCost || 0) }}</strong>
+            </div>
+            <div v-if="order.picker?.deliveryFee" class="cost-breakdown__picker">
+              <span><i class="fa-solid fa-motorcycle" /> Tarifa Picker (costo real del delivery)</span>
+              <strong>{{ formatDollars(order.picker.deliveryFee) }}</strong>
+            </div>
+            <div v-if="order.discount"><span>Descuento por puntos ({{ order.pointsRedeemed }} pts)</span><strong>-{{ formatCurrency(order.discount) }}</strong></div>
+            <div class="cost-breakdown__total"><span>Total cobrado</span><strong>{{ formatCurrency(order.total) }}</strong></div>
+          </div>
+        </article>
+
+        <article class="panel billing-card">
+          <div class="section-head">
+            <div>
+              <p class="section-head__eyebrow">Facturación</p>
+              <h2>{{ hasBilling ? 'Datos de factura' : 'Consumidor final' }}</h2>
+            </div>
+            <span v-if="hasBilling" class="billing-badge"><i class="fa-solid fa-file-invoice" /> Pidió factura</span>
+          </div>
+          <div v-if="hasBilling" class="billing-grid">
+            <div><span>Documento</span><strong>{{ (order.billing?.docType || 'documento').toUpperCase() }} · {{ order.billing?.docNumber || '—' }}</strong></div>
+            <div><span>Nombre / Razón social</span><strong>{{ order.billing?.name || '—' }}</strong></div>
+            <div><span>Email para la factura</span><strong>{{ order.billing?.email || order.customerEmail }}</strong></div>
+            <div><span>Dirección</span><strong>{{ order.billing?.address || '—' }}</strong></div>
+          </div>
+          <p v-else class="empty-state">El cliente no pidió factura con datos: se factura como consumidor final.</p>
         </article>
 
         <article class="panel audit-card">
@@ -340,6 +376,46 @@ onMounted(async () => {
 
 .empty-state {
   color: rgba($text-dark, 0.66);
+}
+
+.cost-breakdown {
+  border-top: 1px solid rgba($text-dark, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-top: 1rem;
+  padding-top: 0.9rem;
+}
+
+.cost-breakdown > div { align-items: center; display: flex; font-size: 0.88rem; gap: 0.75rem; justify-content: space-between; }
+.cost-breakdown span { color: rgba($text-dark, 0.62); }
+.cost-breakdown__picker { background: rgba(35, 89, 49, 0.06); border-radius: 10px; padding: 0.45rem 0.65rem; }
+.cost-breakdown__picker span { color: #235931; font-weight: 700; }
+.cost-breakdown__picker i { margin-right: 0.3rem; }
+.cost-breakdown__total { border-top: 1px dashed rgba($text-dark, 0.15); font-size: 1rem; margin-top: 0.3rem; padding-top: 0.6rem; }
+.cost-breakdown__total span { color: $text-dark; font-weight: 800; }
+.cost-breakdown__total strong { font-size: 1.15rem; }
+
+.billing-badge {
+  align-items: center;
+  background: rgba(239, 213, 55, 0.24);
+  border-radius: 999px;
+  color: #6a4e05;
+  display: flex;
+  font-size: 0.75rem;
+  font-weight: 800;
+  gap: 0.4rem;
+  padding: 0.4rem 0.8rem;
+}
+
+.billing-grid { display: flex; flex-direction: column; gap: 0.75rem; }
+.billing-grid > div { display: flex; flex-direction: column; gap: 0.15rem; }
+.billing-grid span { color: rgba($text-dark, 0.55); font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.billing-grid strong { font-size: 0.95rem; overflow-wrap: anywhere; }
+
+@media (min-width: 768px) {
+  .billing-grid { flex-direction: row; flex-wrap: wrap; }
+  .billing-grid > div { flex: 1 1 40%; }
 }
 
 .tone--amber {

@@ -46,6 +46,7 @@ export interface OrderDTO {
   customerPhone?: string
   notes?: string
   branch?: { _id: string; name: string }
+  billing?: { docType?: string; name?: string; docNumber?: string; email?: string; address?: string }
   audit?: Array<{ action: string; performedByEmail?: string; fromValue?: string; toValue?: string; details?: string; timestamp: string }>
   items?: Array<{ name: string; quantity: number; price: number; image?: string }>
   payphone?: {
