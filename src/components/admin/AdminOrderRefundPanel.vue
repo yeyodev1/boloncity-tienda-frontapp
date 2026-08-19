@@ -87,9 +87,10 @@ async function submit() {
 
 <template>
   <article class="panel refund-card">
-    <div class="section-head">
+    <div class="card-head">
+      <span class="card-head__icon card-head__icon--green"><i class="fa-solid" :class="isCard ? 'fa-credit-card' : 'fa-money-bill-wave'" /></span>
       <div>
-        <p class="section-head__eyebrow">Pago</p>
+        <p class="card-head__eyebrow">Pago</p>
         <h2>{{ isCard ? 'Tarjeta vía PayPhone' : 'Efectivo' }}</h2>
       </div>
       <span class="refund-badge" :class="`refund-badge--${payState.key}`">
@@ -161,21 +162,28 @@ async function submit() {
 </template>
 
 <style scoped lang="scss">
+@use './order-detail/order-detail-cards' as *;
+
 .refund-card {
   display: flex;
   flex-direction: column;
   gap: 0.9rem;
+  padding: 1.1rem;
 }
+
+.refund-card .card-head { margin-bottom: 0; }
 
 .refund-badge {
   align-items: center;
   border-radius: 999px;
   display: flex;
+  flex: 0 0 auto;
   font-size: 0.7rem;
   font-weight: 900;
   gap: 0.35rem;
   letter-spacing: 0.04em;
-  padding: 0.35rem 0.7rem;
+  margin-left: auto;
+  padding: 0.45rem 0.85rem;
   text-transform: uppercase;
 }
 
@@ -215,14 +223,19 @@ async function submit() {
 .refund-facts {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: 0.6rem;
 }
 
 .refund-facts > div {
+  background: $bg-light;
+  border: 1px solid rgba($text-dark, 0.07);
+  border-radius: 12px;
   display: flex;
-  flex: 1 1 130px;
+  flex: 1 1 44%;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: 0.2rem;
+  min-width: 0;
+  padding: 0.7rem 0.85rem;
 }
 
 .refund-facts span { color: rgba(8, 17, 13, 0.55); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
