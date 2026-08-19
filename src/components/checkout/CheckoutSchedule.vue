@@ -46,6 +46,23 @@ function selectedSummary() {
   const cuando = day.isToday ? 'hoy' : `el ${day.weekdayLabel} ${day.dayNumber}`
   return `${cuando} a las ${formatSlot(props.selectedTime)}`
 }
+
+// El panel se pliega/despliega animando su altura real (sin esto el layout salta seco).
+function expandEnter(element: Element) {
+  const el = element as HTMLElement
+  el.style.height = '0'
+  void el.offsetHeight
+  el.style.height = `${el.scrollHeight}px`
+}
+function expandAfterEnter(element: Element) {
+  (element as HTMLElement).style.height = ''
+}
+function expandLeave(element: Element) {
+  const el = element as HTMLElement
+  el.style.height = `${el.scrollHeight}px`
+  void el.offsetHeight
+  el.style.height = '0'
+}
 </script>
 
 <template>
@@ -61,7 +78,7 @@ function selectedSummary() {
       </div>
     </div>
 
-    <Transition name="schedule-reveal">
+    <Transition name="schedule-reveal" @enter="expandEnter" @after-enter="expandAfterEnter" @leave="expandLeave">
       <div v-if="enabled" class="schedule__picker">
         <p v-if="!days.some((day) => day.slots.length)" class="schedule__empty">
           <i class="fa-solid fa-circle-exclamation" />
@@ -175,9 +192,14 @@ function selectedSummary() {
 }
 
 .schedule__picker {
+  background: #fff;
+  border: 1px solid rgba(35, 89, 49, 0.14);
+  border-radius: 16px;
+  box-shadow: 0 14px 30px rgba(35, 89, 49, 0.08);
   display: flex;
   flex-direction: column;
   gap: 0.9rem;
+  padding: 0.95rem;
 }
 
 .schedule__block {
@@ -194,30 +216,12 @@ function selectedSummary() {
   text-transform: uppercase;
 }
 
-.schedule__days {
-  display: flex;
-  gap: 0.45rem;
-  // En móvil los 7 días se recorren de lado; en pantallas grandes entran completos.
-  overflow-x: auto;
-  padding-bottom: 0.2rem;
-  scrollbar-width: none;
-}
-
+// En móvil los 7 días se recorren de lado; en pantallas grandes entran completos.
+.schedule__days { display: flex; gap: 0.45rem; overflow-x: auto; padding-bottom: 0.2rem; scrollbar-width: none; }
 .schedule__days::-webkit-scrollbar { display: none; }
 
-.schedule__day {
-  align-items: center;
-  background: #fff;
-  border: 1px solid rgba(8, 17, 13, 0.1);
-  border-radius: 14px;
-  display: flex;
-  flex: 0 0 auto;
-  flex-direction: column;
-  gap: 0.1rem;
-  min-width: 68px;
-  padding: 0.55rem 0.5rem;
-  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
-}
+.schedule__day { align-items: center; background: #f8faf8; border: 1px solid rgba(8, 17, 13, 0.1); border-radius: 14px; display: flex; flex: 0 0 auto; flex-direction: column; gap: 0.1rem; min-width: 68px; padding: 0.55rem 0.5rem; transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease; }
+.schedule__day:not(.disabled):not(.active):hover { border-color: rgba(35, 89, 49, 0.35); transform: translateY(-2px); }
 
 .schedule__day em { color: rgba(8, 17, 13, 0.55); font-size: 0.68rem; font-style: normal; font-weight: 800; text-transform: capitalize; }
 .schedule__day b { color: #152019; font-size: 1.05rem; font-weight: 900; }
@@ -236,53 +240,22 @@ function selectedSummary() {
 
 .schedule__day.disabled { background: rgba(8, 17, 13, 0.04); opacity: 0.5; }
 
-.schedule__slots {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-}
+.schedule__slots { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 
-.schedule__slot {
-  background: #fff;
-  border: 1px solid rgba(8, 17, 13, 0.1);
-  border-radius: 999px;
-  color: #152019;
-  font-size: 0.8rem;
-  font-weight: 800;
-  min-height: 40px;
-  padding: 0.45rem 0.85rem;
-  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
-}
+.schedule__slot { background: #f8faf8; border: 1px solid rgba(8, 17, 13, 0.1); border-radius: 999px; color: #152019; font-size: 0.8rem; font-weight: 800; min-height: 40px; padding: 0.45rem 0.85rem; transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease; }
+.schedule__slot:not(.active):hover { border-color: rgba(35, 89, 49, 0.35); transform: translateY(-1px); }
+.schedule__slot.active { background: #efd537; border-color: #efd537; box-shadow: 0 8px 18px rgba(239, 213, 55, 0.35); color: #152019; }
 
-.schedule__slot.active {
-  background: #efd537;
-  border-color: #efd537;
-  box-shadow: 0 8px 18px rgba(239, 213, 55, 0.35);
-  color: #152019;
-}
+.schedule__summary { align-items: center; align-self: flex-start; background: #e9f7ec; border: 1px solid rgba(0, 165, 35, 0.3); border-radius: 999px; color: #14682a; display: flex; font-size: 0.78rem; font-weight: 800; gap: 0.45rem; padding: 0.5rem 0.9rem; }
+.schedule__summary i { color: #00a523; }
 
-.schedule__summary {
-  align-items: center;
-  color: #235931;
-  display: flex;
-  font-size: 0.78rem;
-  font-weight: 800;
-  gap: 0.4rem;
-}
-
-.schedule__empty {
-  align-items: center;
-  color: #a52323;
-  display: flex;
-  font-size: 0.8rem;
-  font-weight: 700;
-  gap: 0.4rem;
-}
+.schedule__empty { align-items: flex-start; background: #fff8d6; border: 1px solid rgba(239, 213, 55, 0.6); border-radius: 12px; color: #6a5d10; display: flex; font-size: 0.82rem; font-weight: 700; gap: 0.5rem; line-height: 1.4; padding: 0.65rem 0.85rem; }
+.schedule__empty i { color: #a98b00; margin-top: 0.15rem; }
 
 .schedule-reveal-enter-active,
-.schedule-reveal-leave-active { transition: opacity 0.25s ease, transform 0.25s ease; }
+.schedule-reveal-leave-active { overflow: hidden; transition: height 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
 .schedule-reveal-enter-from,
-.schedule-reveal-leave-to { opacity: 0; transform: translateY(-6px); }
+.schedule-reveal-leave-to { opacity: 0; transform: translateY(-8px); }
 
 @media (min-width: 768px) {
   .schedule { padding: 1.1rem; }

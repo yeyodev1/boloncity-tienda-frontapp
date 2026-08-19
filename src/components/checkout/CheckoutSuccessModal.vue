@@ -32,6 +32,16 @@ const scheduledLabel = computed(() => {
             ? 'Pagas en efectivo en el local al retirar tu pedido.'
             : 'Pagas en efectivo al motorizado cuando recibas tu pedido.' }}
         </p>
+        <div class="cash-success__where">
+          <p v-if="order.customerEmail">
+            <i class="fa-solid fa-envelope" />
+            <span>Te enviamos la confirmación a <b>{{ order.customerEmail }}</b></span>
+          </p>
+          <p>
+            <i class="fa-solid fa-location-arrow" />
+            <span>Sigue el estado de tu pedido en cualquier momento con el botón de abajo.</span>
+          </p>
+        </div>
         <a href="/pedido" class="btn-primary">Seguir mi pedido</a>
       </section>
     </div>
@@ -57,6 +67,22 @@ const scheduledLabel = computed(() => {
 .cash-success h2 { font-size: 1.5rem; letter-spacing: -0.03em; }
 .cash-success__scheduled { align-items: center; background: #fff8d6; border: 1px solid rgba(239, 213, 55, 0.6); border-radius: 12px; color: #6a4e05; display: flex; font-size: 0.85rem; font-weight: 700; gap: 0.45rem; padding: 0.55rem 0.9rem; }
 .cash-success__note { color: rgba(8, 17, 13, 0.65); line-height: 1.5; }
+
+.cash-success__where {
+  background: rgba(35, 89, 49, 0.05);
+  border: 1px solid rgba(35, 89, 49, 0.12);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.85rem 1rem;
+  text-align: left;
+  width: 100%;
+}
+
+.cash-success__where p { align-items: flex-start; color: rgba(8, 17, 13, 0.72); display: flex; font-size: 0.82rem; gap: 0.55rem; line-height: 1.45; }
+.cash-success__where i { color: #235931; margin-top: 0.15rem; }
+.cash-success__where b { word-break: break-all; }
 .cash-success a { margin-top: 0.4rem; padding: 0.8rem 1.4rem; text-decoration: none; }
 
 .success-pop-enter-active,

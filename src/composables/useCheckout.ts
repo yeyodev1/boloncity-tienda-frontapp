@@ -55,7 +55,7 @@ export function useCheckout() {
   const manualMapsLink = ref('')
   const manualLat = ref(0)
   const manualLng = ref(0)
-  const { error } = useToast()
+  const { error, warning } = useToast()
   const displayLat = computed(() => locationDetected.value ? detectedLat.value : manualLat.value)
   const displayLng = computed(() => locationDetected.value ? detectedLng.value : manualLng.value)
 
@@ -400,7 +400,11 @@ export function useCheckout() {
         }
         // Fuera de horario la programación es el único camino: se activa sola.
         scheduleForNextOpening()
-        error(data.message || 'La sucursal está cerrada en este momento.')
+        warning('La sucursal está cerrada por ahora. Te activamos «Programar» para que dejes tu pedido listo 👇')
+        // Lleva la vista al aviso amarillo, que explica la próxima apertura.
+        window.setTimeout(() => {
+          document.querySelector('.checkout-closed')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        }, 150)
       } else {
         error(data?.message || raw?.message || 'No se pudo iniciar el pago')
       }
