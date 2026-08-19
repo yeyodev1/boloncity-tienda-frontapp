@@ -93,33 +93,25 @@ onMounted(async () => {
 
       <div v-else-if="order" class="admin-order-detail__grid">
         <article class="panel summary-card">
-          <div class="summary-card__top">
-            <div>
-              <span>Cliente</span>
-              <strong>{{ order.customerName || 'Sin nombre' }}</strong>
-            </div>
-            <div>
-              <span>Email</span>
-              <strong>{{ order.customerEmail }}</strong>
+          <div class="section-head">
+            <div class="section-head__title">
+              <span class="head-icon head-icon--green"><i class="fa-solid fa-user" /></span>
+              <div>
+                <p class="section-head__eyebrow">Cliente</p>
+                <h2>{{ order.customerName || 'Sin nombre' }}</h2>
+              </div>
             </div>
           </div>
 
-          <div class="summary-card__grid">
-            <div>
-              <span>Total</span>
-              <strong>{{ formatCurrency(order.total) }}</strong>
-            </div>
-            <div>
-              <span>Items</span>
-              <strong>{{ itemCount }}</strong>
-            </div>
-            <div>
-              <span>Sucursal</span>
-              <strong>{{ order.branch?.name || 'Sin sucursal' }}</strong>
-            </div>
-            <div>
-              <span>Teléfono</span>
-              <strong>{{ order.customerPhone || 'No registrado' }}</strong>
+          <div class="tile-row">
+            <div class="tile tile--green"><span><i class="fa-solid fa-sack-dollar" /> Total</span><strong>{{ formatCurrency(order.total) }}</strong></div>
+            <div class="tile"><span><i class="fa-solid fa-utensils" /> Items</span><strong>{{ itemCount }}</strong></div>
+            <div class="tile"><span><i class="fa-solid fa-store" /> Sucursal</span><strong>{{ order.branch?.name || 'Sin sucursal' }}</strong></div>
+            <div class="tile"><span><i class="fa-solid fa-phone" /> Teléfono</span><strong>{{ order.customerPhone || 'No registrado' }}</strong></div>
+            <div class="tile tile--wide"><span><i class="fa-solid fa-envelope" /> Email</span><strong>{{ order.customerEmail }}</strong></div>
+            <div class="tile tile--wide" :class="order.deliveryType === 'delivery' ? 'tile--blue' : 'tile--yellow'">
+              <span><i :class="order.deliveryType === 'delivery' ? 'fa-solid fa-motorcycle' : 'fa-solid fa-bag-shopping'" /> Tipo de pedido</span>
+              <strong>{{ order.deliveryType === 'delivery' ? `Delivery${order.deliveryAddress ? ' · ' + order.deliveryAddress : ''}` : 'Retiro en sucursal' }}</strong>
             </div>
           </div>
         </article>
@@ -128,15 +120,33 @@ onMounted(async () => {
 
         <AdminOrderRefundPanel :order="order" @refunded="order = $event" />
 
-        <article v-if="order.scheduledFor" class="panel summary-card"><div class="section-head"><div><p class="section-head__eyebrow">Pedido programado</p><h2>{{ new Date(order.scheduledFor).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' }) }}</h2></div><button v-if="order.picker?.searchState === 'on_hold' || order.picker?.searchState === 'failed'" type="button" :disabled="startingSearch" @click="startDriverSearch"><i class="fa-solid fa-motorcycle" /> {{ startingSearch ? 'Buscando...' : 'Buscar conductor' }}</button><span v-else>{{ order.picker?.searchState === 'started' ? 'Búsqueda iniciada' : 'En espera' }}</span></div><p v-if="order.picker?.searchError">{{ order.picker.searchError }}</p></article>
+        <article v-if="order.scheduledFor" class="panel scheduled-card">
+          <div class="section-head">
+            <div class="section-head__title">
+              <span class="head-icon head-icon--yellow"><i class="fa-solid fa-calendar-check" /></span>
+              <div>
+                <p class="section-head__eyebrow">Pedido programado</p>
+                <h2>{{ new Date(order.scheduledFor).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' }) }}</h2>
+              </div>
+            </div>
+            <button v-if="order.picker?.searchState === 'on_hold' || order.picker?.searchState === 'failed'" type="button" class="scheduled-card__cta" :disabled="startingSearch" @click="startDriverSearch">
+              <i class="fa-solid fa-motorcycle" /> {{ startingSearch ? 'Buscando...' : 'Buscar conductor' }}
+            </button>
+            <span v-else class="pill pill--yellow">{{ order.picker?.searchState === 'started' ? 'Búsqueda iniciada' : 'En espera' }}</span>
+          </div>
+          <p v-if="order.picker?.searchError" class="scheduled-card__error"><i class="fa-solid fa-circle-exclamation" /> {{ order.picker.searchError }}</p>
+        </article>
 
         <article class="panel items-card">
           <div class="section-head">
-            <div>
-              <p class="section-head__eyebrow">Contenido</p>
-              <h2>Productos</h2>
+            <div class="section-head__title">
+              <span class="head-icon head-icon--green"><i class="fa-solid fa-basket-shopping" /></span>
+              <div>
+                <p class="section-head__eyebrow">Contenido</p>
+                <h2>Productos</h2>
+              </div>
             </div>
-            <strong>{{ formatCurrency(order.subtotal) }}</strong>
+            <span class="pill pill--green">{{ itemCount }} item{{ itemCount === 1 ? '' : 's' }}</span>
           </div>
 
           <div class="item-list">
@@ -171,11 +181,14 @@ onMounted(async () => {
 
         <article class="panel billing-card">
           <div class="section-head">
-            <div>
-              <p class="section-head__eyebrow">Facturación</p>
-              <h2>{{ hasBilling ? 'Datos de factura' : 'Consumidor final' }}</h2>
+            <div class="section-head__title">
+              <span class="head-icon head-icon--yellow"><i class="fa-solid fa-file-invoice" /></span>
+              <div>
+                <p class="section-head__eyebrow">Facturación</p>
+                <h2>{{ hasBilling ? 'Datos de factura' : 'Consumidor final' }}</h2>
+              </div>
             </div>
-            <span v-if="hasBilling" class="billing-badge"><i class="fa-solid fa-file-invoice" /> Pidió factura</span>
+            <span v-if="hasBilling" class="pill pill--yellow"><i class="fa-solid fa-file-invoice" /> Pidió factura</span>
           </div>
           <div v-if="hasBilling" class="billing-grid">
             <div><span>Documento</span><strong>{{ (order.billing?.docType || 'documento').toUpperCase() }} · {{ order.billing?.docNumber || '—' }}</strong></div>
@@ -188,17 +201,20 @@ onMounted(async () => {
 
         <article class="panel audit-card">
           <div class="section-head">
-            <div>
-              <p class="section-head__eyebrow">Trazabilidad</p>
-              <h2>Auditoría</h2>
+            <div class="section-head__title">
+              <span class="head-icon"><i class="fa-solid fa-clock-rotate-left" /></span>
+              <div>
+                <p class="section-head__eyebrow">Trazabilidad</p>
+                <h2>Auditoría</h2>
+              </div>
             </div>
           </div>
 
           <div v-if="order.audit?.length" class="audit">
-            <div v-for="entry in order.audit || []" :key="`${entry.action}-${entry.timestamp}`" class="audit-item">
+            <div v-for="entry in order.audit || []" :key="`${entry.action}-${entry.timestamp}`" class="audit-item" :class="`audit-item--${entry.action}`">
               <div class="audit-item__head">
                 <strong>{{ auditLabels[entry.action] || 'Actualización' }}</strong>
-                <small>{{ entry.performedByEmail || 'system' }}</small>
+                <small>{{ entry.performedByEmail || 'system' }} · {{ new Date(entry.timestamp).toLocaleString('es-EC', { dateStyle: 'short', timeStyle: 'short' }) }}</small>
               </div>
               <p v-if="entry.fromValue || entry.toValue">{{ entry.fromValue || '—' }} → {{ entry.toValue || '—' }}</p>
               <p v-if="entry.details">{{ entry.details }}</p>
@@ -278,18 +294,6 @@ onMounted(async () => {
   padding: 1rem;
 }
 
-.summary-card__top,
-.summary-card__grid {
-  display: flex;
-  flex-direction: column;
-  gap: 0.85rem;
-}
-
-.summary-card__top {
-  margin-bottom: 1rem;
-}
-
-.summary-card span,
 .section-head__eyebrow {
   color: rgba($text-dark, 0.62);
   display: block;
@@ -299,18 +303,92 @@ onMounted(async () => {
   text-transform: uppercase;
 }
 
-.summary-card strong,
 .section-head strong,
 .item-row span {
   display: block;
   font-weight: 800;
 }
 
-.section-head {
-  align-items: end;
+.section-head__title { align-items: center; display: flex; gap: 0.7rem; min-width: 0; }
+
+.head-icon {
+  align-items: center;
+  background: rgba($text-dark, 0.07);
+  border-radius: 12px;
+  color: rgba($text-dark, 0.7);
   display: flex;
+  flex: 0 0 42px;
+  font-size: 1rem;
+  height: 42px;
+  justify-content: center;
+  width: 42px;
+}
+
+.head-icon--green { background: rgba(35, 89, 49, 0.12); color: #235931; }
+.head-icon--yellow { background: rgba(239, 213, 55, 0.3); color: #6a4e05; }
+
+.pill {
+  align-items: center;
+  background: rgba($text-dark, 0.06);
+  border-radius: 999px;
+  color: rgba($text-dark, 0.75);
+  display: flex;
+  flex: 0 0 auto;
+  font-size: 0.75rem;
+  font-weight: 800;
+  gap: 0.4rem;
+  padding: 0.45rem 0.85rem;
+  white-space: nowrap;
+}
+
+.pill--green { background: rgba(0, 165, 35, 0.12); color: #087c25; }
+.pill--yellow { background: rgba(239, 213, 55, 0.28); color: #6a4e05; }
+
+.tile-row { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+
+.tile {
+  background: $bg-light;
+  border: 1px solid rgba($text-dark, 0.07);
+  border-radius: 14px;
+  display: flex;
+  flex: 1 1 45%;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+  padding: 0.75rem 0.9rem;
+}
+
+.tile span { align-items: center; color: rgba($text-dark, 0.55); display: flex; font-size: 0.68rem; font-weight: 900; gap: 0.4rem; letter-spacing: 0.1em; text-transform: uppercase; }
+.tile span i { font-size: 0.75rem; }
+.tile strong { font-size: 1rem; font-weight: 800; overflow-wrap: anywhere; }
+.tile--wide { flex: 1 1 100%; }
+.tile--green { background: rgba(35, 89, 49, 0.08); border-color: rgba(35, 89, 49, 0.2); }
+.tile--green span,
+.tile--green strong { color: #235931; }
+.tile--green strong { font-size: 1.3rem; }
+.tile--yellow { background: rgba(239, 213, 55, 0.16); border-color: rgba(239, 213, 55, 0.5); }
+.tile--yellow span { color: #6a4e05; }
+.tile--blue { background: rgba(0, 102, 204, 0.07); border-color: rgba(0, 102, 204, 0.2); }
+.tile--blue span { color: #0066cc; }
+
+.scheduled-card {
+  background: #fffbe8;
+  border: 1px solid rgba(239, 213, 55, 0.55);
+  flex: 1 1 420px;
+  padding: 1rem;
+}
+
+.scheduled-card .section-head { margin-bottom: 0; }
+.scheduled-card__cta { align-items: center; background: #235931; border: 0; border-radius: 999px; color: #fff; cursor: pointer; display: flex; flex: 0 0 auto; font-weight: 800; gap: 0.5rem; justify-content: center; min-height: 44px; padding: 0.6rem 1.1rem; }
+.scheduled-card__cta:disabled { cursor: wait; opacity: 0.65; }
+.scheduled-card__error { align-items: center; color: #a52323; display: flex; font-size: 0.85rem; font-weight: 700; gap: 0.45rem; margin-top: 0.75rem; }
+
+.section-head {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 0.75rem;
   margin-bottom: 1rem;
 }
 
@@ -355,12 +433,21 @@ onMounted(async () => {
 .audit-item {
   background: $bg-light;
   border: 1px solid rgba($text-dark, 0.08);
-  border-radius: 18px;
+  border-left: 4px solid rgba($text-dark, 0.18);
+  border-radius: 14px;
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
   padding: 0.9rem 1rem;
 }
+
+.audit-item--created { border-left-color: #235931; }
+.audit-item--payment_confirmed { border-left-color: #00a523; }
+.audit-item--status_change { border-left-color: #0066cc; }
+.audit-item--note_added { border-left-color: #efd537; }
+.audit-item--refund_requested,
+.audit-item--refund_failed { border-left-color: #a52323; }
+.audit-item--refunded { border-left-color: #6a4e05; }
 
 .audit-item__head {
   align-items: flex-start;
@@ -396,17 +483,7 @@ onMounted(async () => {
 .cost-breakdown__total span { color: $text-dark; font-weight: 800; }
 .cost-breakdown__total strong { font-size: 1.15rem; }
 
-.billing-badge {
-  align-items: center;
-  background: rgba(239, 213, 55, 0.24);
-  border-radius: 999px;
-  color: #6a4e05;
-  display: flex;
-  font-size: 0.75rem;
-  font-weight: 800;
-  gap: 0.4rem;
-  padding: 0.4rem 0.8rem;
-}
+.billing-card { background: #fffdf3; border: 1px solid rgba(239, 213, 55, 0.4); flex: 1 1 420px; padding: 1rem; }
 
 .billing-grid { display: flex; flex-direction: column; gap: 0.75rem; }
 .billing-grid > div { display: flex; flex-direction: column; gap: 0.15rem; }
