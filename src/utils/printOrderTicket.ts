@@ -14,6 +14,12 @@ export function printOrderTicket(order: OrderDTO) {
   const paymentLabel = order.paymentMethod === 'cash' ? 'EFECTIVO — cobra el motorizado' : 'TARJETA (PayPhone)'
   const discountRow = (order.discount || 0) > 0 ? `<tr><td>Descuento puntos (${order.pointsRedeemed} pts)</td><td>-${money(order.discount || 0)}</td></tr>` : ''
   const deliveryRow = (order.deliveryCost || 0) > 0 ? `<tr><td>Envío${order.deliveryDistance ? ` (${order.deliveryDistance.toFixed(1)} km)` : ''}</td><td>${money(order.deliveryCost || 0)}</td></tr>` : ''
+  // picker.deliveryFee viene en dólares (respuesta de Picker), no en centavos.
+  const pickerRow = (order.picker?.deliveryFee || 0) > 0 ? `<tr><td>Tarifa Picker (costo delivery)</td><td>$${(order.picker!.deliveryFee as number).toFixed(2)}</td></tr>` : ''
+  const billing = order.billing
+  const billingBlock = billing && (billing.docNumber || billing.name)
+    ? `<div class="datos"><p><strong>FACTURA A:</strong> ${billing.name || '—'}</p><p><strong>${(billing.docType || 'Documento').toUpperCase()}:</strong> ${billing.docNumber || '—'}</p>${billing.email ? `<p><strong>Correo factura:</strong> ${billing.email}</p>` : ''}${billing.address ? `<p><strong>Dirección factura:</strong> ${billing.address}</p>` : ''}</div>`
+    : `<div class="datos"><p><strong>FACTURA:</strong> Consumidor final</p></div>`
   popup.document.write(`<!doctype html><html><head><title>Ticket ${order.orderNumber}</title><style>
     body{color:#000;font:14px Arial;margin:20px;max-width:320px}
     h1{font-size:22px;margin:0;text-align:center}
@@ -42,10 +48,12 @@ export function printOrderTicket(order: OrderDTO) {
       ${order.deliveryType === 'delivery' && order.deliveryAddress ? `<p><strong>Dirección:</strong> ${order.deliveryAddress}</p>` : ''}
       <p><strong>Pago:</strong> ${paymentLabel}</p>
     </div>
+    ${billingBlock}
     <table>${items}</table>
     <table class="resumen">
       <tr><td>Subtotal</td><td>${money(order.subtotal || 0)}</td></tr>
       ${deliveryRow}
+      ${pickerRow}
       ${discountRow}
     </table>
     <p class="total">TOTAL: ${money(order.total)}</p>

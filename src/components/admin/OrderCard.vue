@@ -75,6 +75,8 @@ function auditTime(timestamp: string) { return new Date(timestamp).toLocaleTimeS
         <span>{{ formatOrderCurrency(order.total) }}</span>
         <span>{{ getOrderItemCount(order) }} items</span>
         <span>{{ order.branch?.name || 'Sin sucursal' }}</span>
+        <span v-if="isDelivery">Envío {{ formatOrderCurrency(order.deliveryCost || 0) }}</span>
+        <span v-if="order.billing?.docNumber" class="order-card__billing"><i class="fa-solid fa-file-invoice" /> Factura</span>
       </div>
 
       <div class="order-card__payment" :class="payment.tone">
@@ -215,6 +217,12 @@ function auditTime(timestamp: string) { return new Date(timestamp).toLocaleTimeS
   background: rgba(35, 89, 49, 0.07);
   border-radius: 999px;
   padding: 0.35rem 0.6rem;
+}
+
+.order-card__meta .order-card__billing {
+  background: rgba(239, 213, 55, 0.28);
+  color: #6a4e05;
+  font-weight: 800;
 }
 
 .order-card__payment {
