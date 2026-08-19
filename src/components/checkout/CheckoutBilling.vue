@@ -20,6 +20,21 @@ const emit = defineEmits<{
 }>()
 
 const isRuc = computed(() => props.billingDocType === 'ruc')
+const docLength = computed(() => (isRuc.value ? 13 : 10))
+const docError = computed(() => {
+  if (!props.billingDocNumber) return ''
+  return props.billingDocNumber.length === docLength.value
+    ? ''
+    : `${isRuc.value ? 'El RUC' : 'La cédula'} debe tener ${docLength.value} dígitos — llevas ${props.billingDocNumber.length}`
+})
+
+// Solo dígitos: antes se podía escribir texto y llegaban "números" de documento inválidos.
+function onDocInput(event: Event) {
+  const input = event.target as HTMLInputElement
+  const digits = input.value.replace(/\D+/g, '').slice(0, docLength.value)
+  input.value = digits
+  emit('update:billingDocNumber', digits)
+}
 </script>
 
 <template>
@@ -40,16 +55,17 @@ const isRuc = computed(() => props.billingDocType === 'ruc')
           </button>
         </div>
 
-        <div class="checkout-form__row">
-          <label class="checkout-field checkout-field--half">
-            <span class="checkout-field__label">Nombres</span>
-            <input class="checkout-field__input" :value="billingName" @input="emit('update:billingName', ($event.target as HTMLInputElement).value)" placeholder="Nombres completos" />
-          </label>
-          <label class="checkout-field checkout-field--half">
-            <span class="checkout-field__label">{{ isRuc ? 'RUC' : 'Cédula' }}</span>
-            <input class="checkout-field__input" :value="billingDocNumber" @input="emit('update:billingDocNumber', ($event.target as HTMLInputElement).value)" :placeholder="isRuc ? '0000000000001' : '0000000000'" maxlength="13" />
-          </label>
-        </div>
+        <label class="checkout-field">
+          <span class="checkout-field__label">Nombre completo o razón social</span>
+          <input class="checkout-field__input" :value="billingName" @input="emit('update:billingName', ($event.target as HTMLInputElement).value)" placeholder="Como saldrá en tu factura" />
+        </label>
+
+        <label class="checkout-field">
+          <span class="checkout-field__label">{{ isRuc ? 'Número de RUC (13 dígitos)' : 'Número de cédula (10 dígitos)' }}</span>
+          <input class="checkout-field__input" :value="billingDocNumber" @input="onDocInput" inputmode="numeric" autocomplete="off" :maxlength="docLength" :placeholder="isRuc ? 'Ej. 0912345678001' : 'Ej. 0912345678'" />
+          <small v-if="docError" class="checkout-billing__doc-error"><i class="fa-solid fa-circle-exclamation" /> {{ docError }}</small>
+          <small v-else-if="billingDocNumber" class="checkout-billing__doc-ok"><i class="fa-solid fa-circle-check" /> {{ isRuc ? 'RUC completo' : 'Cédula completa' }}</small>
+        </label>
 
         <label class="checkout-field">
           <span class="checkout-field__label">Correo electrónico</span>
@@ -97,6 +113,9 @@ const isRuc = computed(() => props.billingDocType === 'ruc')
 }
 
 .checkout-billing__doc-type { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; }
+
+.checkout-billing__doc-error { align-items: center; color: #a52323; display: flex; font-size: 0.78rem; font-weight: 700; gap: 0.35rem; }
+.checkout-billing__doc-ok { align-items: center; color: #087c25; display: flex; font-size: 0.78rem; font-weight: 700; gap: 0.35rem; }
 
 .checkout-billing__doc-btn {
   align-items: center;
