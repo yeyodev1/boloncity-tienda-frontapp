@@ -49,13 +49,14 @@ export function useCheckout() {
   const deliveryDistance = ref(0)
   const mapsError = ref('')
   const locating = ref(false)
+  const resolvingLink = ref(false)
   const locationDetected = ref(false)
   const detectedLat = ref(0)
   const detectedLng = ref(0)
   const manualMapsLink = ref('')
   const manualLat = ref(0)
   const manualLng = ref(0)
-  const { error } = useToast()
+  const { error, warning } = useToast()
   const displayLat = computed(() => locationDetected.value ? detectedLat.value : manualLat.value)
   const displayLng = computed(() => locationDetected.value ? detectedLng.value : manualLng.value)
 
@@ -261,18 +262,30 @@ export function useCheckout() {
   async function useManualLink() {
     const url = manualMapsLink.value.trim()
     if (!url) return
-    const match =
+    mapsError.value = ''
+    let match =
       url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/) ||
       url.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/) ||
       url.match(/[?&]ll=(-?\d+\.\d+),(-?\d+\.\d+)/) ||
       url.match(/[?&]query=(-?\d+\.\d+),(-?\d+\.\d+)/)
-    deliveryGoogleMapsUrl.value = url
+    // Los links cortos (maps.app.goo.gl) no traen coordenadas: los resuelve el backend
+    // siguiendo el redirect (el navegador no puede por CORS).
     if (!match) {
-      mapsError.value = 'El enlace de Google Maps no tiene coordenadas válidas.'
-      deliveryCost.value = 0; deliveryDistance.value = 0
-      return
+      resolvingLink.value = true
+      try {
+        const res = await DeliveryService.resolveMaps(url, deliveryAddress.value)
+        match = ['', String(res.data.lat), String(res.data.lng)]
+      } catch {
+        mapsError.value = 'No pudimos leer ese enlace. Abre Google Maps, mantén presionado tu punto exacto y comparte el enlace desde ahí.'
+        deliveryCost.value = 0; deliveryDistance.value = 0
+        resolvingLink.value = false
+        return
+      }
+      resolvingLink.value = false
     }
     manualLat.value = Number(match[1]); manualLng.value = Number(match[2])
+    // Solo se marca "Ubicación agregada" cuando ya hay coordenadas reales.
+    deliveryGoogleMapsUrl.value = url
     try {
       await callPreCheckout(manualLat.value, manualLng.value)
       mapsError.value = ''
@@ -400,7 +413,11 @@ export function useCheckout() {
         }
         // Fuera de horario la programación es el único camino: se activa sola.
         scheduleForNextOpening()
-        error(data.message || 'La sucursal está cerrada en este momento.')
+        warning('La sucursal está cerrada por ahora. Te activamos «Programar» para que dejes tu pedido listo 👇')
+        // Lleva la vista al aviso amarillo, que explica la próxima apertura.
+        window.setTimeout(() => {
+          document.querySelector('.checkout-closed')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        }, 150)
       } else {
         error(data?.message || raw?.message || 'No se pudo iniciar el pago')
       }
@@ -497,7 +514,7 @@ export function useCheckout() {
     branchClosedInfo, scheduleForNextOpening,
     pointsEnabled, pointsToEarn, pointsBalance, pointsBalanceLoading, useMyPoints, pointsDiscount, pointsRedeemPerDollar,
     loading, ready, branch, branchLoading, publicBranches,
-    deliveryCost, deliveryDistance, mapsError, locating, locationDetected,
+    deliveryCost, deliveryDistance, mapsError, locating, resolvingLink, locationDetected,
     detectedLat, detectedLng, manualMapsLink, displayLat, displayLng,
     showBilling, billingDocType, billingName, billingDocNumber, billingEmail, billingAddress,
     total, effectiveBranchId, isFormValid,
