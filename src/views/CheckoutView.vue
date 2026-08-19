@@ -24,7 +24,7 @@ const {
   notes, deliveryAddress, deliveryGoogleMapsUrl, deliveryType, paymentMethod, order,
   scheduleOrder, scheduledDate, scheduledTime, scheduleSlots, scheduleDays, selectScheduleDay, toggleScheduleOrder,
   loading, ready, branch, branchLoading, publicBranches,
-  deliveryCost, deliveryDistance, mapsError, locating, locationDetected,
+  deliveryCost, deliveryDistance, mapsError, locating, resolvingLink, locationDetected,
   manualMapsLink, displayLat, displayLng,
   showBilling, billingDocType, billingName, billingDocNumber, billingEmail, billingAddress,
   total, isFormValid,
@@ -92,6 +92,7 @@ const {
                   :delivery-cost="deliveryCost"
                   :maps-error="mapsError"
                   :locating="locating"
+                  :resolving="resolvingLink"
                   :location-detected="locationDetected"
                   :manual-maps-link="manualMapsLink"
                   :branch-name="branch?.name || ''"

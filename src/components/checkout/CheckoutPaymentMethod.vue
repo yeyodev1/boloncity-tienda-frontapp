@@ -5,6 +5,7 @@ const model = defineModel<'card' | 'cash'>({ required: true })
 <template>
   <div class="checkout-payment-method">
     <span class="checkout-payment-method__label"><i class="fa-solid fa-credit-card" /> Método de pago</span>
+    <p class="checkout-payment-method__intro">Elige cómo prefieres pagar. Ambas opciones son seguras.</p>
     <div class="checkout-payment-method__options">
       <label class="checkout-payment-method__option" :class="{ active: model === 'card' }">
         <input v-model="model" type="radio" value="card" />
@@ -17,6 +18,12 @@ const model = defineModel<'card' | 'cash'>({ required: true })
         <span><strong>Efectivo</strong><small>Paga al motorizado al recibir</small></span>
       </label>
     </div>
+    <p class="checkout-payment-method__next">
+      <i class="fa-solid fa-circle-info" />
+      <span>{{ model === 'card'
+        ? 'Al tocar «Pedir» se abrirá una ventana segura para escribir los datos de tu tarjeta. No guardamos tus datos.'
+        : 'No necesitas tarjeta: tu pedido queda confirmado y pagas en efectivo cuando lo recibas.' }}</span>
+    </p>
   </div>
 </template>
 
@@ -35,6 +42,11 @@ const model = defineModel<'card' | 'cash'>({ required: true })
 }
 
 .checkout-payment-method__label i { color: #235931; font-size: 0.72rem; opacity: 0.8; }
+
+.checkout-payment-method__intro { color: rgba(8, 17, 13, 0.6); font-size: 0.85rem; }
+
+.checkout-payment-method__next { align-items: flex-start; background: rgba(35, 89, 49, 0.05); border-radius: 12px; color: rgba(8, 17, 13, 0.72); display: flex; font-size: 0.82rem; gap: 0.5rem; line-height: 1.45; padding: 0.65rem 0.85rem; }
+.checkout-payment-method__next i { color: #235931; margin-top: 0.15rem; }
 
 .checkout-payment-method__options { display: flex; flex-direction: column; gap: 0.6rem; }
 .checkout-payment-method__option { align-items: center; background: #fff; border: 1px solid rgba(35, 89, 49, 0.12); border-radius: 16px; cursor: pointer; display: flex; gap: 0.7rem; min-height: 64px; padding: 0.85rem; position: relative; transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease; }

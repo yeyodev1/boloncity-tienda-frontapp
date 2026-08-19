@@ -31,6 +31,12 @@ const emit = defineEmits<{
           <h2>Pedido {{ order.orderNumber }}</h2>
         </div>
 
+        <ul class="payment-modal__steps">
+          <li><b>1</b><span>Escribe los datos de tu tarjeta en el recuadro</span></li>
+          <li><b>2</b><span>Toca el botón «Pagar»</span></li>
+          <li><b>3</b><span>Te llega la confirmación a tu correo</span></li>
+        </ul>
+
         <div class="payment-modal__content">
           <div class="payment-modal__summary">
             <div class="payment-modal__summary-icon"><i class="fa-solid fa-credit-card" /></div>
@@ -137,6 +143,10 @@ const emit = defineEmits<{
 .payment-modal__summary strong { font-size: 1.35rem; letter-spacing: -0.04em; }
 .payment-modal__summary small { color: #efd537; font-size: 0.68rem; font-weight: 800; }
 .payment-modal__content { display: flex; flex-direction: column; gap: 1rem; }
+
+.payment-modal__steps { display: flex; flex-direction: column; gap: 0.45rem; list-style: none; margin: 0; padding: 0; }
+.payment-modal__steps li { align-items: center; color: rgba(8, 17, 13, 0.72); display: flex; font-size: 0.85rem; gap: 0.6rem; }
+.payment-modal__steps b { align-items: center; background: #efd537; border-radius: 50%; color: #102719; display: flex; flex: 0 0 24px; font-size: 0.78rem; height: 24px; justify-content: center; }
 
 .payment-modal__box {
   background: rgba(35, 89, 49, 0.03);

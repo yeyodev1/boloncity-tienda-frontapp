@@ -5,6 +5,7 @@ defineProps<{
   deliveryCost: number
   mapsError: string
   locating: boolean
+  resolving?: boolean
   locationDetected: boolean
   manualMapsLink: string
   branchName: string
@@ -35,11 +36,13 @@ const emit = defineEmits<{
 
         <div class="checkout-location__manual">
           <input class="checkout-field__input" :value="manualMapsLink" @input="emit('update:manualMapsLink', ($event.target as HTMLInputElement).value)" placeholder="Pega el link de Google Maps de tu dirección" />
-          <button type="button" class="checkout-location__apply" :disabled="!manualMapsLink" @click="emit('useManualLink')">
-            <i class="fa-solid fa-check" />
+          <button type="button" class="checkout-location__apply" :disabled="!manualMapsLink || resolving" @click="emit('useManualLink')">
+            <i :class="resolving ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-check'" />
           </button>
         </div>
-        <p class="checkout-location__helper">Comparte el link de Google Maps del lugar exacto donde quieres recibir tu pedido.</p>
+        <p class="checkout-location__helper">
+          {{ resolving ? 'Buscando la ubicación de tu enlace…' : 'Comparte el link de Google Maps del lugar exacto donde quieres recibir tu pedido.' }}
+        </p>
       </div>
 
       <div v-else key="status" class="checkout-location__status">
