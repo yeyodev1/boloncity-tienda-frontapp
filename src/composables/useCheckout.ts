@@ -205,6 +205,15 @@ export function useCheckout() {
     return branch.value?._id || null
   })
 
+  // Con facturación activada, el documento debe estar completo (cédula 10 dígitos, RUC 13)
+  // y con nombre: antes se podía enviar cualquier texto como "número" de documento.
+  const billingValid = computed(() => {
+    if (!showBilling.value) return true
+    const digits = billingDocNumber.value.replace(/\D+/g, '')
+    const expected = billingDocType.value === 'ruc' ? 13 : 10
+    return billingName.value.trim().length > 0 && digits.length === expected
+  })
+
   const isFormValid = computed(() => {
     const hasItems = cart.items.length > 0
     const hasName = customerFirstName.value.trim().length > 0 && customerLastName.value.trim().length > 0
@@ -213,9 +222,9 @@ export function useCheckout() {
     if (deliveryType.value === 'delivery') {
       const hasAddress = deliveryAddress.value.trim().length > 0
       const hasLocation = deliveryGoogleMapsUrl.value.trim().length > 0 || locationDetected.value
-      return hasItems && hasName && hasEmail && hasAddress && hasLocation && !mapsError.value && scheduleOk
+      return hasItems && hasName && hasEmail && hasAddress && hasLocation && !mapsError.value && scheduleOk && billingValid.value
     }
-    return hasItems && hasName && hasEmail && effectiveBranchId.value !== null && scheduleOk
+    return hasItems && hasName && hasEmail && effectiveBranchId.value !== null && scheduleOk && billingValid.value
   })
 
   function onPayPhoneReady() { ready.value = true }
@@ -378,7 +387,7 @@ export function useCheckout() {
       const coords = deliveryType.value === 'delivery' ? getDeliveryCoords() : {}
       const billing = showBilling.value ? {
         billingDocType: billingDocType.value, billingName: billingName.value.trim(),
-        billingDocNumber: billingDocNumber.value.trim(), billingEmail: billingEmail.value.trim(),
+        billingDocNumber: billingDocNumber.value.replace(/\D+/g, ''), billingEmail: billingEmail.value.trim(),
         billingAddress: billingAddress.value.trim(),
       } : {}
       const response = await OrderService.create({
