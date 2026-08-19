@@ -56,7 +56,7 @@ export function useCheckout() {
   const manualMapsLink = ref('')
   const manualLat = ref(0)
   const manualLng = ref(0)
-  const { error, warning } = useToast()
+  const { error, warning, info } = useToast()
   const displayLat = computed(() => locationDetected.value ? detectedLat.value : manualLat.value)
   const displayLng = computed(() => locationDetected.value ? detectedLng.value : manualLng.value)
 
@@ -167,6 +167,22 @@ export function useCheckout() {
   }
 
   /** Un toque desde el aviso de "sucursal cerrada": activa Programar con la próxima apertura. */
+  // Regla de negocio: las reservas (pedidos programados) solo se pagan con tarjeta.
+  // Cubre el switch de Programar, el auto-programado por sucursal cerrada y cualquier
+  // intento de volver a efectivo con la programación activa. El backend la exige igual.
+  watch(scheduleOrder, (enabled) => {
+    if (enabled && paymentMethod.value === 'cash') {
+      paymentMethod.value = 'card'
+      info('Los pedidos programados se pagan con tarjeta para confirmar la reserva. Cambiamos tu método de pago.')
+    }
+  })
+  watch(paymentMethod, (method) => {
+    if (method === 'cash' && scheduleOrder.value) {
+      paymentMethod.value = 'card'
+      warning('Los pedidos programados se pagan con tarjeta. Para pagar en efectivo, pide «Lo antes posible».')
+    }
+  })
+
   function scheduleForNextOpening() {
     const info = branchClosedInfo.value
     if (!info) return

@@ -105,7 +105,7 @@ const {
                 />
               </template>
 
-              <CheckoutPaymentMethod v-model="paymentMethod" />
+              <CheckoutPaymentMethod v-model="paymentMethod" :schedule-enabled="scheduleOrder" />
 
               <CheckoutSchedule
                 :enabled="scheduleOrder"

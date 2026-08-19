@@ -80,6 +80,7 @@ function expandLeave(element: Element) {
 
     <Transition name="schedule-reveal" @enter="expandEnter" @after-enter="expandAfterEnter" @leave="expandLeave">
       <div v-if="enabled" class="schedule__picker">
+        <p class="schedule__card-note"><i class="fa-solid fa-credit-card" /> Los pedidos programados se pagan con tarjeta: así tu reserva queda confirmada.</p>
         <p v-if="!days.some((day) => day.slots.length)" class="schedule__empty">
           <i class="fa-solid fa-circle-exclamation" />
           No hay turnos disponibles esta semana{{ branchName ? ` en ${branchName}` : '' }}.
@@ -248,6 +249,8 @@ function expandLeave(element: Element) {
 
 .schedule__summary { align-items: center; align-self: flex-start; background: #e9f7ec; border: 1px solid rgba(0, 165, 35, 0.3); border-radius: 999px; color: #14682a; display: flex; font-size: 0.78rem; font-weight: 800; gap: 0.45rem; padding: 0.5rem 0.9rem; }
 .schedule__summary i { color: #00a523; }
+
+.schedule__card-note { align-items: center; background: rgba(35, 89, 49, 0.06); border-radius: 10px; color: #235931; display: flex; font-size: 0.8rem; font-weight: 700; gap: 0.45rem; padding: 0.55rem 0.75rem; }
 
 .schedule__empty { align-items: flex-start; background: #fff8d6; border: 1px solid rgba(239, 213, 55, 0.6); border-radius: 12px; color: #6a5d10; display: flex; font-size: 0.82rem; font-weight: 700; gap: 0.5rem; line-height: 1.4; padding: 0.65rem 0.85rem; }
 .schedule__empty i { color: #a98b00; margin-top: 0.15rem; }
