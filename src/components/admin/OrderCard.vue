@@ -25,7 +25,9 @@ const emit = defineEmits<{
 }>()
 
 const isDelivery = computed(() => props.order.deliveryType === 'delivery')
-const nextStatus = computed(() => isDelivery.value && ['awaiting_pickup', 'ready'].includes(props.status) ? null : getNextOrderStatus(props.status))
+// Los delivery normalmente avanzan solos con el webhook de Picker, pero el cajero
+// puede moverlos manualmente (queda auditado) si Picker no reporta.
+const nextStatus = computed(() => getNextOrderStatus(props.status))
 const picker = computed(() => props.order.picker)
 // El bloque de delivery solo se muestra cuando ya existe una reserva de Picker real.
 // Los programados no la tienen hasta pasar a "Listas para recolección".

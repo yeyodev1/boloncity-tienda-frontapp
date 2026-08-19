@@ -36,10 +36,6 @@ function emitAdvance(order: OrderDTO, status: OrderStatus) {
   emit('advance', order, status)
 }
 
-function canDrop(event: { draggedContext?: { element?: OrderDTO } }) {
-  const order = event.draggedContext?.element
-  return !(order?.deliveryType === 'delivery' && ['ready', 'delivered'].includes(props.status))
-}
 </script>
 
 <template>
@@ -61,7 +57,6 @@ function canDrop(event: { draggedContext?: { element?: OrderDTO } }) {
       :fallback-on-body="true"
       :delay-on-touch-only="true"
       :touch-start-threshold="5"
-      :move="canDrop"
       handle=".order-card__drag-handle"
       ghost-class="order-card--ghost"
       chosen-class="order-card--chosen"
