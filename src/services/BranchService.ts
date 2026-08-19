@@ -14,6 +14,8 @@ export interface BranchDTO {
   coordinates?: { lat: number; lng: number } | null
   timezone?: string
   openingHours?: Array<{ day: string; opensAt: string; closesAt: string; isOpen: boolean }>
+  /** Minutos de cocina que Picker espera antes de buscar motorizado. */
+  cookTimeMinutes?: number
   /**
    * Las API keys nunca salen del backend; `hasDevKey`/`hasProdKey` dicen si la sucursal
    * ya está conectada en cada entorno de Picker.
