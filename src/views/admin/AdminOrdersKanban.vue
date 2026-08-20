@@ -7,6 +7,7 @@ import { AdminDateRangeFilter } from '@/components/admin'
 import { AdminOrdersLineChart } from '@/components/admin'
 import SkeletonLoader from '@/components/global/SkeletonLoader.vue'
 import OrderNoteModal from '@/components/admin/order-notes/OrderNoteModal.vue'
+import CancelOrderModal from '@/components/admin/CancelOrderModal.vue'
 import type { OrderDTO } from '@/services/OrderService'
 import { printOrderTicket } from '@/utils/printOrderTicket'
 import {
@@ -120,14 +121,24 @@ async function submitNote() {
   }
 }
 
+// Cancelar exige confirmación con hold de 2 s: el drop/click solo abre el modal.
+const cancelTarget = ref<OrderDTO | null>(null)
+
+async function confirmCancel() {
+  const target = cancelTarget.value
+  cancelTarget.value = null
+  if (target) await move(target, 'cancelled')
+}
+
 async function handleDrop(orderId: string, status: OrderStatus) {
   const order = findOrder(orderId)
   if (!order || order.status === status) return
-
+  if (status === 'cancelled') { cancelTarget.value = order; return }
   await move(order, status)
 }
 
 async function handleAdvance(order: OrderDTO, status: OrderStatus) {
+  if (status === 'cancelled' && order.status !== 'cancelled') { cancelTarget.value = order; return }
   await move(order, status)
 }
 
@@ -255,6 +266,7 @@ onUnmounted(() => {
     </section>
 
     <OrderNoteModal :open="noteModalOpen" :order="noteTarget" :text="noteText" :saving="noteSaving" @update:text="noteText = $event" @close="closeNoteModal" @submit="submitNote" />
+    <CancelOrderModal :order="cancelTarget" @close="cancelTarget = null" @confirm="confirmCancel" />
   </AdminLayout>
 </template>
 
