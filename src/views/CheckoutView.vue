@@ -160,10 +160,16 @@ const {
               :discount="pointsDiscount"
             />
 
-            <CheckoutClosedNotice v-if="branchClosedInfo" :info="branchClosedInfo" @schedule="scheduleForNextOpening" />
+            <CheckoutClosedNotice
+              v-if="branchClosedInfo"
+              :info="branchClosedInfo"
+              :already-scheduled="scheduleOrder && Boolean(scheduledDate) && Boolean(scheduledTime)"
+              @schedule="scheduleForNextOpening"
+            />
 
             <button class="btn-primary checkout-form__submit" type="submit" :disabled="loading || !isFormValid">
               <template v-if="loading">Procesando...</template>
+              <template v-else-if="scheduleOrder"><i class="fa-solid fa-calendar-check" /> Programar pedido</template>
               <template v-else><i class="fa-solid fa-arrow-right" /> {{ deliveryType === 'delivery' ? 'Pedir a domicilio' : 'Pedir para recoger' }}</template>
             </button>
           </form>

@@ -43,7 +43,12 @@ function formatSlot(slot: string) {
 function selectedSummary() {
   const day = props.days.find((item) => item.date === props.selectedDate)
   if (!day || !props.selectedTime) return ''
-  const cuando = day.isToday ? 'hoy' : `el ${day.weekdayLabel} ${day.dayNumber}`
+  // weekdayLabel puede ser "Hoy", "Mañana" o un día corto ("vie"): cada caso se lee distinto.
+  const cuando = day.isToday
+    ? 'hoy'
+    : day.weekdayLabel === 'Mañana'
+      ? `mañana ${day.dayNumber}`
+      : `el ${day.weekdayLabel} ${day.dayNumber}`
   return `${cuando} a las ${formatSlot(props.selectedTime)}`
 }
 
@@ -109,7 +114,7 @@ function expandLeave(element: Element) {
           </div>
 
           <div class="schedule__block">
-            <span class="schedule__label">Hora de atención</span>
+            <span class="schedule__label">Hora de entrega</span>
             <div class="schedule__slots" role="group" aria-label="Hora de entrega">
               <button
                 v-for="slot in slots"
