@@ -1,6 +1,8 @@
 <script setup lang="ts">
 defineProps<{
   info: { message: string; date?: string; opensAt?: string }
+  /** true cuando el pedido ya quedó programado: se oculta el CTA y solo se confirma. */
+  alreadyScheduled?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -19,13 +21,18 @@ function formatClosedDate(date: string) {
 <template>
   <aside class="checkout-closed" role="alert">
     <p class="checkout-closed__title"><i class="fa-solid fa-clock" /> {{ info.message }}</p>
-    <p v-if="info.date && info.opensAt" class="checkout-closed__hint">
-      Tu pedido no se perdió: puedes dejarlo programado y la cocina lo prepara apenas abra
-      {{ formatClosedDate(info.date) }} a las {{ info.opensAt }}.
+    <p v-if="alreadyScheduled" class="checkout-closed__done">
+      <i class="fa-solid fa-circle-check" /> Listo: tu pedido ya quedó programado. Solo confírmalo con el botón <b>«Programar pedido»</b>.
     </p>
-    <button v-if="info.date" type="button" class="checkout-closed__cta" @click="emit('schedule')">
-      <i class="fa-solid fa-calendar-check" /> Programar para la apertura
-    </button>
+    <template v-else>
+      <p v-if="info.date && info.opensAt" class="checkout-closed__hint">
+        Tu pedido no se perdió: puedes dejarlo programado y la cocina lo prepara apenas abra
+        {{ formatClosedDate(info.date) }} a las {{ info.opensAt }}.
+      </p>
+      <button v-if="info.date" type="button" class="checkout-closed__cta" @click="emit('schedule')">
+        <i class="fa-solid fa-calendar-check" /> Programar para la apertura
+      </button>
+    </template>
   </aside>
 </template>
 
@@ -55,6 +62,19 @@ function formatClosedDate(date: string) {
 .checkout-closed__hint {
   color: #6a5d10;
   font-size: 0.9rem;
+}
+
+.checkout-closed__done {
+  align-items: center;
+  background: #e9f7ec;
+  border: 1px solid rgba(0, 165, 35, 0.35);
+  border-radius: 10px;
+  color: #14682a;
+  display: flex;
+  font-size: 0.9rem;
+  font-weight: 700;
+  gap: 0.5rem;
+  padding: 0.65rem 0.85rem;
 }
 
 .checkout-closed__cta {
