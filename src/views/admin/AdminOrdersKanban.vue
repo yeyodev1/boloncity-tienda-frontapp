@@ -8,6 +8,7 @@ import { AdminOrdersLineChart } from '@/components/admin'
 import SkeletonLoader from '@/components/global/SkeletonLoader.vue'
 import OrderNoteModal from '@/components/admin/order-notes/OrderNoteModal.vue'
 import CancelOrderModal from '@/components/admin/CancelOrderModal.vue'
+import OrderSoundToggle from '@/components/admin/OrderSoundToggle.vue'
 import type { OrderDTO } from '@/services/OrderService'
 import { printOrderTicket } from '@/utils/printOrderTicket'
 import {
@@ -173,6 +174,7 @@ onUnmounted(() => {
         </div>
 
         <div class="admin-orders__hero-actions">
+          <OrderSoundToggle />
           <button type="button" class="hero-button" @click="reloadBoard">Actualizar</button>
           <button type="button" class="hero-button hero-button--ghost" @click="resetFilters">Limpiar filtros</button>
         </div>
