@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 import OrderService, { type OrderDTO } from '@/services/OrderService'
 import { useToast } from '@/composables/useToast'
+import { useOrderSounds } from '@/composables/useOrderSounds'
 
 export const orderStatuses = ['pending', 'paid', 'preparing', 'awaiting_pickup', 'ready', 'delivered', 'cancelled'] as const
 export type OrderStatus = (typeof orderStatuses)[number]
@@ -96,6 +97,7 @@ export function useOrdersBoard() {
   const endDate = ref(todayValue)
   const activeDatePreset = ref('month')
   const { success, error, info } = useToast()
+  const { playNewOrder, playStatus, playPickerUpdate } = useOrderSounds()
 
   async function load(silent = false) {
     if (!silent) loading.value = true
@@ -108,11 +110,18 @@ export function useOrdersBoard() {
       if (silent) {
         response.data.forEach((order) => {
           const previous = previousOrders.get(order._id)
-          if (!previous) return
+          if (!previous) {
+            // Orden que no estaba en el tablero: el sonido clave para la cocina.
+            info(`¡Pedido nuevo! ${order.orderNumber} · ${order.branch?.name || 'Sin sucursal'}`)
+            playNewOrder()
+            return
+          }
           if (previous.picker?.currentStatus !== order.picker?.currentStatus && order.picker?.currentStatus) {
             info(`${order.orderNumber}: ${order.picker.statusText || 'Picker actualizó la entrega'}`)
+            playPickerUpdate()
           } else if (previous.status !== order.status) {
             info(`${order.orderNumber}: ${orderStatusLabels[order.status as OrderStatus] || 'Estado actualizado'}`)
+            playStatus(order.status)
           }
         })
       }
@@ -165,6 +174,7 @@ export function useOrdersBoard() {
     try {
       await OrderService.updateStatus(order._id, status, note)
       success('Estado actualizado')
+      playStatus(status)
       await load(true)
     } catch (err) {
       orders.value = previousOrders
