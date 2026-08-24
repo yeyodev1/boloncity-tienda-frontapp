@@ -1,8 +1,8 @@
 <script setup lang="ts">
 const model = defineModel<'card' | 'cash'>({ required: true })
 
-// Las reservas (pedidos programados) solo aceptan tarjeta.
-defineProps<{ scheduleEnabled?: boolean }>()
+// Los pedidos programados aceptan ambos métodos: con efectivo se cobra al entregar o retirar.
+defineProps<{ scheduleEnabled?: boolean; deliveryType?: 'delivery' | 'pickup' }>()
 </script>
 
 <template>
@@ -15,21 +15,21 @@ defineProps<{ scheduleEnabled?: boolean }>()
         <i class="fa-solid fa-credit-card" />
         <span><strong>Tarjeta</strong><small>Pago seguro con PayPhone</small></span>
       </label>
-      <label class="checkout-payment-method__option" :class="{ active: model === 'cash', disabled: scheduleEnabled }">
-        <input v-model="model" type="radio" value="cash" :disabled="scheduleEnabled" />
+      <label class="checkout-payment-method__option" :class="{ active: model === 'cash' }">
+        <input v-model="model" type="radio" value="cash" />
         <i class="fa-solid fa-money-bill-wave" />
         <span>
           <strong>Efectivo</strong>
-          <small>{{ scheduleEnabled ? 'No disponible en pedidos programados' : 'Paga al motorizado al recibir' }}</small>
+          <small>{{ deliveryType === 'pickup' ? 'Paga en el local al retirar' : 'Paga al motorizado al recibir' }}</small>
         </span>
       </label>
     </div>
     <p class="checkout-payment-method__next">
       <i class="fa-solid fa-circle-info" />
-      <span>{{ scheduleEnabled
-        ? 'Los pedidos programados se pagan con tarjeta: así tu reserva queda confirmada.'
-        : model === 'card'
-          ? 'Al tocar «Pedir» se abrirá una ventana segura para escribir los datos de tu tarjeta. No guardamos tus datos.'
+      <span>{{ model === 'card'
+        ? 'Al tocar «Pedir» se abrirá una ventana segura para escribir los datos de tu tarjeta. No guardamos tus datos.'
+        : scheduleEnabled
+          ? `Tu pedido programado queda reservado y pagas en efectivo ${deliveryType === 'pickup' ? 'al retirarlo en el local' : 'al recibirlo'}.`
           : 'No necesitas tarjeta: tu pedido queda confirmado y pagas en efectivo cuando lo recibas.' }}</span>
     </p>
   </div>
