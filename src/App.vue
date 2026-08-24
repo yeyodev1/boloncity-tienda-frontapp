@@ -4,6 +4,13 @@ import ConfirmModal from '@/components/global/ConfirmModal.vue'
 import SessionExpiredModal from '@/components/global/SessionExpiredModal.vue'
 import EnvironmentBadge from '@/components/global/EnvironmentBadge.vue'
 import NewVersionBanner from '@/components/global/NewVersionBanner.vue'
+import { onMounted } from 'vue'
+import { useSettingsStore } from '@/stores/settings'
+
+// La configuración pública (IVA, puntos y la promo vigente) se pide una sola vez:
+// catálogo, carrito y checkout leen de la misma fuente.
+const settings = useSettingsStore()
+onMounted(() => { void settings.load() })
 </script>
 
 <template>
