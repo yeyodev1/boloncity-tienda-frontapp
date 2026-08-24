@@ -11,6 +11,8 @@ import CancelOrderModal from '@/components/admin/CancelOrderModal.vue'
 import OrderSoundToggle from '@/components/admin/OrderSoundToggle.vue'
 import type { OrderDTO } from '@/services/OrderService'
 import { printOrderTicket } from '@/utils/printOrderTicket'
+import { useUserStore } from '@/stores/user'
+import { useToast } from '@/composables/useToast'
 import {
   orderStatusIcons,
   orderStatuses,
@@ -122,24 +124,36 @@ async function submitNote() {
   }
 }
 
-// Cancelar exige confirmación con hold de 2 s: el drop/click solo abre el modal.
+// Cancelar exige confirmación con hold de 2 s + motivo: el drop/click solo abre el modal.
+// Además es exclusivo de administración general (el backend lo vuelve a validar).
 const cancelTarget = ref<OrderDTO | null>(null)
+const userStore = useUserStore()
+const { warning: warnToast } = useToast()
+const canCancel = computed(() => userStore.accountType === 'admin' || userStore.allBranches)
 
-async function confirmCancel() {
+async function confirmCancel(reason: string) {
   const target = cancelTarget.value
   cancelTarget.value = null
-  if (target) await move(target, 'cancelled')
+  if (target) await move(target, 'cancelled', reason)
+}
+
+function requestCancel(order: OrderDTO) {
+  if (!canCancel.value) {
+    warnToast('Solo administración general puede cancelar pedidos. Pide la cancelación a administración.')
+    return
+  }
+  cancelTarget.value = order
 }
 
 async function handleDrop(orderId: string, status: OrderStatus) {
   const order = findOrder(orderId)
   if (!order || order.status === status) return
-  if (status === 'cancelled') { cancelTarget.value = order; return }
+  if (status === 'cancelled') { requestCancel(order); return }
   await move(order, status)
 }
 
 async function handleAdvance(order: OrderDTO, status: OrderStatus) {
-  if (status === 'cancelled' && order.status !== 'cancelled') { cancelTarget.value = order; return }
+  if (status === 'cancelled' && order.status !== 'cancelled') { requestCancel(order); return }
   await move(order, status)
 }
 
