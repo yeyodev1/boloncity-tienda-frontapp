@@ -8,6 +8,11 @@ import ProductQuickView from '@/components/catalog/ProductQuickView.vue'
 import CategoryTabs from '@/components/catalog/CategoryTabs.vue'
 import ProductService, { type ProductDTO } from '@/services/ProductService'
 import CategoryService, { type CategoryDTO } from '@/services/CategoryService'
+import { useSettingsStore } from '@/stores/settings'
+
+// Promo global: la barra del catálogo la anuncia una sola vez, arriba de todo.
+const settings = useSettingsStore()
+const promo = computed(() => settings.promo)
 
 const products = ref<ProductDTO[]>([])
 const categories = ref<CategoryDTO[]>([])
@@ -114,6 +119,15 @@ onBeforeUnmount(() => clearTimeout(searchTimer))
         </div>
       </section>
 
+      <section v-if="promo.active" class="catalog-promo">
+        <i class="fa-solid fa-tag" />
+        <div>
+          <strong>{{ promo.label || `${promo.percent}% de descuento en todo` }}</strong>
+          <small>Descuento aplicado a todos los productos. No incluye el costo de envío.</small>
+        </div>
+        <span>-{{ promo.percent }}%</span>
+      </section>
+
       <section class="catalog-panel">
         <div class="catalog-tools">
           <div>
@@ -179,6 +193,30 @@ onBeforeUnmount(() => clearTimeout(searchTimer))
 </template>
 
 <style scoped lang="scss">
+.catalog-promo {
+  align-items: center;
+  background: linear-gradient(135deg, #a52323, #7c1a1a);
+  border-radius: 20px;
+  box-shadow: 0 14px 30px rgba(165, 35, 35, 0.22);
+  color: #fff;
+  display: flex;
+  gap: 0.85rem;
+  padding: 0.9rem 1.1rem;
+}
+
+.catalog-promo > i { font-size: 1.2rem; }
+.catalog-promo > div { display: flex; flex: 1 1 auto; flex-direction: column; gap: 0.15rem; min-width: 0; }
+.catalog-promo strong { font-size: 1rem; letter-spacing: -0.01em; }
+.catalog-promo small { color: rgba(255, 255, 255, 0.78); font-size: 0.78rem; line-height: 1.35; }
+.catalog-promo > span {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  flex: 0 0 auto;
+  font-size: 0.85rem;
+  font-weight: 900;
+  padding: 0.45rem 0.7rem;
+}
+
 .catalog-page {
   background:
     radial-gradient(circle at 8% 0%, rgba(239, 213, 55, 0.18), transparent 34%),
