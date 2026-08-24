@@ -10,6 +10,8 @@ import OrderSoundToggle from '@/components/admin/OrderSoundToggle.vue'
 import { printOrderTicket } from '@/utils/printOrderTicket'
 import type { OrderDTO } from '@/services/OrderService'
 import { orderStatuses, type OrderStatus, useOrdersBoard } from '@/composables/useOrdersBoard'
+import { useUserStore } from '@/stores/user'
+import { useToast } from '@/composables/useToast'
 
 const router = useRouter()
 const { loading, grouped, totals, load, move, addNote, findOrder, requestDriver } = useOrdersBoard()
@@ -21,11 +23,16 @@ function openDetail(id: string) { router.push(`/admin/ordenes/${id}`) }
 function openNote(order: OrderDTO) { noteTarget.value = order; noteText.value = ''; noteOpen.value = true }
 function closeNote() { noteOpen.value = false; noteTarget.value = null; noteText.value = '' }
 async function saveNote() { if (!noteTarget.value || !noteText.value.trim()) return; noteSaving.value = true; try { await addNote(noteTarget.value, noteText.value.trim()); closeNote() } finally { noteSaving.value = false } }
-// Cancelar exige confirmación con hold de 2 s: el drop/click solo abre el modal.
+// Cancelar exige confirmación con hold de 2 s + motivo, y es exclusivo de administración
+// general: un admin de sucursal no puede cancelar (el backend lo valida igual).
 const cancelTarget = ref<OrderDTO | null>(null)
-async function confirmCancel() { const target = cancelTarget.value; cancelTarget.value = null; if (target) await move(target, 'cancelled') }
-async function changeStatus(order: OrderDTO, status: OrderStatus) { if (status === 'cancelled' && order.status !== 'cancelled') { cancelTarget.value = order; return } await move(order, status) }
-async function drop(orderId: string, status: OrderStatus) { const order = findOrder(orderId); if (!order || order.status === status) return; if (status === 'cancelled') { cancelTarget.value = order; return } await move(order, status) }
+const userStore = useUserStore()
+const { warning: warnToast } = useToast()
+const canCancel = computed(() => userStore.accountType === 'admin' || userStore.allBranches)
+function requestCancel(order: OrderDTO) { if (!canCancel.value) { warnToast('Solo administración general puede cancelar pedidos. Pide la cancelación a administración.'); return } cancelTarget.value = order }
+async function confirmCancel(reason: string) { const target = cancelTarget.value; cancelTarget.value = null; if (target) await move(target, 'cancelled', reason) }
+async function changeStatus(order: OrderDTO, status: OrderStatus) { if (status === 'cancelled' && order.status !== 'cancelled') { requestCancel(order); return } await move(order, status) }
+async function drop(orderId: string, status: OrderStatus) { const order = findOrder(orderId); if (!order || order.status === status) return; if (status === 'cancelled') { requestCancel(order); return } await move(order, status) }
 async function requestDriverFor(order: OrderDTO) { driverLoadingId.value = order._id; await requestDriver(order); driverLoadingId.value = '' }
 onMounted(() => { void load(); window.addEventListener('admin:branch-change', refresh); document.addEventListener('visibilitychange', refresh); refreshTimer = setInterval(refresh, 10_000) })
 onUnmounted(() => { window.removeEventListener('admin:branch-change', refresh); document.removeEventListener('visibilitychange', refresh); if (refreshTimer) clearInterval(refreshTimer) })
