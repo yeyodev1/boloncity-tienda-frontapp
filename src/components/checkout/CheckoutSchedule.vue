@@ -85,7 +85,7 @@ function expandLeave(element: Element) {
 
     <Transition name="schedule-reveal" @enter="expandEnter" @after-enter="expandAfterEnter" @leave="expandLeave">
       <div v-if="enabled" class="schedule__picker">
-        <p class="schedule__card-note"><i class="fa-solid fa-credit-card" /> Los pedidos programados se pagan con tarjeta: así tu reserva queda confirmada.</p>
+        <p class="schedule__card-note"><i class="fa-solid fa-money-bill-wave" /> Puedes pagar con tarjeta o en efectivo al recibir tu pedido programado.</p>
         <p v-if="!days.some((day) => day.slots.length)" class="schedule__empty">
           <i class="fa-solid fa-circle-exclamation" />
           No hay turnos disponibles esta semana{{ branchName ? ` en ${branchName}` : '' }}.
