@@ -13,6 +13,7 @@ export function printOrderTicket(order: OrderDTO) {
     : ''
   const paymentLabel = order.paymentMethod === 'cash' ? 'EFECTIVO — cobra el motorizado' : 'TARJETA (PayPhone)'
   const discountRow = (order.discount || 0) > 0 ? `<tr><td>Descuento puntos (${order.pointsRedeemed} pts)</td><td>-${money(order.discount || 0)}</td></tr>` : ''
+  const promoRow = (order.promo?.amount || 0) > 0 ? `<tr><td>${order.promo?.label || `Promo ${order.promo?.percent}%`}</td><td>-${money(order.promo?.amount || 0)}</td></tr>` : ''
   const deliveryRow = (order.deliveryCost || 0) > 0 ? `<tr><td>Envío${order.deliveryDistance ? ` (${order.deliveryDistance.toFixed(1)} km)` : ''}</td><td>${money(order.deliveryCost || 0)}</td></tr>` : ''
   // picker.deliveryFee viene en dólares (respuesta de Picker), no en centavos.
   const pickerRow = (order.picker?.deliveryFee || 0) > 0 ? `<tr><td>Tarifa Picker (costo delivery)</td><td>$${(order.picker!.deliveryFee as number).toFixed(2)}</td></tr>` : ''
@@ -54,6 +55,7 @@ export function printOrderTicket(order: OrderDTO) {
       <tr><td>Subtotal</td><td>${money(order.subtotal || 0)}</td></tr>
       ${deliveryRow}
       ${pickerRow}
+      ${promoRow}
       ${discountRow}
     </table>
     <p class="total">TOTAL: ${money(order.total)}</p>
