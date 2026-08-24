@@ -9,6 +9,7 @@ import ProductQuickView from '@/components/catalog/ProductQuickView.vue'
 import ProductService, { type PaginatedProductsDTO, type ProductDTO } from '@/services/ProductService'
 import CategoryService, { type CategoryDTO } from '@/services/CategoryService'
 import { useCartStore } from '@/stores/cart'
+import { useSettingsStore } from '@/stores/settings'
 
 const route = useRoute()
 const cart = useCartStore()
@@ -24,6 +25,12 @@ const addedModalOpen = ref(false)
 const selectedProduct = ref<ProductDTO | null>(null)
 const slug = computed(() => String(route.params.slug || ''))
 const total = computed(() => (product.value?.price || 0) * quantity.value)
+// Promo global: se muestra el precio ya rebajado; el carrito guarda el de catálogo y
+// el descuento se resta del subtotal (igual que en el backend).
+const settings = useSettingsStore()
+const promo = computed(() => settings.promo)
+const promoUnitPrice = computed(() => settings.promoPrice(product.value?.price || 0))
+const promoTotal = computed(() => Math.round(total.value * (100 - (promo.value.active ? promo.value.percent : 0))) / 100)
 const categoryNames = computed(() => product.value?.categories?.map((category) => category.name).filter(Boolean) || [])
 const isDrink = computed(() => categoryNames.value.some((name) => /bebida|cafe|café|jugo/i.test(name)))
 const companionTitle = computed(() => (isDrink.value ? 'Algo rico para comer' : 'Acompaña tu elección'))
@@ -179,7 +186,15 @@ onBeforeUnmount(() => {
             </div>
 
             <div class="product-detail__order">
-              <div class="product-detail__price"><span>Precio</span><strong>${{ product.price.toFixed(2) }}</strong></div>
+              <div class="product-detail__price">
+                <span>Precio</span>
+                <template v-if="promo.active">
+                  <strong>${{ promoUnitPrice.toFixed(2) }}</strong>
+                  <em class="product-detail__price-old">${{ product.price.toFixed(2) }}</em>
+                  <em class="product-detail__price-tag">{{ promo.label || `-${promo.percent}%` }}</em>
+                </template>
+                <strong v-else>${{ product.price.toFixed(2) }}</strong>
+              </div>
 
               <div class="product-detail__quantity">
                 <span>Cantidad</span>
@@ -192,7 +207,7 @@ onBeforeUnmount(() => {
 
               <button class="product-detail__add" type="button" :disabled="adding" @click="addToCart">
                 <template v-if="adding"><i class="fa-solid fa-spinner fa-spin" /> Agregando a tu pedido...</template>
-                <template v-else><i class="fa-solid fa-cart-plus" /> Agregar al pedido · ${{ total.toFixed(2) }}</template>
+                <template v-else><i class="fa-solid fa-cart-plus" /> Agregar al pedido · ${{ promoTotal.toFixed(2) }}</template>
               </button>
             </div>
           </div>
@@ -248,8 +263,8 @@ onBeforeUnmount(() => {
             <p>Agregamos {{ quantity }} {{ quantity === 1 ? 'unidad' : 'unidades' }} de <strong>{{ product.name }}</strong>. Ahora puedes completar tu pedido con algo que combine.</p>
 
             <div class="product-added-modal__summary">
-              <span>{{ quantity }} × ${{ product.price.toFixed(2) }}</span>
-              <strong>${{ total.toFixed(2) }}</strong>
+              <span>{{ quantity }} × ${{ (promo.active ? promoUnitPrice : product.price).toFixed(2) }}</span>
+              <strong>${{ promoTotal.toFixed(2) }}</strong>
             </div>
 
             <div class="product-added-modal__actions">
@@ -267,6 +282,9 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped lang="scss">
+.product-detail__price-old { color: rgba(8, 17, 13, 0.45); font-style: normal; text-decoration: line-through; }
+.product-detail__price-tag { background: #a52323; border-radius: 999px; color: #fff; font-size: 0.65rem; font-style: normal; font-weight: 900; padding: 0.25rem 0.5rem; text-transform: uppercase; }
+
 .product-page {
   background:
     radial-gradient(circle at 8% 0%, rgba(239, 213, 55, 0.2), transparent 30%),
