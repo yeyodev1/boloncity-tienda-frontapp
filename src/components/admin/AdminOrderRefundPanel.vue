@@ -2,11 +2,15 @@
 import { computed, ref } from 'vue'
 import OrderService, { type OrderDTO } from '@/services/OrderService'
 import { useToast } from '@/composables/useToast'
+import { useUserStore } from '@/stores/user'
 
 const props = defineProps<{ order: OrderDTO }>()
 const emit = defineEmits<{ (e: 'refunded', order: OrderDTO): void }>()
 
 const { success, error } = useToast()
+// Devolver el dinero es privilegio de administración general, igual que cancelar.
+const userStore = useUserStore()
+const canOperateRefund = computed(() => userStore.accountType === 'admin' || userStore.allBranches)
 const confirming = ref(false)
 const reason = ref('')
 const submitting = ref(false)
@@ -53,7 +57,12 @@ const windowState = computed(() => {
 })
 
 const canRefund = computed(
-  () => windowState.value.open && refund.value?.status !== 'refunded' && refund.value?.status !== 'processing'
+  () => canOperateRefund.value && windowState.value.open && refund.value?.status !== 'refunded' && refund.value?.status !== 'processing'
+)
+
+// Cancelar un pedido NO reversa el cobro: si sigue cobrado hay que devolverlo a mano.
+const cancelledButCharged = computed(
+  () => props.order.status === 'cancelled' && isCard.value && isPaid.value && refund.value?.status !== 'refunded'
 )
 
 function formatCurrency(amount: number) {
@@ -128,8 +137,17 @@ async function submit() {
       PayPhone rechazó el reverso: {{ refund.errorMessage || 'sin detalle' }}<template v-if="refund.errorCode"> (código {{ refund.errorCode }})</template>
     </p>
 
+    <p v-if="cancelledButCharged" class="pay-warning">
+      <i class="fa-solid fa-triangle-exclamation" />
+      <span><strong>Pedido cancelado con el cobro vigente.</strong> Cancelar no anula el pago con tarjeta:
+        para devolver el dinero usa el botón de devolución de esta tarjeta.</span>
+    </p>
+
     <template v-if="isCard && isPaid && refund?.status !== 'refunded'">
-      <p v-if="!windowState.open" class="refund-note refund-note--muted">
+      <p v-if="!canOperateRefund" class="refund-note refund-note--muted">
+        <i class="fa-solid fa-lock" /> Solo administración general puede devolver el pago de un pedido.
+      </p>
+      <p v-else-if="!windowState.open" class="refund-note refund-note--muted">
         <i class="fa-solid fa-clock" /> {{ windowState.reason }}
       </p>
 
