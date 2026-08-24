@@ -84,12 +84,23 @@ function hasPickerFailed(order: OrderDTO): boolean {
   return !!failedAudit
 }
 
+/** El retiro en local no pasa por «En entrega» ni espera motorizado. */
+function statusLabelFor(status: string, deliveryType?: string) {
+  if (deliveryType === 'pickup') {
+    if (status === 'awaiting_pickup') return 'Listo para retirar'
+    if (status === 'delivered') return 'Retirado'
+  }
+  return statusLabels[status] || status
+}
+
 function timelineEntries(order: OrderDTO) {
-  const steps = ['pending', 'paid', 'preparing', 'awaiting_pickup', 'ready', 'delivered']
+  const steps = order.deliveryType === 'pickup'
+    ? ['pending', 'paid', 'preparing', 'awaiting_pickup', 'delivered']
+    : ['pending', 'paid', 'preparing', 'awaiting_pickup', 'ready', 'delivered']
   const idx = steps.indexOf(order.status)
   return steps.map((key, i) => ({
     key,
-    label: statusLabels[key],
+    label: statusLabelFor(key, order.deliveryType),
     active: idx >= i && order.status !== 'cancelled',
   }))
 }
@@ -208,7 +219,7 @@ onMounted(async () => {
                     <div class="morders-card__head-bottom">
                       <span class="morders-card__total">${{ centsToDollars(order.total).toFixed(2) }}</span>
                       <span class="morders-card__status" :class="order.status">
-                        {{ statusLabels[order.status] || order.status }}
+                        {{ statusLabelFor(order.status, order.deliveryType) }}
                       </span>
                     </div>
                   </div>
@@ -224,6 +235,10 @@ onMounted(async () => {
                         <div class="morders-card__row">
                           <span>Subtotal</span>
                           <strong>${{ centsToDollars(order.subtotal).toFixed(2) }}</strong>
+                        </div>
+                        <div v-if="order.promo?.amount" class="morders-card__row morders-card__row--promo">
+                          <span>{{ order.promo.label || `Promo ${order.promo.percent}%` }}</span>
+                          <strong>-${{ centsToDollars(order.promo.amount).toFixed(2) }}</strong>
                         </div>
                         <div v-if="order.deliveryType === 'delivery'" class="morders-card__row">
                           <span>Envío</span>
@@ -711,6 +726,9 @@ onMounted(async () => {
 
 .morders-card__row span { color: rgba(8, 17, 13, 0.6); font-size: 0.85rem; }
 .morders-card__row strong { font-size: 0.88rem; text-align: right; }
+
+.morders-card__row--promo span,
+.morders-card__row--promo strong { color: #a52323; }
 
 .morders-card__row--total {
   border-top: 1px solid rgba(35, 89, 49, 0.1);

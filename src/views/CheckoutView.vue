@@ -21,7 +21,7 @@ import {
 const {
   branchStore, countries,
   customerFirstName, customerLastName, customerEmail, customerPhone, phoneCountryCode,
-  notes, deliveryAddress, deliveryGoogleMapsUrl, deliveryType, paymentMethod, order,
+  notes, deliveryAddress, deliveryGoogleMapsUrl, deliveryType, paymentMethod, order, promo, promoDiscount,
   scheduleOrder, scheduledDate, scheduledTime, scheduleSlots, scheduleDays, selectScheduleDay, toggleScheduleOrder,
   loading, ready, branch, branchLoading, publicBranches,
   deliveryCost, deliveryDistance, mapsError, locating, resolvingLink, locationDetected,
@@ -105,7 +105,7 @@ const {
                 />
               </template>
 
-              <CheckoutPaymentMethod v-model="paymentMethod" :schedule-enabled="scheduleOrder" />
+              <CheckoutPaymentMethod v-model="paymentMethod" :schedule-enabled="scheduleOrder" :delivery-type="deliveryType" />
 
               <CheckoutSchedule
                 :enabled="scheduleOrder"
@@ -179,6 +179,8 @@ const {
             :delivery-cost="deliveryCost"
             :delivery-distance="deliveryDistance"
             :total="total"
+            :promo-label="promo.label"
+            :promo-discount="promoDiscount"
             :iva-rate="ivaRate"
             :prices-include-iva="pricesIncludeIva"
           />

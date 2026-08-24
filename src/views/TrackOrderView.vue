@@ -34,14 +34,22 @@ const statusLabels: Record<string, string> = {
   cancelled: 'Cancelado',
 }
 
-const timeline = [
-  { key: 'pending', label: 'Pendiente' },
-  { key: 'paid', label: 'Pagado' },
-  { key: 'preparing', label: 'Preparando' },
-  { key: 'awaiting_pickup', label: 'Esperando recolección' },
-  { key: 'ready', label: 'En entrega' },
-  { key: 'delivered', label: 'Entregado' },
-]
+/** El retiro en local no espera motorizado ni pasa por «En entrega». */
+function statusLabelFor(status: string, deliveryType?: string) {
+  if (deliveryType === 'pickup') {
+    if (status === 'awaiting_pickup') return 'Listo para retirar'
+    if (status === 'delivered') return 'Retirado'
+  }
+  return statusLabels[status] || status
+}
+
+const timeline = computed(() => {
+  const isPickup = selectedOrder.value?.deliveryType === 'pickup'
+  const keys = isPickup
+    ? ['pending', 'paid', 'preparing', 'awaiting_pickup', 'delivered']
+    : ['pending', 'paid', 'preparing', 'awaiting_pickup', 'ready', 'delivered']
+  return keys.map((key) => ({ key, label: statusLabelFor(key, selectedOrder.value?.deliveryType) }))
+})
 
 const pickerSteps = [
   { key: 'READY_FOR_PICKUP', label: 'Buscando delivery', icon: 'fa-magnifying-glass' },
@@ -68,7 +76,7 @@ const pickerEvents = computed(() => {
 const currentStepIndex = computed(() => {
   if (!selectedOrder.value) return -1
   if (selectedOrder.value.status === 'cancelled') return -2
-  return timeline.findIndex((item) => item.key === selectedOrder.value?.status)
+  return timeline.value.findIndex((item) => item.key === selectedOrder.value?.status)
 })
 
 const auditTimeline = computed(() => {
@@ -243,7 +251,7 @@ onUnmounted(stopRealtime)
               <div class="track-detail__hero-copy">
                 <p class="track-detail__eyebrow">Pedido {{ selectedOrder.orderNumber }}</p>
                 <h2>${{ centsToDollars(selectedOrder.total).toFixed(2) }}</h2>
-                <span class="track-detail__status" :class="selectedOrder.status">{{ statusLabels[selectedOrder.status] || selectedOrder.status }}</span>
+                <span class="track-detail__status" :class="selectedOrder.status">{{ statusLabelFor(selectedOrder.status, selectedOrder.deliveryType) }}</span>
               </div>
             </div>
 
@@ -416,7 +424,7 @@ onUnmounted(stopRealtime)
             >
               <div class="track-orders__card-head">
                 <strong>{{ o.orderNumber }}</strong>
-                <span class="track-orders__status" :class="o.status">{{ statusLabels[o.status] || o.status }}</span>
+                <span class="track-orders__status" :class="o.status">{{ statusLabelFor(o.status, o.deliveryType) }}</span>
               </div>
               <div class="track-orders__card-meta">
                 <span>${{ centsToDollars(o.total).toFixed(2) }}</span>

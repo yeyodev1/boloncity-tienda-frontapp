@@ -6,6 +6,9 @@ defineProps<{
   deliveryCost: number
   deliveryDistance: number
   total: number
+  /** Promo global vigente: descuento sobre productos, nunca sobre el envío. */
+  promoLabel?: string
+  promoDiscount?: number
   /** IVA vigente en porcentaje; los precios del catálogo ya lo incluyen. */
   ivaRate?: number
   pricesIncludeIva?: boolean
@@ -45,6 +48,10 @@ const cart = useCartStore()
         <span><i class="fa-solid fa-bag-shopping" /> Subtotal</span>
         <strong>${{ cart.subtotal.toFixed(2) }}</strong>
       </div>
+      <div v-if="promoDiscount" class="checkout-summary__line checkout-summary__line--promo">
+        <span><i class="fa-solid fa-tag" /> {{ promoLabel || 'Promoción' }}</span>
+        <strong>-${{ promoDiscount.toFixed(2) }}</strong>
+      </div>
     </div>
 
     <div v-if="deliveryCost > 0 && deliveryType === 'delivery'" class="checkout-summary__delivery">
@@ -74,6 +81,9 @@ const cart = useCartStore()
 </template>
 
 <style scoped lang="scss">
+.checkout-summary__line--promo span,
+.checkout-summary__line--promo strong { color: #a52323; }
+
 .checkout-summary {
   background: rgba(255, 255, 255, 0.94);
   border: 1px solid rgba(35, 89, 49, 0.08);

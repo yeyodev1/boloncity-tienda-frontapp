@@ -1,10 +1,15 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import type { ProductDTO } from '@/services/ProductService'
+import { useSettingsStore } from '@/stores/settings'
 
 const props = defineProps<{ product: ProductDTO }>()
 const emit = defineEmits<{ (event: 'open'): void }>()
 const imageLoaded = ref(false)
+// Promo global: el precio tachado es el de catálogo y el grande, el que se cobra.
+const settings = useSettingsStore()
+const promo = computed(() => settings.promo)
+const promoPrice = computed(() => settings.promoPrice(props.product.price))
 const categoryLabel = computed(() => props.product.categories?.[1]?.name || props.product.categories?.[0]?.name || 'Boloncity')
 </script>
 
@@ -15,6 +20,7 @@ const categoryLabel = computed(() => props.product.categories?.[1]?.name || prop
       <img v-if="product.images[0]?.url" :class="{ 'is-loaded': imageLoaded }" :src="product.images[0].url" :alt="product.name" loading="lazy" @load="imageLoaded = true" />
       <span v-else class="product-card__placeholder"><i class="fa-solid fa-utensils" /></span>
       <span class="product-card__category">{{ categoryLabel }}</span>
+      <span v-if="promo.active" class="product-card__promo">-{{ promo.percent }}%</span>
       <span class="product-card__view"><i class="fa-solid fa-eye" /> Ver detalle</span>
     </div>
 
@@ -24,7 +30,11 @@ const categoryLabel = computed(() => props.product.categories?.[1]?.name || prop
       <p class="product-card__description">{{ product.description || 'Producto disponible en nuestro menú.' }}</p>
 
       <footer>
-        <strong>${{ product.price.toFixed(2) }}</strong>
+        <span v-if="promo.active" class="product-card__prices">
+          <small>${{ product.price.toFixed(2) }}</small>
+          <strong>${{ promoPrice.toFixed(2) }}</strong>
+        </span>
+        <strong v-else>${{ product.price.toFixed(2) }}</strong>
         <button type="button" :aria-label="`Elegir cantidad de ${product.name}`" @click.stop="emit('open')">
           <i class="fa-solid fa-cart-plus" /> Agregar
         </button>
@@ -122,6 +132,25 @@ const categoryLabel = computed(() => props.product.categories?.[1]?.name || prop
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.product-card__promo {
+  align-items: center;
+  background: #a52323;
+  border-radius: 999px;
+  color: #fff;
+  display: inline-flex;
+  font-size: 0.72rem;
+  font-weight: 900;
+  left: 0.7rem;
+  line-height: 1;
+  padding: 0.4rem 0.6rem;
+  position: absolute;
+  top: 0.7rem;
+}
+
+.product-card__prices { align-items: baseline; display: flex; gap: 0.4rem; }
+.product-card__prices small { color: rgba(26, 26, 26, 0.45); font-size: 0.85rem; text-decoration: line-through; }
+.product-card__prices strong { color: #a52323; }
 
 .product-card__view {
   background: rgba(255, 255, 255, 0.94);

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { OrderDTO } from '@/services/OrderService'
-import { STATUS_ICONS, STATUS_LABELS } from './constants'
+import { STATUS_ICONS, statusLabelFor } from './constants'
 
 defineProps<{ order: OrderDTO; statusFlash: boolean }>()
 
@@ -25,7 +25,7 @@ function formatDate(iso: string) {
     </div>
     <span class="detail-hero__status" :class="[order.status, { flash: statusFlash }]">
       <i :class="['fa-solid', STATUS_ICONS[order.status] || 'fa-circle-info']" />
-      {{ STATUS_LABELS[order.status] || order.status }}
+      {{ statusLabelFor(order.status, order.deliveryType) }}
     </span>
   </section>
 </template>

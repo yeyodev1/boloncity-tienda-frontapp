@@ -1,5 +1,11 @@
 import APIBase from './httpBase'
 
+export interface ActivePromoDTO {
+  active: boolean
+  percent: number
+  label: string
+}
+
 export interface SettingsDTO {
   _id: string
   deliveryPricePerKm: number
@@ -15,6 +21,14 @@ export interface SettingsDTO {
   pointsEarnAmount: number
   /** Cuántos puntos equivalen a $1 al canjear (100 = "100 puntos = $1"). */
   pointsRedeemPerDollar: number
+  /** Promo global: descuento en % sobre productos. Nunca aplica al envío. */
+  promoEnabled: boolean
+  promoPercent: number
+  promoLabel: string
+  promoStartsAt?: string | null
+  promoEndsAt?: string | null
+  /** Promo ya resuelta por el backend (respeta la ventana de vigencia). */
+  activePromo?: ActivePromoDTO
 }
 
 export interface PointsBalanceDTO {
@@ -34,7 +48,7 @@ class SettingsService extends APIBase {
     return this.get<PointsBalanceDTO>(`settings/points-balance?email=${encodeURIComponent(email)}`)
   }
 
-  update(payload: Partial<Pick<SettingsDTO, 'deliveryPricePerKm' | 'ivaRate' | 'pricesIncludeIva' | 'pointsEnabled' | 'pointsEarnDollars' | 'pointsEarnAmount' | 'pointsRedeemPerDollar'>>) {
+  update(payload: Partial<Pick<SettingsDTO, 'deliveryPricePerKm' | 'ivaRate' | 'pricesIncludeIva' | 'pointsEnabled' | 'pointsEarnDollars' | 'pointsEarnAmount' | 'pointsRedeemPerDollar' | 'promoEnabled' | 'promoPercent' | 'promoLabel' | 'promoStartsAt' | 'promoEndsAt'>>) {
     return this.put<SettingsDTO>('settings', payload)
   }
 

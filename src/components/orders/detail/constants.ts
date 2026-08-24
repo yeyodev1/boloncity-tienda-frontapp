@@ -38,6 +38,15 @@ export const STATUS_LABELS: Record<string, string> = {
   cancelled: 'Cancelado',
 }
 
+/** El retiro en local no espera motorizado: sus etiquetas hablan de retirar, no de entregar. */
+export function statusLabelFor(status: string, deliveryType?: string) {
+  if (deliveryType === 'pickup') {
+    if (status === 'awaiting_pickup') return 'Listo para retirar'
+    if (status === 'delivered') return 'Retirado'
+  }
+  return STATUS_LABELS[status] || status
+}
+
 export const STATUS_ICONS: Record<string, string> = {
   pending: 'fa-hourglass-half',
   paid: 'fa-credit-card',

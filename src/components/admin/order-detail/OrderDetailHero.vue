@@ -14,17 +14,43 @@ const emit = defineEmits<{
 }>()
 
 // El ciclo real del pedido, en el orden del tablero. El riel marca dónde está la orden.
-const steps = [
-  { key: 'pending', label: 'Pendiente', icon: 'fa-clock' },
-  { key: 'paid', label: 'Pagada', icon: 'fa-credit-card' },
-  { key: 'preparing', label: 'Preparando', icon: 'fa-kitchen-set' },
-  { key: 'awaiting_pickup', label: 'Por recoger', icon: 'fa-box' },
-  { key: 'ready', label: 'En entrega', icon: 'fa-truck-fast' },
-  { key: 'delivered', label: 'Entregada', icon: 'fa-circle-check' },
-]
+// Un retiro en local no pasa por «En entrega»: del mostrador va directo a entregado.
+const isPickup = computed(() => props.order.deliveryType === 'pickup')
+const steps = computed(() => isPickup.value
+  ? [
+      { key: 'pending', label: 'Pendiente', icon: 'fa-clock' },
+      { key: 'paid', label: 'Pagada', icon: 'fa-credit-card' },
+      { key: 'preparing', label: 'Preparando', icon: 'fa-kitchen-set' },
+      { key: 'awaiting_pickup', label: 'Lista para retiro', icon: 'fa-bag-shopping' },
+      { key: 'delivered', label: 'Retirada', icon: 'fa-circle-check' },
+    ]
+  : [
+      { key: 'pending', label: 'Pendiente', icon: 'fa-clock' },
+      { key: 'paid', label: 'Pagada', icon: 'fa-credit-card' },
+      { key: 'preparing', label: 'Preparando', icon: 'fa-kitchen-set' },
+      { key: 'awaiting_pickup', label: 'Por recoger', icon: 'fa-box' },
+      { key: 'ready', label: 'En entrega', icon: 'fa-truck-fast' },
+      { key: 'delivered', label: 'Entregada', icon: 'fa-circle-check' },
+    ])
 
 const isCancelled = computed(() => props.order.status === 'cancelled')
-const currentIndex = computed(() => steps.findIndex((step) => step.key === props.order.status))
+const currentIndex = computed(() => steps.value.findIndex((step) => step.key === props.order.status))
+
+// Quién canceló: primero el registro directo; si es un pedido viejo, se rescata de la auditoría.
+const cancelledBy = computed(() => {
+  if (props.order.cancellation?.byEmail) return props.order.cancellation
+  const entry = [...(props.order.audit || [])].reverse().find((item) => item.toValue === 'cancelled')
+  if (!entry) return null
+  return { byEmail: entry.performedByEmail || 'system', reason: entry.details || '', at: entry.timestamp }
+})
+const cancelledAtLabel = computed(() => cancelledBy.value?.at
+  ? new Date(cancelledBy.value.at).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' })
+  : '')
+// Cancelar no reversa el cobro: hay que avisarlo aquí, arriba, no solo en el panel de pago.
+const cardStillCharged = computed(() => Boolean(
+  props.order.paymentMethod === 'card'
+  && props.order.payphone?.transactionId
+  && props.order.payphone?.refund?.status !== 'refunded'))
 
 const statusLabels: Record<string, string> = {
   pending: 'Pendiente', paid: 'Pagada', preparing: 'En preparación',
@@ -73,9 +99,18 @@ const createdLabel = computed(() =>
       </div>
     </div>
 
-    <p v-if="isCancelled" class="order-hero__cancelled">
-      <i class="fa-solid fa-ban" /> Esta orden fue cancelada. Revisa la auditoría para ver quién y por qué.
-    </p>
+    <div v-if="isCancelled" class="order-hero__cancelled">
+      <p class="order-hero__cancelled-head">
+        <i class="fa-solid fa-ban" />
+        <span v-if="cancelledBy">Cancelada por <b>{{ cancelledBy.byEmail }}</b><template v-if="cancelledAtLabel"> · {{ cancelledAtLabel }}</template></span>
+        <span v-else>Esta orden fue cancelada. Revisa la auditoría para ver quién y por qué.</span>
+      </p>
+      <p v-if="cancelledBy?.reason" class="order-hero__cancelled-reason"><b>Motivo:</b> {{ cancelledBy.reason }}</p>
+      <p v-if="cardStillCharged" class="order-hero__cancelled-refund">
+        <i class="fa-solid fa-credit-card" /> El cobro con tarjeta <b>sigue vigente</b>: cancelar no lo anula.
+        Para devolver el dinero usa <b>Devolver</b> en la tarjeta de Pago.
+      </p>
+    </div>
     <ol v-else class="order-hero__steps">
       <li
         v-for="(step, index) in steps"
@@ -181,15 +216,27 @@ const createdLabel = computed(() =>
 .order-hero__retry:disabled { cursor: wait; opacity: 0.6; }
 
 .order-hero__cancelled {
-  align-items: center;
   background: rgba(165, 35, 35, 0.35);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 12px;
   display: flex;
+  flex-direction: column;
   font-size: 0.88rem;
-  font-weight: 700;
-  gap: 0.55rem;
+  gap: 0.35rem;
   padding: 0.75rem 0.9rem;
+}
+
+.order-hero__cancelled-head { align-items: center; display: flex; font-weight: 800; gap: 0.55rem; }
+.order-hero__cancelled-reason { font-weight: 600; line-height: 1.45; opacity: 0.92; }
+.order-hero__cancelled-refund {
+  align-items: flex-start;
+  background: rgba(239, 213, 55, 0.22);
+  border-radius: 10px;
+  display: flex;
+  font-weight: 600;
+  gap: 0.45rem;
+  line-height: 1.45;
+  padding: 0.5rem 0.65rem;
 }
 
 .order-hero__steps {

@@ -52,6 +52,7 @@ function formatDollars(amount: number) {
         <span><i class="fa-solid fa-motorcycle" /> Tarifa Picker (costo real del delivery)</span>
         <strong>{{ formatDollars(order.picker.deliveryFee) }}</strong>
       </div>
+      <div v-if="order.promo?.amount"><span>{{ order.promo.label || `Promo ${order.promo.percent}%` }}</span><strong>-{{ formatCurrency(order.promo.amount) }}</strong></div>
       <div v-if="order.discount"><span>Descuento por puntos ({{ order.pointsRedeemed }} pts)</span><strong>-{{ formatCurrency(order.discount) }}</strong></div>
       <div class="cost-breakdown__total"><span>Total cobrado</span><strong>{{ formatCurrency(order.total) }}</strong></div>
     </div>

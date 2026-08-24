@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import type { ProductDTO } from '@/services/ProductService'
 import { useCartStore } from '@/stores/cart'
+import { useSettingsStore } from '@/stores/settings'
 
 const props = defineProps<{ product: ProductDTO | null }>()
 const emit = defineEmits<{ (event: 'close'): void }>()
@@ -15,6 +16,12 @@ const addedQuantity = ref(0)
 const addedTotal = ref(0)
 const categories = computed(() => props.product?.categories?.map((category) => category.name).filter(Boolean) || [])
 const total = computed(() => (props.product?.price || 0) * quantity.value)
+// Promo global: el carrito guarda el precio de catálogo y el descuento se resta del
+// subtotal (igual que en el backend); aquí solo se muestra el precio ya rebajado.
+const settings = useSettingsStore()
+const promo = computed(() => settings.promo)
+const promoUnitPrice = computed(() => settings.promoPrice(props.product?.price || 0))
+const promoTotal = computed(() => Math.round(total.value * (100 - (promo.value.active ? promo.value.percent : 0))) / 100)
 
 function close() {
   emit('close')
@@ -83,7 +90,12 @@ onBeforeUnmount(() => {
 
             <div class="quick-view__heading">
               <div><p>{{ product.code }}</p><h2>{{ product.name }}</h2></div>
-              <strong>${{ product.price.toFixed(2) }}</strong>
+              <span v-if="promo.active" class="quick-view__prices">
+                <small>${{ product.price.toFixed(2) }}</small>
+                <strong>${{ promoUnitPrice.toFixed(2) }}</strong>
+                <em>{{ promo.label || `-${promo.percent}%` }}</em>
+              </span>
+              <strong v-else>${{ product.price.toFixed(2) }}</strong>
             </div>
 
             <p class="quick-view__description">{{ product.description || 'Producto disponible en el menú Boloncity.' }}</p>
@@ -106,7 +118,7 @@ onBeforeUnmount(() => {
               <RouterLink :to="`/producto/${product.slug}`" @click="close"><i class="fa-solid fa-arrow-up-right-from-square" /> Ver ficha completa</RouterLink>
               <button type="button" :disabled="adding" @click="addToCart">
                 <template v-if="adding"><i class="fa-solid fa-spinner fa-spin" /> Agregando al carrito...</template>
-                <template v-else><i class="fa-solid fa-cart-plus" /> Agregar · ${{ total.toFixed(2) }}</template>
+                <template v-else><i class="fa-solid fa-cart-plus" /> Agregar · ${{ promoTotal.toFixed(2) }}</template>
               </button>
             </footer>
           </div>
@@ -135,6 +147,11 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped lang="scss">
+.quick-view__prices { align-items: baseline; display: flex; flex-wrap: wrap; gap: 0.35rem; justify-content: flex-end; }
+.quick-view__prices small { color: rgba(26, 26, 26, 0.45); font-size: 0.9rem; text-decoration: line-through; }
+.quick-view__prices strong { color: #a52323; }
+.quick-view__prices em { background: #a52323; border-radius: 999px; color: #fff; font-size: 0.62rem; font-style: normal; font-weight: 900; padding: 0.25rem 0.5rem; text-transform: uppercase; }
+
 .quick-view {
   align-items: flex-end;
   background: rgba(8, 17, 13, 0.72);

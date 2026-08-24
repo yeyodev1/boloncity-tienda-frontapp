@@ -5,6 +5,7 @@ import {
   formatOrderCurrency,
   getNextOrderStatus,
   getOrderItemCount,
+  getOrderStatusLabel,
   orderStatusIcons,
   orderStatusLabels,
   type OrderStatus,
@@ -27,7 +28,15 @@ const emit = defineEmits<{
 const isDelivery = computed(() => props.order.deliveryType === 'delivery')
 // Los delivery normalmente avanzan solos con el webhook de Picker, pero el cajero
 // puede moverlos manualmente (queda auditado) si Picker no reporta.
-const nextStatus = computed(() => getNextOrderStatus(props.status))
+// Un retiro en local salta «En reparto»: de «Listas para retiro» pasa directo a entregado.
+const nextStatus = computed(() => getNextOrderStatus(props.status, props.order.deliveryType))
+const statusLabel = computed(() => getOrderStatusLabel(props.status, props.order.deliveryType))
+const nextStatusLabel = computed(() => nextStatus.value ? getOrderStatusLabel(nextStatus.value, props.order.deliveryType) : '')
+// El texto del botón que cierra un retiro: «Entregado al cliente», no «mover a Retiradas».
+const advanceLabel = computed(() =>
+  props.order.deliveryType === 'pickup' && nextStatus.value === 'delivered'
+    ? 'Entregado al cliente'
+    : `Mover a ${nextStatusLabel.value}`)
 const picker = computed(() => props.order.picker)
 // El bloque de delivery solo se muestra cuando ya existe una reserva de Picker real.
 // Los programados no la tienen hasta pasar a "Listas para recolección".
@@ -66,7 +75,7 @@ function auditTime(timestamp: string) { return new Date(timestamp).toLocaleTimeS
       <div class="order-card__top">
         <span class="order-card__drag-handle" title="Arrastra esta orden a otra columna" aria-label="Arrastrar orden"><i class="fa-solid fa-grip-vertical" /></span>
         <strong>{{ order.orderNumber }}</strong>
-        <span class="status-pill"><i :class="['fa-solid', orderStatusIcons[status]]" /> {{ orderStatusLabels[status] }}</span>
+        <span class="status-pill"><i :class="['fa-solid', orderStatusIcons[status]]" /> {{ statusLabel }}</span>
       </div>
 
       <p class="order-card__customer">{{ order.customerName || order.customerEmail }}</p>
@@ -109,8 +118,8 @@ function auditTime(timestamp: string) { return new Date(timestamp).toLocaleTimeS
       <button type="button" class="ghost" @click="emit('open', order._id)"><i class="fa-solid fa-arrow-up-right-from-square" /> Detalle</button>
       <button type="button" class="ghost" @click="emit('note', order)"><i class="fa-solid fa-note-sticky" /> Nota</button>
       <button type="button" class="ghost" @click="emit('print', order)"><i class="fa-solid fa-print" /> Ticket</button>
-      <button v-if="nextStatus && payment.tone !== 'danger'" type="button" @click="emit('advance', order, nextStatus)">
-        <i class="fa-solid fa-arrow-right" /> {{ `Mover a ${orderStatusLabels[nextStatus]}` }}
+      <button v-if="nextStatus && payment.tone !== 'danger'" type="button" :class="{ 'order-card__finish': order.deliveryType === 'pickup' && nextStatus === 'delivered' }" @click="emit('advance', order, nextStatus)">
+        <i :class="['fa-solid', order.deliveryType === 'pickup' && nextStatus === 'delivered' ? 'fa-hand-holding-heart' : 'fa-arrow-right']" /> {{ advanceLabel }}
       </button>
       <span v-else-if="nextStatus && payment.tone === 'danger'" class="order-card__blocked">
         <i class="fa-solid fa-lock" /> No se puede preparar: sin pago
@@ -307,6 +316,7 @@ function auditTime(timestamp: string) { return new Date(timestamp).toLocaleTimeS
 .order-card__delivery { background: rgba(35,89,49,.06); border-bottom: 1px solid rgba(35,89,49,.1); border-top: 1px solid rgba(35,89,49,.1); display: flex; flex-direction: column; gap: .65rem; padding: .8rem 1rem; }
 .order-card__delivery--live { background: linear-gradient(135deg, rgba(35,89,49,.13), rgba(239,213,55,.13)); }.order-card__delivery-head { display:flex; flex-direction:column; gap:.18rem; }.order-card__delivery-head span { color:#235931; font-size:.66rem; font-weight:900; letter-spacing:.09em; text-transform:uppercase; }.order-card__delivery-head strong { font-size:.82rem; }.order-card__driver { align-items:center; display:flex; gap:.55rem; }.order-card__driver-avatar { align-items:center; background:#235931; border-radius:50%; color:#fff; display:flex; flex:0 0 34px; height:34px; justify-content:center; overflow:hidden; width:34px; }.order-card__driver-avatar img { height:100%; object-fit:cover; width:100%; }.order-card__driver > div { display:flex; flex:1; flex-direction:column; min-width:0; }.order-card__driver strong { font-size:.8rem; }.order-card__driver small,.order-card__delivery > small { color:rgba(24,33,27,.62); font-size:.7rem; }.order-card__driver a { align-items:center; background:#235931; border-radius:50%; color:#fff; display:flex; flex:0 0 34px; height:34px; justify-content:center; text-decoration:none; width:34px; }.order-card__delivery-meta { align-items:center; display:flex; flex-wrap:wrap; gap:.4rem; }.order-card__delivery-meta span,.order-card__delivery-meta a { background:#fff; border-radius:999px; color:#235931; font-size:.69rem; font-weight:800; padding:.3rem .45rem; text-decoration:none; }.order-card__delivery > small { line-height:1.35; }
 .order-card__actions .driver-action { background:#efd537; color:#18211b; flex:1 1 100%; }
+.order-card__actions .order-card__finish { background:#00a523; }
 .order-card__drag-handle:hover { background:rgba(35,89,49,.1); color:#235931; }.order-card__drag-handle:active { cursor:grabbing; }
 .order-card__audit { background:#fff; border-top:1px solid rgba(8,17,13,.08); display:flex; flex-direction:column; gap:.45rem; padding:.75rem 1rem; }.order-card__audit > p { color:#235931; font-size:.66rem; font-weight:900; letter-spacing:.08em; margin:0; text-transform:uppercase; }.order-card__audit > div { align-items:baseline; display:flex; flex-wrap:wrap; gap:.35rem; padding-left:.7rem; position:relative; }.order-card__audit > div > span { background:#235931; border-radius:50%; height:5px; left:0; position:absolute; top:.35rem; width:5px; }.order-card__audit strong { font-size:.72rem; }.order-card__audit small { color:rgba(24,33,27,.58); flex:1 1 100%; font-size:.68rem; line-height:1.35; }
 

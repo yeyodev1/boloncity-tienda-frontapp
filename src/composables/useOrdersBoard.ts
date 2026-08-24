@@ -22,7 +22,7 @@ export const orderStatusDescriptions: Record<OrderStatus, string> = {
   preparing: 'En cocina',
   awaiting_pickup: 'Esperando motorizado o retiro',
   ready: 'El pedido ya salió del local',
-  delivered: 'Entrega confirmada por Picker',
+  delivered: 'Entregadas o retiradas por el cliente',
   cancelled: 'Canceladas',
 }
 
@@ -64,9 +64,32 @@ export function getOrderItemCount(order: OrderDTO) {
   return order.items?.reduce((sum, item) => sum + item.quantity, 0) || 0
 }
 
-export function getNextOrderStatus(status: OrderStatus) {
-  const index = orderStatuses.indexOf(status)
-  return orderStatuses[index + 1] || null
+/**
+ * Flujo real de cada tipo de pedido. El retiro en local NO pasa por «En reparto»:
+ * cuando el cliente se lleva el pedido, el cajero lo cierra en «Entregado».
+ */
+const deliveryFlow: OrderStatus[] = ['pending', 'paid', 'preparing', 'awaiting_pickup', 'ready', 'delivered']
+const pickupFlow: OrderStatus[] = ['pending', 'paid', 'preparing', 'awaiting_pickup', 'delivered']
+
+export function getOrderFlow(deliveryType?: string) {
+  return deliveryType === 'pickup' ? pickupFlow : deliveryFlow
+}
+
+/** Siguiente paso del flujo. Nunca propone «Cancelada»: eso va por el modal de cancelación. */
+export function getNextOrderStatus(status: OrderStatus, deliveryType?: string) {
+  const flow = getOrderFlow(deliveryType)
+  const index = flow.indexOf(status)
+  if (index === -1) return null
+  return flow[index + 1] || null
+}
+
+/** Etiquetas que cambian según el tipo: un retiro no espera motorizado ni sale a reparto. */
+export function getOrderStatusLabel(status: OrderStatus, deliveryType?: string) {
+  if (deliveryType === 'pickup') {
+    if (status === 'awaiting_pickup') return 'Listas para retiro'
+    if (status === 'delivered') return 'Retiradas'
+  }
+  return orderStatusLabels[status]
 }
 
 export function isOrderStatus(status: string): status is OrderStatus {

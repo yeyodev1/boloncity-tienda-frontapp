@@ -1,9 +1,18 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import type { OrderDTO } from '@/services/OrderService'
 
 const props = defineProps<{ order: OrderDTO | null }>()
-const emit = defineEmits<{ (e: 'confirm'): void; (e: 'close'): void }>()
+const emit = defineEmits<{ (e: 'confirm', reason: string): void; (e: 'close'): void }>()
+
+// El motivo es obligatorio: queda en la auditoría y es la única forma de saber
+// después quién canceló y por qué (el backend rechaza la cancelación sin motivo).
+const reason = ref('')
+const reasons = ['Cliente pidió cancelar', 'Producto sin stock', 'Error al tomar el pedido', 'Pedido duplicado', 'Sucursal no puede cumplir', 'Sin motorizado disponible']
+const canConfirm = computed(() => reason.value.trim().length >= 3)
+// Una cancelación NO reversa el cobro: el dinero se devuelve aparte desde el detalle.
+const cardCharged = computed(() => Boolean(props.order?.paymentMethod === 'card' && props.order?.payphone?.transactionId))
+watch(() => props.order?._id, () => { reason.value = '' })
 
 // Cancelar es irreversible para el cliente (recibe correo): se confirma manteniendo
 // presionado 2 s, no con un tap accidental.
@@ -19,7 +28,8 @@ function tick(now: number) {
     cancelAnimationFrame(frame)
     holding.value = false
     if ('vibrate' in navigator) navigator.vibrate?.(80)
-    emit('confirm')
+    emit('confirm', reason.value.trim())
+    reason.value = ''
     progress.value = 0
     return
   }
@@ -27,7 +37,7 @@ function tick(now: number) {
 }
 
 function startHold(event: PointerEvent) {
-  if (!props.order || holding.value) return
+  if (!props.order || holding.value || !canConfirm.value) return
   ;(event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId)
   holding.value = true
   startedAt = performance.now()
@@ -56,10 +66,26 @@ onBeforeUnmount(() => cancelAnimationFrame(frame))
             <b>Cancelada</b> y el cliente recibirá el aviso por correo.
           </p>
 
+          <p v-if="cardCharged" class="cancel-modal__warning">
+            <i class="fa-solid fa-credit-card" />
+            <span>Este pedido está <b>pagado con tarjeta</b>. Cancelar <b>no anula el cobro</b>: para
+              devolver el dinero entra al detalle de la orden y usa <b>Devolver pago</b>.</span>
+          </p>
+
+          <div class="cancel-modal__reason">
+            <label for="cancel-reason">Motivo de la cancelación (obligatorio)</label>
+            <div class="cancel-modal__chips">
+              <button v-for="option in reasons" :key="option" type="button" :class="{ active: reason === option }" @click="reason = option">{{ option }}</button>
+            </div>
+            <textarea id="cancel-reason" v-model="reason" rows="2" placeholder="Ej.: el cliente pidió cancelar por teléfono" />
+            <small>Queda registrado con tu usuario en la auditoría del pedido.</small>
+          </div>
+
           <button
             type="button"
             class="cancel-modal__hold"
-            :class="{ holding }"
+            :class="{ holding, disabled: !canConfirm }"
+            :disabled="!canConfirm"
             @pointerdown.prevent="startHold"
             @pointerup="stopHold"
             @pointerleave="stopHold"
@@ -70,7 +96,7 @@ onBeforeUnmount(() => cancelAnimationFrame(frame))
             <span class="cancel-modal__fill" :style="{ transform: `scaleX(${progress})` }" />
             <span class="cancel-modal__label">
               <i class="fa-solid fa-hand-point-down" />
-              {{ holding ? 'Sigue presionando…' : 'Mantén presionado 2 s para cancelar' }}
+              {{ !canConfirm ? 'Escribe el motivo para poder cancelar' : holding ? 'Sigue presionando…' : 'Mantén presionado 2 s para cancelar' }}
             </span>
           </button>
 
@@ -148,6 +174,59 @@ onBeforeUnmount(() => cancelAnimationFrame(frame))
 }
 
 .cancel-modal__hold.holding { background: #8a1d1d; }
+.cancel-modal__hold.disabled { background: rgba(8, 17, 13, 0.25); cursor: not-allowed; }
+
+.cancel-modal__warning {
+  align-items: flex-start;
+  background: #fff8d6;
+  border: 1px solid rgba(239, 213, 55, 0.7);
+  border-radius: 12px;
+  color: #6a4e05 !important;
+  display: flex;
+  font-size: 0.82rem;
+  gap: 0.5rem;
+  padding: 0.7rem 0.85rem;
+  text-align: left;
+}
+
+.cancel-modal__reason {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  text-align: left;
+  // El textarea sí debe poder seleccionarse aunque el modal bloquee la selección.
+  user-select: text;
+  -webkit-user-select: text;
+  width: 100%;
+}
+
+.cancel-modal__reason label { color: rgba(8, 17, 13, 0.62); font-size: 0.72rem; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; }
+.cancel-modal__reason small { color: rgba(8, 17, 13, 0.55); font-size: 0.72rem; }
+
+.cancel-modal__chips { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.cancel-modal__chips button {
+  background: #fff;
+  border: 1px solid rgba(8, 17, 13, 0.14);
+  border-radius: 999px;
+  color: #18211b;
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 0.35rem 0.6rem;
+}
+.cancel-modal__chips button.active { background: rgba(165, 35, 35, 0.1); border-color: #a52323; color: #a52323; }
+
+.cancel-modal__reason textarea {
+  background: #fbf8ef;
+  border: 1px solid rgba(8, 17, 13, 0.14);
+  border-radius: 12px;
+  color: #18211b;
+  font: inherit;
+  font-size: 0.88rem;
+  padding: 0.6rem 0.75rem;
+  resize: vertical;
+  width: 100%;
+}
 
 .cancel-modal__fill {
   background: rgba(0, 0, 0, 0.35);

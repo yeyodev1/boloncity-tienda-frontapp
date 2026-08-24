@@ -48,6 +48,10 @@ export interface OrderDTO {
   branch?: { _id: string; name: string }
   billing?: { docType?: string; name?: string; docNumber?: string; email?: string; address?: string }
   audit?: Array<{ action: string; performedByEmail?: string; fromValue?: string; toValue?: string; details?: string; timestamp: string }>
+  /** Promoción aplicada al comprar (solo productos, nunca el envío). */
+  promo?: { percent: number; label: string; amount: number } | null
+  /** Quién canceló el pedido y por qué (lo llena el backend al pasar a «cancelled»). */
+  cancellation?: { byEmail?: string; byName?: string; reason?: string; at?: string }
   items?: Array<{ name: string; quantity: number; price: number; image?: string }>
   payphone?: {
     clientTransactionId?: string

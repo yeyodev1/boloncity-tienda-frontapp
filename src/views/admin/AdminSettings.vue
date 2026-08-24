@@ -13,6 +13,12 @@ const pointsEnabled = ref(true)
 const pointsEarnDollars = ref(1)
 const pointsEarnAmount = ref(1)
 const pointsRedeemPerDollar = ref(100)
+// Promoción global: % de descuento sobre productos. El envío nunca se descuenta.
+const promoEnabled = ref(false)
+const promoPercent = ref(0)
+const promoLabel = ref('')
+const promoStartsAt = ref('')
+const promoEndsAt = ref('')
 const loading = ref(true)
 const saving = ref(false)
 const applying = ref(false)
@@ -29,6 +35,21 @@ function hydrate(data: SettingsDTO) {
   pointsEarnDollars.value = data.pointsEarnDollars || 1
   pointsEarnAmount.value = data.pointsEarnAmount ?? 1
   pointsRedeemPerDollar.value = data.pointsRedeemPerDollar || 100
+  promoEnabled.value = data.promoEnabled ?? false
+  promoPercent.value = data.promoPercent ?? 0
+  promoLabel.value = data.promoLabel || ''
+  // Los <input type="datetime-local"> usan hora local sin zona: se recorta la ISO.
+  promoStartsAt.value = toLocalInput(data.promoStartsAt)
+  promoEndsAt.value = toLocalInput(data.promoEndsAt)
+}
+
+/** ISO del backend -> valor de <input type="datetime-local"> en hora local. */
+function toLocalInput(value?: string | null) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
 async function load() {
@@ -39,6 +60,11 @@ async function load() {
 
 async function save() {
   if (ivaRate.value < 0 || ivaRate.value > 100) { error('El IVA debe estar entre 0 y 100'); return }
+  if (promoPercent.value < 0 || promoPercent.value > 100) { error('El descuento de la promo debe estar entre 0 y 100'); return }
+  if (promoEnabled.value && Number(promoPercent.value) <= 0) { error('Escribe el porcentaje de la promo antes de activarla'); return }
+  if (promoStartsAt.value && promoEndsAt.value && new Date(promoStartsAt.value) > new Date(promoEndsAt.value)) {
+    error('La promo no puede terminar antes de empezar'); return
+  }
   try {
     saving.value = true
     hydrate((await SettingsService.update({
@@ -49,6 +75,11 @@ async function save() {
       pointsEarnDollars: Math.max(0.01, Number(pointsEarnDollars.value) || 1),
       pointsEarnAmount: Math.max(0, Number(pointsEarnAmount.value) || 0),
       pointsRedeemPerDollar: Math.max(1, Number(pointsRedeemPerDollar.value) || 100),
+      promoEnabled: promoEnabled.value,
+      promoPercent: Math.min(100, Math.max(0, Number(promoPercent.value) || 0)),
+      promoLabel: promoLabel.value.trim(),
+      promoStartsAt: promoStartsAt.value ? new Date(promoStartsAt.value).toISOString() : null,
+      promoEndsAt: promoEndsAt.value ? new Date(promoEndsAt.value).toISOString() : null,
     })).data)
     success('Configuración guardada')
   } catch { error('No se pudo guardar la configuración') }
@@ -189,6 +220,64 @@ onMounted(load)
         </small>
       </article>
 
+      <article class="panel iva-card promo-card">
+        <header>
+          <div class="icon"><i class="fa-solid fa-tag" /></div>
+          <div><p>Promociones</p><h2>Descuento global del catálogo</h2></div>
+          <span class="promo-card__status" :class="{ on: promoEnabled && promoPercent > 0 }">
+            <i class="fa-solid" :class="promoEnabled && promoPercent > 0 ? 'fa-circle-check' : 'fa-circle-pause'" />
+            {{ promoEnabled && promoPercent > 0 ? `Activa · ${promoPercent}%` : 'Sin promo activa' }}
+          </span>
+        </header>
+
+        <p class="iva-card__lead">
+          Aplica un <strong>{{ promoPercent || 0 }}% de descuento a todos los productos</strong> de la tienda,
+          web y WhatsApp. <strong>El envío nunca se descuenta.</strong> El cliente ve el precio tachado en el
+          catálogo y el descuento como una línea en el carrito, el checkout y su correo.
+        </p>
+
+        <div class="iva-card__fields">
+          <label>
+            <span>Descuento (%)</span>
+            <input v-model.number="promoPercent" type="number" min="0" max="100" step="1" :disabled="loading || saving" />
+          </label>
+          <label>
+            <span>Texto que ve el cliente</span>
+            <input v-model="promoLabel" type="text" maxlength="120" placeholder="20% de descuento en todo" :disabled="loading || saving" />
+          </label>
+        </div>
+
+        <div class="iva-card__fields">
+          <label>
+            <span>Empieza (opcional)</span>
+            <input v-model="promoStartsAt" type="datetime-local" :disabled="loading || saving" />
+          </label>
+          <label>
+            <span>Termina (opcional)</span>
+            <input v-model="promoEndsAt" type="datetime-local" :disabled="loading || saving" />
+          </label>
+        </div>
+
+        <label class="iva-card__toggle" :class="{ active: promoEnabled }">
+          <input v-model="promoEnabled" type="checkbox" :disabled="loading || saving" />
+          <span>
+            <strong>Promoción activa</strong>
+            <small>Sin fechas, corre hasta que la desactives. Con fechas, se enciende y apaga sola.</small>
+          </span>
+        </label>
+
+        <div class="iva-card__actions">
+          <button type="button" class="primary" :disabled="loading || saving" @click="save">
+            <i class="fa-solid fa-floppy-disk" /> {{ saving ? 'GUARDANDO...' : 'GUARDAR' }}
+          </button>
+        </div>
+        <small class="iva-card__hint">
+          El descuento se calcula sobre el subtotal de productos al crear el pedido y queda guardado en la
+          orden: cambiar la promo después no altera los pedidos ya hechos. Los puntos se ganan sobre el
+          monto ya rebajado.
+        </small>
+      </article>
+
       <section class="settings-grid">
         <article class="panel picker-card">
           <header><div class="icon"><i class="fa-solid fa-truck-fast" /></div><div><p>Modelo activo</p><h2>Delivery gestionado por Picker</h2></div><span class="status"><i class="fa-solid fa-circle-check" /> Activo</span></header>
@@ -215,6 +304,21 @@ onMounted(load)
 </template>
 
 <style scoped lang="scss">
+.promo-card__status {
+  align-items: center;
+  background: rgba(8, 17, 13, 0.06);
+  border-radius: 999px;
+  color: rgba(8, 17, 13, 0.6);
+  display: inline-flex;
+  font-size: 0.7rem;
+  font-weight: 900;
+  gap: 0.4rem;
+  margin-left: auto;
+  padding: 0.4rem 0.7rem;
+  text-transform: uppercase;
+}
+.promo-card__status.on { background: rgba(165, 35, 35, 0.12); color: #a52323; }
+
 .settings { display:flex; flex-direction:column; gap:1rem; padding:clamp(.75rem,2vw,1.5rem); }
 .hero { align-items:flex-start; background:linear-gradient(135deg,#173e22,#235931); color:#fff; display:flex; flex-direction:column; gap:1rem; justify-content:space-between; padding:1.25rem; }
 .hero p,.next p { color:#efd537; font-size:.7rem; font-weight:900; letter-spacing:.12em; text-transform:uppercase; }.hero h1 { font-size:clamp(1.7rem,4vw,2.5rem); margin:.35rem 0; }.hero > div > span { color:rgba(255,255,255,.75); }
