@@ -5,6 +5,7 @@ import StoreHeader from '@/components/store/StoreHeader.vue'
 import StoreFooter from '@/components/store/StoreFooter.vue'
 import { useCartStore } from '@/stores/cart'
 import { useConfirm } from '@/composables/useConfirm'
+import { useSettingsStore } from '@/stores/settings'
 
 const cart = useCartStore()
 const { confirm } = useConfirm()
@@ -13,6 +14,11 @@ cart.hydrate()
 const loadedImages = ref(new Set<string>())
 const hasItems = computed(() => cart.items.length > 0)
 const itemLabel = computed(() => `${cart.count} ${cart.count === 1 ? 'producto' : 'productos'}`)
+// Promo global: descuenta el subtotal de productos, nunca el envío.
+const settings = useSettingsStore()
+const promo = computed(() => settings.promo)
+const promoDiscount = computed(() => settings.promoDiscountOn(cart.subtotal))
+const cartTotal = computed(() => Math.max(0, cart.subtotal - promoDiscount.value))
 
 function markImageLoaded(productId: string) {
   loadedImages.value = new Set(loadedImages.value).add(productId)
@@ -148,6 +154,10 @@ async function confirmRemove(itemName: string, productId: string) {
           <div class="cart-summary__lines">
             <div><span>Productos</span><strong>{{ itemLabel }}</strong></div>
             <div><span>Subtotal</span><strong>${{ cart.subtotal.toFixed(2) }}</strong></div>
+            <div v-if="promoDiscount > 0" class="cart-summary__promo">
+              <span><i class="fa-solid fa-tag" /> {{ promo.label || `Promo ${promo.percent}%` }}</span>
+              <strong>-${{ promoDiscount.toFixed(2) }}</strong>
+            </div>
           </div>
 
           <div class="cart-summary__delivery">
@@ -157,7 +167,7 @@ async function confirmRemove(itemName: string, productId: string) {
 
           <div class="cart-summary__total">
             <span>Total provisional</span>
-            <strong>${{ cart.subtotal.toFixed(2) }}</strong>
+            <strong>${{ cartTotal.toFixed(2) }}</strong>
           </div>
 
           <RouterLink class="cart-summary__cta" to="/checkout">
@@ -671,6 +681,9 @@ async function confirmRemove(itemName: string, productId: string) {
 }
 
 .cart-summary__lines > div,
+.cart-summary__promo span { color: #a52323; }
+.cart-summary__promo strong { color: #a52323; }
+
 .cart-summary__total {
   align-items: center;
   display: flex;
