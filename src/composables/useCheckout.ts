@@ -1,5 +1,6 @@
 import { computed, ref, watch } from 'vue'
 import { useCartStore } from '@/stores/cart'
+import { useSettingsStore } from '@/stores/settings'
 import { useBranchStore } from '@/stores/branch'
 import BranchService, { type BranchDTO } from '@/services/BranchService'
 import DeliveryService from '@/services/DeliveryService'
@@ -56,7 +57,7 @@ export function useCheckout() {
   const manualMapsLink = ref('')
   const manualLat = ref(0)
   const manualLng = ref(0)
-  const { error, warning, info } = useToast()
+  const { error, warning } = useToast()
   const displayLat = computed(() => locationDetected.value ? detectedLat.value : manualLat.value)
   const displayLng = computed(() => locationDetected.value ? detectedLng.value : manualLng.value)
 
@@ -76,7 +77,13 @@ export function useCheckout() {
     { code: '+1', label: 'US (+1)' },
   ]
 
-  const total = computed(() => cart.subtotal + (deliveryType.value === 'delivery' ? deliveryCost.value : 0))
+  // Promo global: descuenta SOLO el subtotal de productos, nunca el envío (regla del negocio).
+  // El backend recalcula lo mismo al crear la orden; esto es lo que ve el cliente.
+  const settingsStore = useSettingsStore()
+  const promo = computed(() => settingsStore.promo)
+  const promoDiscount = computed(() => settingsStore.promoDiscountOn(cart.subtotal))
+  const total = computed(() =>
+    Math.max(0, cart.subtotal - promoDiscount.value) + (deliveryType.value === 'delivery' ? deliveryCost.value : 0))
 
   // ─── Programar pedido ───────────────────────────────────────────────────────
   // Los horarios salen de openingHours de la sucursal, no de un rango fijo: cada
@@ -166,23 +173,10 @@ export function useCheckout() {
     if (!slots.includes(scheduledTime.value)) scheduledTime.value = slots[0] || ''
   }
 
-  /** Un toque desde el aviso de "sucursal cerrada": activa Programar con la próxima apertura. */
-  // Regla de negocio: las reservas (pedidos programados) solo se pagan con tarjeta.
-  // Cubre el switch de Programar, el auto-programado por sucursal cerrada y cualquier
-  // intento de volver a efectivo con la programación activa. El backend la exige igual.
-  watch(scheduleOrder, (enabled) => {
-    if (enabled && paymentMethod.value === 'cash') {
-      paymentMethod.value = 'card'
-      info('Los pedidos programados se pagan con tarjeta para confirmar la reserva. Cambiamos tu método de pago.')
-    }
-  })
-  watch(paymentMethod, (method) => {
-    if (method === 'cash' && scheduleOrder.value) {
-      paymentMethod.value = 'card'
-      warning('Los pedidos programados se pagan con tarjeta. Para pagar en efectivo, pide «Lo antes posible».')
-    }
-  })
+  // Los pedidos programados aceptan efectivo además de tarjeta: se cobra al entregar o
+  // al retirar, igual que un pedido inmediato. (Restricción levantada a pedido del cliente.)
 
+  /** Un toque desde el aviso de "sucursal cerrada": activa Programar con la próxima apertura. */
   function scheduleForNextOpening() {
     const info = branchClosedInfo.value
     if (!info) return
@@ -467,6 +461,7 @@ export function useCheckout() {
       pointsEarnDollars.value = response.data.pointsEarnDollars || 1
       pointsEarnAmount.value = response.data.pointsEarnAmount ?? 1
       pointsRedeemPerDollar.value = response.data.pointsRedeemPerDollar || 100
+      if (response.data.activePromo) settingsStore.promo = response.data.activePromo
     })
     .catch(() => undefined)
 
@@ -474,7 +469,8 @@ export function useCheckout() {
   /** Estimado con la tarifa global (los extras por producto los suma el backend). */
   const pointsToEarn = computed(() => {
     if (!pointsEnabled.value) return 0
-    return Math.floor(cart.subtotal / Math.max(0.01, pointsEarnDollars.value)) * Math.max(0, pointsEarnAmount.value)
+    const payable = Math.max(0, cart.subtotal - promoDiscount.value)
+    return Math.floor(payable / Math.max(0.01, pointsEarnDollars.value)) * Math.max(0, pointsEarnAmount.value)
   })
 
   /** Descuento aplicable ahora: el saldo, con tope de total - $1 (PayPhone no cobra menos de $1). */
@@ -542,7 +538,7 @@ export function useCheckout() {
     deliveryCost, deliveryDistance, mapsError, locating, resolvingLink, locationDetected,
     detectedLat, detectedLng, manualMapsLink, displayLat, displayLng,
     showBilling, billingDocType, billingName, billingDocNumber, billingEmail, billingAddress,
-    total, effectiveBranchId, isFormValid,
+    total, promo, promoDiscount, effectiveBranchId, isFormValid,
     ivaRate, pricesIncludeIva, payphoneAmounts,
     payphoneToken, payphoneStoreId,
     onPayPhoneReady, closePayment, toggleDeliveryType,
