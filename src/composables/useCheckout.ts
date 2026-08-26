@@ -60,6 +60,8 @@ export function useCheckout() {
   const { error, warning } = useToast()
   const displayLat = computed(() => locationDetected.value ? detectedLat.value : manualLat.value)
   const displayLng = computed(() => locationDetected.value ? detectedLng.value : manualLng.value)
+  // Un enlace pegado no basta: sin lat/lng reales no hay sucursal cercana ni costo de envio.
+  const hasDeliveryCoords = computed(() => Boolean(displayLat.value && displayLng.value))
 
   const showBilling = ref(false)
   const billingDocType = ref<'cedula' | 'ruc'>('cedula')
@@ -231,7 +233,7 @@ export function useCheckout() {
     const scheduleOk = !scheduleOrder.value || isScheduleValid.value
     if (deliveryType.value === 'delivery') {
       const hasAddress = deliveryAddress.value.trim().length > 0
-      const hasLocation = deliveryGoogleMapsUrl.value.trim().length > 0 || locationDetected.value
+      const hasLocation = hasDeliveryCoords.value
       return hasItems && hasName && hasEmail && hasAddress && hasLocation && !mapsError.value && scheduleOk && billingValid.value
     }
     return hasItems && hasName && hasEmail && effectiveBranchId.value !== null && scheduleOk && billingValid.value
@@ -296,27 +298,39 @@ export function useCheckout() {
         match = ['', String(res.data.lat), String(res.data.lng)]
       } catch {
         mapsError.value = 'No pudimos leer ese enlace. Abre Google Maps, mantén presionado tu punto exacto y comparte el enlace desde ahí.'
+        manualLat.value = 0; manualLng.value = 0; deliveryGoogleMapsUrl.value = ''
         deliveryCost.value = 0; deliveryDistance.value = 0
         resolvingLink.value = false
         return
       }
       resolvingLink.value = false
     }
-    manualLat.value = Number(match[1]); manualLng.value = Number(match[2])
+    const lat = Number(match[1]); const lng = Number(match[2])
+    if (!lat || !lng) {
+      mapsError.value = 'Ese enlace no trae la ubicación exacta. Abre Google Maps, mantén presionado tu punto y elige "Compartir".'
+      manualLat.value = 0; manualLng.value = 0
+      deliveryGoogleMapsUrl.value = ''; deliveryCost.value = 0; deliveryDistance.value = 0
+      return
+    }
+    manualLat.value = lat; manualLng.value = lng
     // Solo se marca "Ubicación agregada" cuando ya hay coordenadas reales.
-    deliveryGoogleMapsUrl.value = url
+    // Se guarda el link canonico con lat/lng (no el corto): el backend lo parsea para
+    // ubicar la entrega y para la reserva de Picker.
+    deliveryGoogleMapsUrl.value = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
     try {
       await callPreCheckout(manualLat.value, manualLng.value)
       mapsError.value = ''
     } catch {
       branch.value = null
       mapsError.value = 'No pudimos calcular el costo de envío. Verifica que el enlace tenga coordenadas válidas.'
+      manualLat.value = 0; manualLng.value = 0
       deliveryCost.value = 0; deliveryDistance.value = 0
     }
   }
 
   function clearLocation() {
     locationDetected.value = false; detectedLat.value = 0; detectedLng.value = 0
+    manualLat.value = 0; manualLng.value = 0
     deliveryGoogleMapsUrl.value = ''; manualMapsLink.value = ''
     deliveryCost.value = 0; deliveryDistance.value = 0; mapsError.value = ''
     branch.value = null
@@ -380,6 +394,10 @@ export function useCheckout() {
 
   function getDeliveryCoords(): { lat?: number; lng?: number } {
     if (locationDetected.value && detectedLat.value && detectedLng.value) return { lat: detectedLat.value, lng: detectedLng.value }
+    // Los links cortos los resuelve el backend: esas coordenadas viven en manualLat/manualLng
+    // y son las unicas que existen para ese caso. Sin esto la orden viajaba sin ubicacion,
+    // el backend caia en la sucursal seleccionada por defecto y el envio quedaba en $0.
+    if (manualLat.value && manualLng.value) return { lat: manualLat.value, lng: manualLng.value }
     const url = deliveryGoogleMapsUrl.value.trim()
     if (!url) return {}
     const match =
@@ -535,7 +553,7 @@ export function useCheckout() {
     branchClosedInfo, scheduleForNextOpening,
     pointsEnabled, pointsToEarn, pointsBalance, pointsBalanceLoading, useMyPoints, pointsDiscount, pointsRedeemPerDollar,
     loading, ready, branch, branchLoading, publicBranches,
-    deliveryCost, deliveryDistance, mapsError, locating, resolvingLink, locationDetected,
+    deliveryCost, deliveryDistance, mapsError, locating, resolvingLink, locationDetected, hasDeliveryCoords,
     detectedLat, detectedLng, manualMapsLink, displayLat, displayLng,
     showBilling, billingDocType, billingName, billingDocNumber, billingEmail, billingAddress,
     total, promo, promoDiscount, effectiveBranchId, isFormValid,
