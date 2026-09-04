@@ -30,6 +30,13 @@ export function useCheckout() {
   const scheduledTime = ref('')
   /** Se llena cuando el backend rechaza el pedido porque la sucursal está cerrada (409 BRANCH_CLOSED). */
   const branchClosedInfo = ref<null | { message: string; date: string; opensAt: string }>(null)
+  /**
+   * Se llena cuando la dirección cae fuera de las zonas de reparto. Es distinto de
+   * `mapsError` (que es "no pudimos leer el enlace"): acá el enlace se entendió
+   * perfecto, simplemente no llegamos hasta allá. Separarlos permite mostrarlo como
+   * un aviso grande con salida, y no como un texto de error más.
+   */
+  const outOfCoverage = ref('')
 
   // ─── Puntos ─────────────────────────────────────────────────────────────────
   const pointsEnabled = ref(true)
@@ -235,7 +242,9 @@ export function useCheckout() {
     if (deliveryType.value === 'delivery') {
       const hasAddress = deliveryAddress.value.trim().length > 0
       const hasLocation = hasDeliveryCoords.value
-      return hasItems && hasName && hasEmail && hasAddress && hasLocation && !mapsError.value && scheduleOk && billingValid.value
+      // Fuera de zona el botón de pagar queda apagado: dejarlo activo solo lleva al
+      // cliente a un rechazo del backend después de llenar todo el formulario.
+      return hasItems && hasName && hasEmail && hasAddress && hasLocation && !mapsError.value && !outOfCoverage.value && scheduleOk && billingValid.value
     }
     return hasItems && hasName && hasEmail && effectiveBranchId.value !== null && scheduleOk && billingValid.value
   })
@@ -244,7 +253,8 @@ export function useCheckout() {
   function closePayment() { order.value = null; ready.value = false }
   function toggleDeliveryType(type: 'delivery' | 'pickup') {
     deliveryType.value = type
-    if (type === 'pickup') detectBranch()
+    // Retiro en tienda no depende de la zona de reparto: el aviso deja de aplicar.
+    if (type === 'pickup') { outOfCoverage.value = ''; detectBranch() }
   }
 
   async function callPreCheckout(lat: number, lng: number) {
@@ -253,6 +263,7 @@ export function useCheckout() {
     branchStore.setSelectedBranch(branch.value?._id || null)
     deliveryDistance.value = res.data.distance
     deliveryCost.value = res.data.deliveryFee
+    outOfCoverage.value = ''
   }
 
   /**
@@ -263,14 +274,17 @@ export function useCheckout() {
   function preCheckoutErrorMessage(err: unknown): string {
     const raw = err as { data?: { code?: string; message?: string }; message?: string }
     if (raw?.data?.code === 'DELIVERY_OUT_OF_COVERAGE') {
-      return raw.data.message || 'Esa dirección queda fuera de nuestra zona de entrega.'
+      outOfCoverage.value =
+        raw.data.message || 'Todavía no llegamos a esa dirección con delivery.'
+      // El bloque grande ya lo explica; repetirlo abajo en rojo chico solo agrega ruido.
+      return ''
     }
     return 'No pudimos calcular el costo de envío con tu ubicación.'
   }
 
   async function detectLocation() {
     if (!navigator.geolocation) { mapsError.value = 'Tu navegador no soporta geolocalización'; return }
-    locating.value = true; mapsError.value = ''
+    locating.value = true; mapsError.value = ''; outOfCoverage.value = ''
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         detectedLat.value = position.coords.latitude
@@ -297,7 +311,7 @@ export function useCheckout() {
   async function useManualLink() {
     const url = manualMapsLink.value.trim()
     if (!url) return
-    mapsError.value = ''
+    mapsError.value = ''; outOfCoverage.value = ''
     let match =
       url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/) ||
       url.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/) ||
@@ -350,6 +364,7 @@ export function useCheckout() {
     manualLat.value = 0; manualLng.value = 0
     deliveryGoogleMapsUrl.value = ''; manualMapsLink.value = ''
     deliveryCost.value = 0; deliveryDistance.value = 0; mapsError.value = ''
+    outOfCoverage.value = ''
     branch.value = null
   }
 
@@ -483,8 +498,11 @@ export function useCheckout() {
       const raw = err as { data?: ErrorPayload; message?: string; response?: { data?: ErrorPayload } }
       const data = raw?.data ?? raw?.response?.data
       if (data?.code === 'DELIVERY_OUT_OF_COVERAGE') {
-        mapsError.value = data.message || 'Esa dirección queda fuera de nuestra zona de entrega.'
-        error(mapsError.value)
+        outOfCoverage.value = data.message || 'Todavía no llegamos a esa dirección con delivery.'
+        error('No llegamos hasta esa dirección 😕')
+        window.setTimeout(() => {
+          document.querySelector('.coverage')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        }, 150)
       } else if (data?.code === 'BRANCH_CLOSED') {
         branchClosedInfo.value = {
           message: data.message || 'La sucursal está cerrada en este momento.',
@@ -593,7 +611,7 @@ export function useCheckout() {
     notes, deliveryAddress, deliveryGoogleMapsUrl, deliveryType, paymentMethod, order,
     scheduleOrder, scheduledDate, scheduledTime, scheduleSlots, scheduleDays, availableScheduleDays,
     selectedScheduleDay, isScheduleValid, selectScheduleDay, toggleScheduleOrder,
-    branchClosedInfo, scheduleForNextOpening,
+    branchClosedInfo, scheduleForNextOpening, outOfCoverage,
     pointsEnabled, pointsToEarn, pointsBalance, pointsBalanceLoading, useMyPoints, pointsDiscount, pointsRedeemPerDollar,
     loading, ready, branch, branchLoading, publicBranches,
     deliveryCost, deliveryDistance, mapsError, locating, resolvingLink, locationDetected, hasDeliveryCoords,

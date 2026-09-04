@@ -14,6 +14,7 @@ import {
   CheckoutBranchPicker,
   CheckoutPoints,
   CheckoutClosedNotice,
+  CheckoutCoverageNotice,
   CheckoutPaymentModal,
   CheckoutSuccessModal,
 } from '@/components/checkout'
@@ -33,7 +34,7 @@ const {
   onPayPhoneReady, closePayment, toggleDeliveryType,
   detectLocation, useManualLink, clearLocation,
   detectBranch, reloadBranches, createOrder, selectBranch,
-  branchClosedInfo, scheduleForNextOpening,
+  branchClosedInfo, scheduleForNextOpening, outOfCoverage,
   pointsEnabled, pointsToEarn, pointsBalance, pointsBalanceLoading, useMyPoints, pointsDiscount,
 } = useCheckout()
 </script>
@@ -102,6 +103,12 @@ const {
                   @use-manual-link="useManualLink"
                   @clear-location="clearLocation"
                   @update:manual-maps-link="manualMapsLink = $event"
+                />
+
+                <CheckoutCoverageNotice
+                  v-if="outOfCoverage"
+                  :message="outOfCoverage"
+                  @switch-to-pickup="toggleDeliveryType('pickup')"
                 />
               </template>
 

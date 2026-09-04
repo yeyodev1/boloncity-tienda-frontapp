@@ -54,19 +54,31 @@ const cart = useCartStore()
       </div>
     </div>
 
-    <div v-if="deliveryCost > 0 && deliveryType === 'delivery'" class="checkout-summary__delivery">
+    <!--
+      La línea de envío se muestra SIEMPRE en delivery, aunque todavía no haya
+      precio. Antes desaparecía con costo 0: el cliente veía un total, agregaba la
+      ubicación, y el total cambiaba solo. Decir "falta tu ubicación" es lo que
+      evita la llamada al local preguntando por qué subió.
+    -->
+    <div v-if="deliveryType === 'delivery'" class="checkout-summary__delivery">
       <i class="fa-solid fa-motorcycle" />
       <div class="checkout-summary__delivery-copy">
         <strong>Envío</strong>
-        <span>{{ deliveryDistance }} km</span>
+        <span v-if="deliveryCost > 0">{{ deliveryDistance }} km hasta tu dirección</span>
+        <span v-else>Se calcula con tu ubicación</span>
       </div>
-      <strong class="checkout-summary__delivery-price">${{ deliveryCost.toFixed(2) }}</strong>
+      <strong v-if="deliveryCost > 0" class="checkout-summary__delivery-price">${{ deliveryCost.toFixed(2) }}</strong>
+      <span v-else class="checkout-summary__delivery-pending">Por calcular</span>
     </div>
 
     <div class="checkout-summary__total">
       <span>Total</span>
       <strong>${{ total.toFixed(2) }}</strong>
     </div>
+
+    <p v-if="deliveryType === 'delivery' && deliveryCost <= 0" class="checkout-summary__pending-note">
+      <i class="fa-solid fa-circle-info" /> Este total todavía no incluye el envío.
+    </p>
 
     <p v-if="pricesIncludeIva !== false" class="checkout-summary__iva">
       <i class="fa-solid fa-receipt" /> Precios con IVA {{ ivaRate ?? 15 }}% incluido
@@ -81,6 +93,26 @@ const cart = useCartStore()
 </template>
 
 <style scoped lang="scss">
+.checkout-summary__delivery-pending {
+  color: rgba(8, 17, 13, 0.45);
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.checkout-summary__pending-note {
+  align-items: flex-start;
+  color: rgba(8, 17, 13, 0.55);
+  display: flex;
+  font-size: 0.8rem;
+  gap: 0.4rem;
+  line-height: 1.5;
+
+  i {
+    margin-top: 0.15rem;
+  }
+}
+
 .checkout-summary__line--promo span,
 .checkout-summary__line--promo strong { color: #a52323; }
 

@@ -61,8 +61,23 @@ const emit = defineEmits<{
     </Transition>
 
     <small v-if="mapsError" class="checkout-field__maps-error"><i class="fa-solid fa-circle-exclamation" /> {{ mapsError }}</small>
+
+    <!--
+      El costo del envío deja de ser un texto gris al pie y pasa a ser una fila con
+      su precio a la derecha, con la distancia y la sucursal que lo justifican. Un
+      número que se puede leer de un vistazo es un número que no genera un reclamo.
+    -->
+    <div v-else-if="deliveryDistance > 0 && deliveryCost > 0" class="checkout-location__fee">
+      <i class="fa-solid fa-motorcycle" />
+      <div class="checkout-location__fee-copy">
+        <strong>Envío a tu dirección</strong>
+        <span>{{ deliveryDistance }} km desde {{ branchName || 'la sucursal más cercana' }}</span>
+      </div>
+      <strong class="checkout-location__fee-price">${{ deliveryCost.toFixed(2) }}</strong>
+    </div>
+
     <small v-else-if="deliveryDistance > 0" class="checkout-location__distance">
-      <i class="fa-solid fa-road" /> A {{ deliveryDistance }} km de la sucursal{{ branchName ? ' — ' + branchName : '' }}<span v-if="deliveryCost > 0"> · Envío: <strong>${{ deliveryCost.toFixed(2) }}</strong></span>
+      <i class="fa-solid fa-road" /> A {{ deliveryDistance }} km de la sucursal{{ branchName ? ' — ' + branchName : '' }}
     </small>
     <small v-else-if="deliveryGoogleMapsUrl" class="checkout-location__distance checkout-location__distance--pending">
       <i class="fa-solid fa-spinner fa-spin" /> Calculando distancia…
@@ -74,6 +89,49 @@ const emit = defineEmits<{
 </template>
 
 <style scoped lang="scss">
+.checkout-location__fee {
+  align-items: center;
+  background: #fff;
+  border: 1px solid rgba(35, 89, 49, 0.18);
+  border-radius: 14px;
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.75rem 0.9rem;
+
+  > i {
+    color: #235931;
+    font-size: 1.05rem;
+  }
+}
+
+.checkout-location__fee-copy {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+
+  strong {
+    font-size: 0.9rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+  }
+
+  span {
+    color: rgba(8, 17, 13, 0.55);
+    font-size: 0.78rem;
+    line-height: 1.4;
+  }
+}
+
+.checkout-location__fee-price {
+  color: #235931;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  white-space: nowrap;
+}
+
 .checkout-location {
   background: rgba(35, 89, 49, 0.03);
   border: 1px solid rgba(35, 89, 49, 0.08);
