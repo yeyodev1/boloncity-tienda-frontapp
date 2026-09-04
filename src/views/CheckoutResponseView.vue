@@ -5,6 +5,7 @@ import OrderService from '@/services/OrderService'
 import type { OrderDTO } from '@/services/OrderService'
 import { useToast } from '@/composables/useToast'
 import { useCartStore } from '@/stores/cart'
+import { trackMetaPurchase } from '@/services/metaPixel'
 import StoreHeader from '@/components/store/StoreHeader.vue'
 import StoreFooter from '@/components/store/StoreFooter.vue'
 
@@ -46,6 +47,9 @@ onMounted(async () => {
       return
     }
     phase.value = 'success'
+    // El backend reporta esta misma venta por Conversions API con el id
+    // `purchase-<orderNumber>`; Meta empareja las dos y cuenta una sola.
+    trackMetaPurchase(order.value)
     cart.clear()
     success('Pago confirmado')
   } catch (err: any) {

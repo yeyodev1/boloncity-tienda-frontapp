@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
+import { trackMetaEvent } from '@/services/metaPixel'
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -218,6 +219,13 @@ router.beforeEach((to, _from, next) => {
 
 router.afterEach((to) => {
   document.title = (to.meta?.title as string) || 'Boloncity'
+
+  // La tienda es una SPA: sin esto Meta solo vería la primera carga y todo el
+  // recorrido interno (catálogo, ficha, carrito) quedaría invisible.
+  // El admin no se mide: son empleados, no clientes, y ensucian las audiencias.
+  if (!to.path.startsWith('/admin')) {
+    trackMetaEvent('PageView')
+  }
 })
 
 export default router
