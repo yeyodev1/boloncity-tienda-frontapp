@@ -119,7 +119,7 @@ export function useOrdersBoard() {
   const startDate = ref(monthStart)
   const endDate = ref(todayValue)
   const activeDatePreset = ref('month')
-  const { success, error, info } = useToast()
+  const { success, error, info, warning } = useToast()
   const { playNewOrder, playStatus, playPickerUpdate } = useOrderSounds()
 
   async function load(silent = false) {
@@ -195,8 +195,13 @@ export function useOrdersBoard() {
     const previousOrders = [...orders.value]
     orders.value = orders.value.map((item) => item._id === order._id ? { ...item, status, updatedAt: new Date().toISOString() } : item)
     try {
-      await OrderService.updateStatus(order._id, status, note)
-      success('Estado actualizado')
+      const response = await OrderService.updateStatus(order._id, status, note)
+      // Cancelar el pedido cancela también el delivery. Si Picker no aceptó, el
+      // cajero tiene que enterarse ahora: un "Estado actualizado" a secas termina
+      // con el motorizado en la puerta del local.
+      const pickerWarning = response.data?.pickerCancelWarning
+      if (pickerWarning) warning(pickerWarning)
+      else success('Estado actualizado')
       playStatus(status)
       await load(true)
     } catch (err) {

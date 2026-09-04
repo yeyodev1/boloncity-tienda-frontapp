@@ -130,7 +130,9 @@ class OrderService extends APIBase {
   }
 
   updateStatus(id: string, status: string, note?: string) {
-    return this.put<OrderDTO>(`orders/${id}/status`, { status, note })
+    // `pickerCancelWarning` llega solo cuando se canceló el pedido pero Picker no
+    // aceptó cancelar el delivery: hay que mostrarlo o el motorizado llega igual.
+    return this.put<OrderDTO & { pickerCancelWarning?: string }>(`orders/${id}/status`, { status, note })
   }
 
   /** Reverso en PayPhone: siempre por el total, la API no admite montos parciales. */
