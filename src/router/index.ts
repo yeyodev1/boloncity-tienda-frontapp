@@ -12,7 +12,16 @@ const routes: Array<RouteRecordRaw> = [
     path: '/catalogo',
     name: 'Catalog',
     component: () => import('../views/CatalogView.vue'),
-    meta: { title: 'Catálogo | Boloncity' },
+    meta: { title: 'Catálogo | Boloncity', ownTitle: true },
+  },
+  {
+    // URL propia por categoría, para que una campaña pueda mandar el clic de un Reel
+    // directo a lo que el cliente acaba de ver en el video en vez de al menú completo.
+    // Misma vista que /catalogo: solo cambia con qué categoría abre.
+    path: '/catalogo/:categorySlug',
+    name: 'CatalogCategory',
+    component: () => import('../views/CatalogView.vue'),
+    meta: { title: 'Catálogo | Boloncity', ownTitle: true },
   },
   {
     path: '/producto/:slug',
@@ -218,7 +227,9 @@ router.beforeEach((to, _from, next) => {
 })
 
 router.afterEach((to) => {
-  document.title = (to.meta?.title as string) || 'Boloncity'
+  // `ownTitle` = la vista arma su propio título (el catálogo lo nombra según la
+  // categoría abierta). Sin esto, la navegación pisaba ese título con el genérico.
+  if (!to.meta?.ownTitle) document.title = (to.meta?.title as string) || 'Boloncity'
 
   // La tienda es una SPA: sin esto Meta solo vería la primera carga y todo el
   // recorrido interno (catálogo, ficha, carrito) quedaría invisible.
