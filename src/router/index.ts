@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { trackMetaEvent } from '@/services/metaPixel'
+import { pushGtmPageView } from '@/services/googleTagManager'
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -236,6 +237,7 @@ router.afterEach((to) => {
   // El admin no se mide: son empleados, no clientes, y ensucian las audiencias.
   if (!to.path.startsWith('/admin')) {
     trackMetaEvent('PageView')
+    pushGtmPageView(to.fullPath, document.title)
   }
 })
 

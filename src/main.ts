@@ -7,6 +7,7 @@ import { useCartStore } from './stores/cart'
 import { useBranchStore } from './stores/branch'
 import { useUserStore } from './stores/user'
 import { initMetaPixel } from './services/metaPixel'
+import { initGoogleTagManager } from './services/googleTagManager'
 
 // La tienda nueva NO es una PWA. Si el navegador arrastra un service worker viejo
 // (la PWA anterior), sirve datos cacheados y "rompe" cosas como el filtro por
@@ -21,6 +22,7 @@ if ('serviceWorker' in navigator) {
 // El pixel se carga antes de montar: así el primer PageView (que dispara el router)
 // ya encuentra fbq listo.
 initMetaPixel()
+initGoogleTagManager()
 
 const app = createApp(App)
 const pinia = createPinia()
