@@ -4,6 +4,7 @@ import { RouterLink } from 'vue-router'
 import type { ProductDTO } from '@/services/ProductService'
 import { useCartStore } from '@/stores/cart'
 import { useSettingsStore } from '@/stores/settings'
+import { trackMetaEvent } from '@/services/metaPixel'
 
 const props = defineProps<{ product: ProductDTO | null }>()
 const emit = defineEmits<{ (event: 'close'): void }>()
@@ -39,6 +40,17 @@ async function addToCart() {
     quantity: quantity.value,
     image: props.product.images[0]?.url,
   })
+  trackMetaEvent('AddToCart', {
+    customData: {
+      currency: 'USD',
+      value: props.product.price * quantity.value,
+      content_type: 'product',
+      content_ids: [props.product._id],
+      content_name: props.product.name,
+      num_items: quantity.value,
+      contents: [{ id: props.product._id, quantity: quantity.value, item_price: props.product.price }],
+    },
+  })
   addedQuantity.value = quantity.value
   addedTotal.value = total.value
   added.value = true
@@ -52,6 +64,19 @@ function onKeydown(event: KeyboardEvent) {
 watch(
   () => props.product,
   (product) => {
+    // Abrir la vista rápida es ver el producto: cuenta igual que entrar a su ficha.
+    if (product) {
+      trackMetaEvent('ViewContent', {
+        customData: {
+          currency: 'USD',
+          value: product.price,
+          content_type: 'product',
+          content_ids: [product._id],
+          content_name: product.name,
+          content_category: product.categories?.[0]?.name,
+        },
+      })
+    }
     quantity.value = 1
     imageLoaded.value = false
     added.value = false

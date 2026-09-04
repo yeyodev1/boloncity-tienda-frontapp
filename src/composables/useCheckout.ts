@@ -1,4 +1,4 @@
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useCartStore } from '@/stores/cart'
 import { useSettingsStore } from '@/stores/settings'
 import { useBranchStore } from '@/stores/branch'
@@ -7,6 +7,7 @@ import DeliveryService from '@/services/DeliveryService'
 import OrderService, { type OrderDTO } from '@/services/OrderService'
 import SettingsService from '@/services/SettingsService'
 import { useToast } from '@/composables/useToast'
+import { trackMetaEvent, trackMetaPurchase } from '@/services/metaPixel'
 
 export function useCheckout() {
   const cart = useCartStore()
@@ -364,6 +365,23 @@ export function useCheckout() {
   // Al entrar al checkout, precarga las sucursales (sobre todo para "Retiro").
   void reloadBranches()
 
+  // Llegar al checkout con carrito es la intención de compra que mide Meta. Se
+  // dispara una sola vez al montar: recalcularlo en cada cambio del carrito
+  // inflaría el evento y arruinaría la tasa de conversión del anuncio.
+  onMounted(() => {
+    if (cart.items.length === 0) return
+    trackMetaEvent('InitiateCheckout', {
+      customData: {
+        currency: 'USD',
+        value: Math.max(0, cart.subtotal - promoDiscount.value),
+        content_type: 'product',
+        num_items: cart.count,
+        content_ids: cart.items.map((item) => item.productId),
+        contents: cart.items.map((item) => ({ id: item.productId, quantity: item.quantity, item_price: item.price })),
+      },
+    })
+  })
+
   async function detectBranch() {
     branchLoading.value = true
     try {
@@ -434,7 +452,13 @@ export function useCheckout() {
       })
       order.value = response.data
       branchClosedInfo.value = null
-      if (paymentMethod.value === 'cash') cart.clear()
+      // En efectivo no hay retorno de PayPhone donde medir la venta: el pedido
+      // creado ES la compra. En tarjeta el Purchase sale en CheckoutResponseView,
+      // recién cuando el pago se aprueba.
+      if (paymentMethod.value === 'cash') {
+        trackMetaPurchase(response.data)
+        cart.clear()
+      }
     } catch (err) {
       // httpBase no relanza el error de axios: lanza { status, message, data }.
       // Leer err.response.data aqui dejaba data en undefined, el BRANCH_CLOSED

@@ -10,6 +10,7 @@ import ProductService, { type PaginatedProductsDTO, type ProductDTO } from '@/se
 import CategoryService, { type CategoryDTO } from '@/services/CategoryService'
 import { useCartStore } from '@/stores/cart'
 import { useSettingsStore } from '@/stores/settings'
+import { trackMetaEvent } from '@/services/metaPixel'
 
 const route = useRoute()
 const cart = useCartStore()
@@ -110,6 +111,16 @@ async function loadProduct() {
       CategoryService.getAll(),
     ])
     product.value = productResponse.data
+    trackMetaEvent('ViewContent', {
+      customData: {
+        currency: 'USD',
+        value: product.value.price,
+        content_type: 'product',
+        content_ids: [product.value._id],
+        content_name: product.value.name,
+        content_category: product.value.categories?.[0]?.name,
+      },
+    })
     await loadRecommendations(categoriesResponse.data)
   } finally {
     loading.value = false
@@ -127,6 +138,19 @@ async function addToCart() {
     price: product.value.price,
     quantity: quantity.value,
     image: product.value.images[0]?.url,
+  })
+  // Se reporta el precio de catálogo, igual que lo guarda el carrito: la promo se
+  // descuenta del subtotal más adelante y recién ahí cambia el valor real.
+  trackMetaEvent('AddToCart', {
+    customData: {
+      currency: 'USD',
+      value: product.value.price * quantity.value,
+      content_type: 'product',
+      content_ids: [product.value._id],
+      content_name: product.value.name,
+      num_items: quantity.value,
+      contents: [{ id: product.value._id, quantity: quantity.value, item_price: product.value.price }],
+    },
   })
   adding.value = false
   await nextTick()
