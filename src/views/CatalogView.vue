@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import StoreHeader from '@/components/store/StoreHeader.vue'
 import StoreFooter from '@/components/store/StoreFooter.vue'
 import SkeletonLoader from '@/components/global/SkeletonLoader.vue'
@@ -14,9 +15,14 @@ import { useSettingsStore } from '@/stores/settings'
 const settings = useSettingsStore()
 const promo = computed(() => settings.promo)
 
+const route = useRoute()
+const router = useRouter()
+
 const products = ref<ProductDTO[]>([])
 const categories = ref<CategoryDTO[]>([])
-const selectedCategory = ref('')
+// La categoría vive en la URL (/catalogo/tigrillos-clasicos) para que una campaña
+// pueda linkear directo a ella y el cliente no tenga que buscarla en el menú.
+const selectedCategory = ref(String(route.params.categorySlug || ''))
 const searchTerm = ref('')
 const loading = ref(true)
 const currentPage = ref(1)
@@ -83,10 +89,40 @@ async function loadData() {
   categories.value = categoriesResponse.data
 }
 
-watch(selectedCategory, () => {
+/** Cambiar de categoría cambia la URL: así el link se puede copiar y compartir. */
+function syncCategoryToUrl(slug: string) {
+  const target = slug ? { name: 'CatalogCategory', params: { categorySlug: slug } } : { name: 'Catalog' }
+  // `replace` y no `push`: pasear por las pestañas no debe llenar el historial de
+  // pasos que el botón "atrás" tenga que deshacer uno por uno.
+  if (route.params.categorySlug !== slug) router.replace(target)
+}
+
+watch(selectedCategory, (slug) => {
   currentPage.value = 1
+  syncCategoryToUrl(slug)
   loadProducts()
 })
+
+// El otro sentido: atrás/adelante del navegador, o un link pegado estando ya en el
+// catálogo, tienen que mover la pestaña seleccionada.
+watch(
+  () => route.params.categorySlug,
+  (slug) => {
+    const next = String(slug || '')
+    if (next !== selectedCategory.value) selectedCategory.value = next
+  },
+)
+
+// El título es lo que se ve al compartir el link por WhatsApp, que es por donde
+// llega la mayoría de estas campañas.
+watch(
+  [selectedCategory, categories],
+  () => {
+    const name = categories.value.find((category) => category.slug === selectedCategory.value)?.name
+    document.title = name ? `${name} | Boloncity` : 'Catálogo | Boloncity'
+  },
+  { immediate: true },
+)
 
 watch(searchTerm, () => {
   latestRequest += 1

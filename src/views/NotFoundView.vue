@@ -1,9 +1,45 @@
 <script setup lang="ts">
-import { RouterLink } from 'vue-router'
+import { onMounted, ref } from 'vue'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
+import CategoryService from '@/services/CategoryService'
+
+const route = useRoute()
+const router = useRouter()
+// Arranca en true para no mostrarle un 404 de medio segundo a quien sí llegó bien.
+const checkingCategory = ref(true)
+
+/**
+ * Atajo de una sola palabra: boloncity.com/congelados abre esa categoría.
+ *
+ * Las campañas piden links cortos, pero no se pueden declarar como rutas porque
+ * chocarían con /carrito, /checkout y cualquier ruta futura. Se resuelve acá, que
+ * es el único punto donde ya se sabe que ninguna ruta real coincidió: si la
+ * palabra es una categoría existente, se redirige; si no, es un 404 de verdad.
+ */
+onMounted(async () => {
+  const path = String(route.path || '').replace(/^\/+|\/+$/g, '')
+  if (!path || path.includes('/')) {
+    checkingCategory.value = false
+    return
+  }
+
+  try {
+    const response = await CategoryService.getAll()
+    const match = response.data.find((category) => category.slug === path.toLowerCase())
+    if (match) {
+      await router.replace({ name: 'CatalogCategory', params: { categorySlug: match.slug } })
+      return
+    }
+  } catch {
+    // Sin categorías que consultar, se muestra el 404 normal.
+  }
+
+  checkingCategory.value = false
+})
 </script>
 
 <template>
-  <section class="page page--center notfound-page">
+  <section v-if="!checkingCategory" class="page page--center notfound-page">
     <div class="panel notfound-card">
       <p class="notfound-card__eyebrow">Error</p>
       <p class="notfound-card__code">404</p>

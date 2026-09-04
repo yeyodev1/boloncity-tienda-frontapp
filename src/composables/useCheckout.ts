@@ -255,6 +255,19 @@ export function useCheckout() {
     deliveryCost.value = res.data.deliveryFee
   }
 
+  /**
+   * Un punto fuera de las zonas de reparto no es un error técnico: es un "no
+   * llegamos hasta allá". Decirlo con esas palabras evita que el cliente reintente
+   * diez veces creyendo que la página falló.
+   */
+  function preCheckoutErrorMessage(err: unknown): string {
+    const raw = err as { data?: { code?: string; message?: string }; message?: string }
+    if (raw?.data?.code === 'DELIVERY_OUT_OF_COVERAGE') {
+      return raw.data.message || 'Esa dirección queda fuera de nuestra zona de entrega.'
+    }
+    return 'No pudimos calcular el costo de envío con tu ubicación.'
+  }
+
   async function detectLocation() {
     if (!navigator.geolocation) { mapsError.value = 'Tu navegador no soporta geolocalización'; return }
     locating.value = true; mapsError.value = ''
@@ -266,9 +279,9 @@ export function useCheckout() {
         deliveryGoogleMapsUrl.value = `https://www.google.com/maps/search/?api=1&query=${position.coords.latitude},${position.coords.longitude}`
         try {
           await callPreCheckout(detectedLat.value, detectedLng.value)
-        } catch {
+        } catch (err) {
           branch.value = null
-          mapsError.value = 'No pudimos calcular el costo de envío con tu ubicación.'
+          mapsError.value = preCheckoutErrorMessage(err)
         }
         locating.value = false
       },
@@ -321,9 +334,12 @@ export function useCheckout() {
     try {
       await callPreCheckout(manualLat.value, manualLng.value)
       mapsError.value = ''
-    } catch {
+    } catch (err) {
       branch.value = null
-      mapsError.value = 'No pudimos calcular el costo de envío. Verifica que el enlace tenga coordenadas válidas.'
+      mapsError.value =
+        (err as { data?: { code?: string } })?.data?.code === 'DELIVERY_OUT_OF_COVERAGE'
+          ? preCheckoutErrorMessage(err)
+          : 'No pudimos calcular el costo de envío. Verifica que el enlace tenga coordenadas válidas.'
       manualLat.value = 0; manualLng.value = 0
       deliveryCost.value = 0; deliveryDistance.value = 0
     }
@@ -466,7 +482,10 @@ export function useCheckout() {
       type ErrorPayload = { code?: string; message?: string; availability?: { nextOpening?: { date?: string; opensAt?: string } } }
       const raw = err as { data?: ErrorPayload; message?: string; response?: { data?: ErrorPayload } }
       const data = raw?.data ?? raw?.response?.data
-      if (data?.code === 'BRANCH_CLOSED') {
+      if (data?.code === 'DELIVERY_OUT_OF_COVERAGE') {
+        mapsError.value = data.message || 'Esa dirección queda fuera de nuestra zona de entrega.'
+        error(mapsError.value)
+      } else if (data?.code === 'BRANCH_CLOSED') {
         branchClosedInfo.value = {
           message: data.message || 'La sucursal está cerrada en este momento.',
           date: data.availability?.nextOpening?.date || '',
