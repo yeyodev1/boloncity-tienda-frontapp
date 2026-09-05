@@ -220,7 +220,8 @@ onBeforeUnmount(destroy)
   -->
   <Teleport to="body">
     <Transition name="mp-fade" appear>
-      <div v-if="open" class="mp" role="dialog" aria-modal="true" aria-label="Elegir ubicación de entrega">
+      <div v-if="open" class="mp" role="dialog" aria-modal="true" aria-label="Elegir ubicación de entrega" @click.self="emit('close')">
+       <div class="mp__card">
         <header class="mp__head">
           <button class="mp__back" type="button" aria-label="Cerrar" @click="emit('close')">
             <i class="fa-solid fa-arrow-left" />
@@ -280,6 +281,7 @@ onBeforeUnmount(destroy)
             {{ outOfRange ? 'Elige otro punto' : 'Confirmar esta ubicación' }}
           </button>
         </footer>
+       </div>
       </div>
     </Transition>
   </Teleport>
@@ -287,15 +289,37 @@ onBeforeUnmount(destroy)
 
 <style scoped lang="scss">
 .mp {
+  align-items: center;
+  // El fondo oscuro deja ver el checkout detrás: el mapa es un paso dentro del
+  // pedido, no otra pantalla. A pantalla completa se sentía como haberse ido.
+  background: rgba(8, 17, 13, 0.55);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: clamp(0.75rem, 4vh, 2.5rem) 1rem;
+  position: fixed;
+  // Por encima de la cinta de entorno (9999), que quedaba justo sobre el botón de
+  // confirmar. Los demás modales de la app ya viven por encima de ella.
+  z-index: 10000;
+}
+
+.mp__card {
   background: #fff;
+  border-radius: 26px;
+  box-shadow: 0 30px 80px rgba(8, 17, 13, 0.4);
   display: flex;
   flex-direction: column;
-  inset: 0;
-  position: fixed;
-  // Por encima de la cinta de entorno (9999): es una hoja a pantalla completa y la
-  // cinta, anclada abajo al centro, quedaba justo sobre «Confirmar esta ubicación».
-  // Los demás modales de la app ya viven por encima de ella.
-  z-index: 10000;
+  max-height: 100%;
+  max-width: 540px;
+  overflow: hidden;
+  width: 100%;
+}
+
+// En el teléfono la tarjeta ocupa todo: recortar un mapa en una pantalla chica
+// deja una ventanita por la que no se puede buscar nada.
+@media (max-width: 560px) {
+  .mp { padding: 0; }
+  .mp__card { border-radius: 0; max-height: none; max-width: none; height: 100%; }
 }
 
 .mp__head {
@@ -330,7 +354,10 @@ onBeforeUnmount(destroy)
   span { font-size: 0.76rem; line-height: 1.3; opacity: 0.85; }
 }
 
-.mp__mapwrap { flex: 1; min-height: 0; position: relative; }
+// El mapa cede alto antes que el pie: con un mínimo alto empujaba «Confirmar esta
+// ubicación» fuera de la pantalla en ventanas bajas. Un mapa algo más chico se
+// sigue pudiendo mover; un botón que no está no se puede tocar.
+.mp__mapwrap { flex: 1 1 auto; min-height: 190px; position: relative; }
 .mp__map { inset: 0; position: absolute; }
 
 .mp__pin {
@@ -454,4 +481,9 @@ onBeforeUnmount(destroy)
 .mp-fade-leave-active { transition: opacity 0.22s ease; }
 .mp-fade-enter-from,
 .mp-fade-leave-to { opacity: 0; }
+
+.mp-fade-enter-active .mp__card,
+.mp-fade-leave-active .mp__card { transition: transform 0.28s cubic-bezier(0.34, 1.3, 0.64, 1); }
+.mp-fade-enter-from .mp__card,
+.mp-fade-leave-to .mp__card { transform: translateY(18px) scale(0.98); }
 </style>

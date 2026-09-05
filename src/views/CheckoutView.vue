@@ -16,6 +16,7 @@ import {
   CheckoutClosedNotice,
   CheckoutCoverageNotice,
   CheckoutMapPicker,
+  CheckoutSection,
   CheckoutPaymentModal,
   CheckoutSuccessModal,
 } from '@/components/checkout'
@@ -26,14 +27,14 @@ const {
   notes, deliveryAddress, deliveryGoogleMapsUrl, deliveryType, paymentMethod, order, promo, promoDiscount,
   scheduleOrder, scheduledDate, scheduledTime, scheduleSlots, scheduleDays, selectScheduleDay, toggleScheduleOrder,
   loading, ready, branch, branchLoading, publicBranches,
-  deliveryCost, deliveryDistance, mapsError, locating, resolvingLink, locationDetected,
-  manualMapsLink, displayLat, displayLng,
+  deliveryCost, deliveryDistance, mapsError, locating, locationDetected,
+  displayLat, displayLng,
   showBilling, billingDocType, billingName, billingDocNumber, billingEmail, billingAddress,
   total, isFormValid,
   ivaRate, pricesIncludeIva, payphoneAmounts,
   payphoneToken, payphoneStoreId,
   onPayPhoneReady, closePayment, toggleDeliveryType,
-  detectLocation, useManualLink, clearLocation,
+  detectLocation, clearLocation,
   detectBranch, reloadBranches, createOrder, selectBranch,
   branchClosedInfo, scheduleForNextOpening, outOfCoverage,
   mapPickerOpen, confirmMapLocation,
@@ -51,42 +52,13 @@ const {
       <Transition name="page-fade" mode="out-in">
         <section v-if="!order" key="form" class="checkout-layout">
           <form class="panel checkout-form" @submit.prevent="createOrder">
-            <CheckoutDeliveryType :delivery-type="deliveryType" @update:delivery-type="toggleDeliveryType" />
-
-            <div class="checkout-form__grid">
-              <div class="checkout-form__row">
-                <label class="checkout-field checkout-field--half">
-                  <span class="checkout-field__label"><i class="fa-solid fa-user" /> Nombre</span>
-                  <input class="checkout-field__input" v-model.trim="customerFirstName" placeholder="Tu nombre" autocomplete="given-name" />
-                </label>
-                <label class="checkout-field checkout-field--half">
-                  <span class="checkout-field__label"><i class="fa-solid fa-user" /> Apellido</span>
-                  <input class="checkout-field__input" v-model.trim="customerLastName" placeholder="Tu apellido" autocomplete="family-name" />
-                </label>
-              </div>
-
-              <label class="checkout-field">
-                <span class="checkout-field__label"><i class="fa-solid fa-envelope" /> Email <em>*</em></span>
-                <input class="checkout-field__input" v-model.trim="customerEmail" type="email" placeholder="tu@email.com" autocomplete="email" />
-              </label>
-
-              <div class="checkout-form__row">
-                <div class="checkout-field checkout-field--code">
-                  <span class="checkout-field__label"><i class="fa-solid fa-globe" /> País</span>
-                  <select class="checkout-field__input checkout-field__select" v-model="phoneCountryCode">
-                    <option v-for="c in countries" :key="c.code" :value="c.code">{{ c.label }}</option>
-                  </select>
-                </div>
-                <label class="checkout-field checkout-field--phone">
-                  <span class="checkout-field__label"><i class="fa-solid fa-phone" /> Teléfono</span>
-                  <input class="checkout-field__input" v-model.trim="customerPhone" type="tel" placeholder="Número" autocomplete="tel" />
-                </label>
-              </div>
+            <CheckoutSection :step="1" title="¿Cómo lo recibes?" hint="Elige entrega a domicilio o retiro en el local." icon="fa-motorcycle">
+              <CheckoutDeliveryType :delivery-type="deliveryType" @update:delivery-type="toggleDeliveryType" />
 
               <template v-if="deliveryType === 'delivery'">
-                <label class="checkout-field">
-                  <span class="checkout-field__label"><i class="fa-solid fa-location-dot" /> Dirección de entrega <em>*</em></span>
-                  <input class="checkout-field__input" v-model.trim="deliveryAddress" placeholder="Calle, número, referencia" />
+                <label class="ck-field">
+                  <span class="ck-field__label">Dirección de entrega <em>*</em></span>
+                  <input class="ck-field__input" v-model.trim="deliveryAddress" placeholder="Calle, número, referencia" />
                 </label>
 
                 <CheckoutLocation
@@ -95,17 +67,13 @@ const {
                   :delivery-cost="deliveryCost"
                   :maps-error="mapsError"
                   :locating="locating"
-                  :resolving="resolvingLink"
                   :location-detected="locationDetected"
-                  :manual-maps-link="manualMapsLink"
                   :branch-name="branch?.name || ''"
                   :display-lat="displayLat"
                   :display-lng="displayLng"
                   @open-map="mapPickerOpen = true"
                   @detect-location="detectLocation"
-                  @use-manual-link="useManualLink"
                   @clear-location="clearLocation"
-                  @update:manual-maps-link="manualMapsLink = $event"
                 />
 
                 <CheckoutCoverageNotice
@@ -113,15 +81,52 @@ const {
                   :message="outOfCoverage"
                   @switch-to-pickup="toggleDeliveryType('pickup')"
                 />
-
-                <CheckoutMapPicker
-                  :open="mapPickerOpen"
-                  :initial="displayLat && displayLng ? { lat: displayLat, lng: displayLng } : null"
-                  @close="mapPickerOpen = false"
-                  @confirm="confirmMapLocation"
-                />
               </template>
 
+              <CheckoutBranchPicker
+                v-else
+                :loading="branchLoading"
+                :branches="publicBranches"
+                :selected-branch-id="branchStore.selectedBranchId"
+                :branch-name="branch?.name"
+                @detect="detectBranch"
+                @reload="reloadBranches"
+                @select="selectBranch"
+              />
+            </CheckoutSection>
+
+            <CheckoutSection :step="2" title="¿Quién lo recibe?" hint="Te enviamos la confirmación y el seguimiento por correo." icon="fa-user">
+              <div class="ck-row">
+                <label class="ck-field ck-field--half">
+                  <span class="ck-field__label">Nombre</span>
+                  <input class="ck-field__input" v-model.trim="customerFirstName" placeholder="Tu nombre" autocomplete="given-name" />
+                </label>
+                <label class="ck-field ck-field--half">
+                  <span class="ck-field__label">Apellido</span>
+                  <input class="ck-field__input" v-model.trim="customerLastName" placeholder="Tu apellido" autocomplete="family-name" />
+                </label>
+              </div>
+
+              <label class="ck-field">
+                <span class="ck-field__label">Email <em>*</em></span>
+                <input class="ck-field__input" v-model.trim="customerEmail" type="email" placeholder="tu@email.com" autocomplete="email" />
+              </label>
+
+              <div class="ck-row">
+                <div class="ck-field ck-field--code">
+                  <span class="ck-field__label">País</span>
+                  <select class="ck-field__input ck-field__select" v-model="phoneCountryCode">
+                    <option v-for="c in countries" :key="c.code" :value="c.code">{{ c.label }}</option>
+                  </select>
+                </div>
+                <label class="ck-field ck-field--phone">
+                  <span class="ck-field__label">Teléfono</span>
+                  <input class="ck-field__input" v-model.trim="customerPhone" type="tel" placeholder="Número" autocomplete="tel" />
+                </label>
+              </div>
+            </CheckoutSection>
+
+            <CheckoutSection :step="3" title="¿Cuándo y cómo pagas?" hint="Ambas formas de pago son seguras." icon="fa-credit-card">
               <CheckoutPaymentMethod v-model="paymentMethod" :schedule-enabled="scheduleOrder" :delivery-type="deliveryType" />
 
               <CheckoutSchedule
@@ -135,10 +140,16 @@ const {
                 @select-day="selectScheduleDay"
                 @update:selected-time="scheduledTime = $event"
               />
+            </CheckoutSection>
 
-              <label class="checkout-field">
-                <span class="checkout-field__label"><i class="fa-solid fa-pen" /> Notas</span>
-                <textarea class="checkout-field__input checkout-field__textarea" v-model.trim="notes" placeholder="Indicaciones opcionales para tu pedido"></textarea>
+            <!--
+              Notas y facturación son opcionales y las usa una minoría: van al final
+              y sin número, para que no parezcan un paso más que hay que completar.
+            -->
+            <section class="ck-extras">
+              <label class="ck-field">
+                <span class="ck-field__label">Notas para tu pedido <small>(opcional)</small></span>
+                <textarea class="ck-field__input ck-field__textarea" v-model.trim="notes" placeholder="Ej.: casa de reja verde, tocar el timbre"></textarea>
               </label>
 
               <CheckoutBilling
@@ -155,18 +166,7 @@ const {
                 @update:billing-email="billingEmail = $event"
                 @update:billing-address="billingAddress = $event"
               />
-            </div>
-
-            <CheckoutBranchPicker
-              v-if="deliveryType === 'pickup'"
-              :loading="branchLoading"
-              :branches="publicBranches"
-              :selected-branch-id="branchStore.selectedBranchId"
-              :branch-name="branch?.name"
-              @detect="detectBranch"
-              @reload="reloadBranches"
-              @select="selectBranch"
-            />
+            </section>
 
             <CheckoutPoints
               v-if="pointsEnabled && (pointsToEarn > 0 || pointsBalance || pointsBalanceLoading)"
@@ -182,6 +182,13 @@ const {
               :info="branchClosedInfo"
               :already-scheduled="scheduleOrder && Boolean(scheduledDate) && Boolean(scheduledTime)"
               @schedule="scheduleForNextOpening"
+            />
+
+            <CheckoutMapPicker
+              :open="mapPickerOpen"
+              :initial="displayLat && displayLng ? { lat: displayLat, lng: displayLng } : null"
+              @close="mapPickerOpen = false"
+              @confirm="confirmMapLocation"
             />
 
             <button class="btn-primary checkout-form__submit" type="submit" :disabled="loading || !isFormValid">
@@ -252,69 +259,87 @@ const {
 }
 
 .checkout-form {
-  background: rgba(255, 255, 255, 0.94);
-  border: 1px solid rgba(35, 89, 49, 0.08);
-  border-radius: 28px;
-  box-shadow: 0 24px 60px rgba(28, 22, 12, 0.08);
+  // El formulario deja de ser una tarjeta gigante con tarjetas adentro: ahora es
+  // solo la columna que ordena los pasos. La caja la pone cada paso.
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
-  padding: clamp(1rem, 3vw, 1.5rem);
+  gap: 1rem;
 }
 
-.checkout-form__grid { display: flex; flex-direction: column; gap: 0.85rem; }
-.checkout-form__row { display: flex; gap: 0.75rem; }
+.ck-row { display: flex; gap: 0.7rem; }
 
-.checkout-field {
-  background: #fff;
-  border: 1px solid rgba(8, 17, 13, 0.1);
-  border-radius: 22px;
-  box-shadow: 0 10px 24px rgba(8, 17, 13, 0.04);
+.ck-field {
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
+  gap: 0.35rem;
   min-width: 0;
-  padding: 1rem 1.05rem 1.1rem;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
-.checkout-field:focus-within { border-color: rgba(35, 89, 49, 0.35); box-shadow: 0 18px 40px rgba(35, 89, 49, 0.12); transform: translateY(-2px); }
-.checkout-field--half { flex: 1 1 0; }
-.checkout-field--code { flex: 0 0 140px; }
-.checkout-field--phone { flex: 1 1 0; }
+.ck-field--half { flex: 1 1 0; }
+.ck-field--code { flex: 0 0 128px; }
+.ck-field--phone { flex: 1 1 0; }
 
-.checkout-field__label {
-  align-items: center;
+.ck-field__label {
   color: rgba(8, 17, 13, 0.62);
-  display: flex;
-  font-size: 0.78rem;
-  font-weight: 900;
-  gap: 0.45rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  font-size: 0.82rem;
+  font-weight: 700;
+  // Se van las mayúsculas y el interletrado ancho: catorce etiquetas gritando a la
+  // vez no jerarquizan nada, solo cansan.
+  letter-spacing: 0;
+  text-transform: none;
+
+  em { color: #a02828; font-style: normal; }
+  small { color: rgba(8, 17, 13, 0.4); font-weight: 500; }
 }
 
-.checkout-field__label i { color: #235931; font-size: 0.72rem; opacity: 0.8; }
-.checkout-field__label em { color: #a02828; font-style: normal; }
-
-.checkout-field__input {
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
+.ck-field__input {
+  background: #fff;
+  border: 1px solid rgba(8, 17, 13, 0.14);
+  border-radius: 14px;
   color: #08110d;
-  min-height: 34px;
-  padding: 0;
+  font-size: 0.95rem;
+  min-height: 48px;
+  padding: 0.7rem 0.9rem;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  width: 100%;
 }
 
-.checkout-field__input:focus { box-shadow: none; }
-.checkout-field__select { appearance: none; cursor: pointer; padding-right: 1.2rem; }
-.checkout-field__textarea { min-height: 100px; resize: vertical; }
+.ck-field__input::placeholder { color: rgba(8, 17, 13, 0.34); }
 
-.checkout-form__submit { align-items: center; box-shadow: 0 18px 34px rgba(35, 89, 49, 0.18); display: flex; font-size: 1.05rem; gap: 0.5rem; justify-content: center; min-height: 56px; }
+.ck-field__input:focus {
+  border-color: #235931;
+  box-shadow: 0 0 0 3px rgba(35, 89, 49, 0.12);
+  outline: none;
+}
+
+.ck-field__select { appearance: none; cursor: pointer; }
+.ck-field__textarea { min-height: 88px; resize: vertical; }
+
+.ck-extras {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.checkout-form__submit {
+  align-items: center;
+  box-shadow: 0 14px 30px rgba(35, 89, 49, 0.22);
+  display: flex;
+  font-size: 1.02rem;
+  gap: 0.5rem;
+  justify-content: center;
+  min-height: 58px;
+  // Es la acción que cierra todo: se queda a la vista mientras se llena el resto.
+  position: sticky;
+  bottom: 1rem;
+  z-index: 5;
+}
 
 @media (min-width: 980px) {
   .checkout-layout { align-items: start; flex-direction: row; }
   .checkout-form { flex: 1 1 0; }
+  // El resumen acompaña el scroll: el total es lo que la gente vuelve a mirar
+  // mientras llena el formulario.
+  .checkout-form__submit { position: static; }
 }
 </style>

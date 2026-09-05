@@ -5,9 +5,8 @@ defineProps<{ total: number }>()
 <template>
   <section class="checkout-hero">
     <div class="checkout-hero__copy">
-      <p class="checkout-hero__eyebrow"><i class="fa-solid fa-credit-card" /> Checkout</p>
       <h1>Finalizar <span>pedido.</span></h1>
-      <p>Recibirás tus credenciales por email y el número de pedido para seguir tu compra.</p>
+      <p>Tres pasos y listo. Te enviamos la confirmación y el seguimiento por correo.</p>
     </div>
     <div class="checkout-hero__actions">
       <div class="checkout-hero__status">
@@ -23,14 +22,14 @@ defineProps<{ total: number }>()
   background:
     radial-gradient(circle at 92% 8%, rgba(239, 213, 55, 0.2), transparent 24%),
     linear-gradient(135deg, #235931, #102719 72%);
-  border-radius: 28px;
+  border-radius: 22px;
   box-shadow: 0 26px 60px rgba(35, 89, 49, 0.2);
   color: #fff;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1rem;
   overflow: hidden;
-  padding: clamp(1.4rem, 5vw, 3rem);
+  padding: clamp(1.1rem, 3vw, 1.6rem) clamp(1.2rem, 4vw, 2rem);
   position: relative;
   margin: 0 1.25rem;
 }
@@ -49,7 +48,7 @@ defineProps<{ total: number }>()
 }
 
 .checkout-hero h1 {
-  font-size: clamp(2.5rem, 7vw, 5.5rem);
+  font-size: clamp(1.7rem, 4vw, 2.6rem);
   font-weight: 900;
   letter-spacing: -0.065em;
   line-height: 0.88;
