@@ -7,8 +7,11 @@ defineProps<{ scheduleEnabled?: boolean; deliveryType?: 'delivery' | 'pickup' }>
 
 <template>
   <div class="checkout-payment-method">
-    <span class="checkout-payment-method__label"><i class="fa-solid fa-credit-card" /> Método de pago</span>
-    <p class="checkout-payment-method__intro">Elige cómo prefieres pagar. Ambas opciones son seguras.</p>
+    <!--
+      Sin título ni bajada propios: vive dentro del paso «¿Cuándo y cómo pagas?»,
+      que ya los dice. Repetirlos era una tarjeta con encabezado dentro de otra
+      tarjeta con encabezado.
+    -->
     <div class="checkout-payment-method__options">
       <label class="checkout-payment-method__option" :class="{ active: model === 'card' }">
         <input v-model="model" type="radio" value="card" />

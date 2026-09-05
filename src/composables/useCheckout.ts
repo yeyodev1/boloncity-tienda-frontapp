@@ -61,11 +61,9 @@ export function useCheckout() {
   const deliveryDistance = ref(0)
   const mapsError = ref('')
   const locating = ref(false)
-  const resolvingLink = ref(false)
   const locationDetected = ref(false)
   const detectedLat = ref(0)
   const detectedLng = ref(0)
-  const manualMapsLink = ref('')
   const manualLat = ref(0)
   const manualLng = ref(0)
   const { error, warning } = useToast()
@@ -311,57 +309,6 @@ export function useCheckout() {
     )
   }
 
-  async function useManualLink() {
-    const url = manualMapsLink.value.trim()
-    if (!url) return
-    mapsError.value = ''; outOfCoverage.value = ''
-    let match =
-      url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/) ||
-      url.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/) ||
-      url.match(/[?&]ll=(-?\d+\.\d+),(-?\d+\.\d+)/) ||
-      url.match(/[?&]query=(-?\d+\.\d+),(-?\d+\.\d+)/)
-    // Los links cortos (maps.app.goo.gl) no traen coordenadas: los resuelve el backend
-    // siguiendo el redirect (el navegador no puede por CORS).
-    if (!match) {
-      resolvingLink.value = true
-      try {
-        const res = await DeliveryService.resolveMaps(url, deliveryAddress.value)
-        match = ['', String(res.data.lat), String(res.data.lng)]
-      } catch {
-        mapsError.value = 'No pudimos leer ese enlace. Abre Google Maps, mantén presionado tu punto exacto y comparte el enlace desde ahí.'
-        manualLat.value = 0; manualLng.value = 0; deliveryGoogleMapsUrl.value = ''
-        deliveryCost.value = 0; deliveryDistance.value = 0
-        resolvingLink.value = false
-        return
-      }
-      resolvingLink.value = false
-    }
-    const lat = Number(match[1]); const lng = Number(match[2])
-    if (!lat || !lng) {
-      mapsError.value = 'Ese enlace no trae la ubicación exacta. Abre Google Maps, mantén presionado tu punto y elige "Compartir".'
-      manualLat.value = 0; manualLng.value = 0
-      deliveryGoogleMapsUrl.value = ''; deliveryCost.value = 0; deliveryDistance.value = 0
-      return
-    }
-    manualLat.value = lat; manualLng.value = lng
-    // Solo se marca "Ubicación agregada" cuando ya hay coordenadas reales.
-    // Se guarda el link canonico con lat/lng (no el corto): el backend lo parsea para
-    // ubicar la entrega y para la reserva de Picker.
-    deliveryGoogleMapsUrl.value = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
-    try {
-      await callPreCheckout(manualLat.value, manualLng.value)
-      mapsError.value = ''
-    } catch (err) {
-      branch.value = null
-      mapsError.value =
-        (err as { data?: { code?: string } })?.data?.code === 'DELIVERY_OUT_OF_COVERAGE'
-          ? preCheckoutErrorMessage(err)
-          : 'No pudimos calcular el costo de envío. Verifica que el enlace tenga coordenadas válidas.'
-      manualLat.value = 0; manualLng.value = 0
-      deliveryCost.value = 0; deliveryDistance.value = 0
-    }
-  }
-
   /**
    * Punto elegido en el mapa.
    *
@@ -390,7 +337,7 @@ export function useCheckout() {
   function clearLocation() {
     locationDetected.value = false; detectedLat.value = 0; detectedLng.value = 0
     manualLat.value = 0; manualLng.value = 0
-    deliveryGoogleMapsUrl.value = ''; manualMapsLink.value = ''
+    deliveryGoogleMapsUrl.value = ''
     deliveryCost.value = 0; deliveryDistance.value = 0; mapsError.value = ''
     outOfCoverage.value = ''
     mapPickerOpen.value = false
@@ -644,14 +591,14 @@ export function useCheckout() {
     mapPickerOpen, confirmMapLocation,
     pointsEnabled, pointsToEarn, pointsBalance, pointsBalanceLoading, useMyPoints, pointsDiscount, pointsRedeemPerDollar,
     loading, ready, branch, branchLoading, publicBranches,
-    deliveryCost, deliveryDistance, mapsError, locating, resolvingLink, locationDetected, hasDeliveryCoords,
-    detectedLat, detectedLng, manualMapsLink, displayLat, displayLng,
+    deliveryCost, deliveryDistance, mapsError, locating, locationDetected, hasDeliveryCoords,
+    detectedLat, detectedLng, displayLat, displayLng,
     showBilling, billingDocType, billingName, billingDocNumber, billingEmail, billingAddress,
     total, promo, promoDiscount, effectiveBranchId, isFormValid,
     ivaRate, pricesIncludeIva, payphoneAmounts,
     payphoneToken, payphoneStoreId,
     onPayPhoneReady, closePayment, toggleDeliveryType,
-    detectLocation, useManualLink, clearLocation,
+    detectLocation, clearLocation,
     detectBranch, reloadBranches, createOrder, selectBranch,
   }
 }
