@@ -15,6 +15,8 @@ const props = defineProps<{
   order: OrderDTO
   status: OrderStatus
   driverLoading?: boolean
+  /** Solo administración general cancela; el backend lo vuelve a validar. */
+  canCancel?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -23,6 +25,7 @@ const emit = defineEmits<{
   (event: 'note', order: OrderDTO): void
   (event: 'driver', order: OrderDTO): void
   (event: 'print', order: OrderDTO): void
+  (event: 'cancel', order: OrderDTO): void
 }>()
 
 const isDelivery = computed(() => props.order.deliveryType === 'delivery')
@@ -38,6 +41,10 @@ const advanceLabel = computed(() =>
     ? 'Entregado al cliente'
     : `Mover a ${nextStatusLabel.value}`)
 const picker = computed(() => props.order.picker)
+// Un pedido ya cancelado o ya entregado no se cancela: el botón no tiene por qué
+// estar ahí ofreciendo algo que el backend va a rechazar.
+const showCancel = computed(() =>
+  props.canCancel && !['cancelled', 'delivered'].includes(props.order.status))
 // El bloque de delivery solo se muestra cuando ya existe una reserva de Picker real.
 // Los programados no la tienen hasta pasar a "Listas para recolección".
 const hasPickerBooking = computed(() => Boolean(picker.value?.bookingId))
@@ -124,6 +131,16 @@ function auditTime(timestamp: string) { return new Date(timestamp).toLocaleTimeS
       <span v-else-if="nextStatus && payment.tone === 'danger'" class="order-card__blocked">
         <i class="fa-solid fa-lock" /> No se puede preparar: sin pago
       </span>
+
+      <!--
+        Cancelar tenía que hacerse arrastrando la tarjeta hasta la columna
+        «Canceladas», que no es algo que se adivine. Ahora es un botón con nombre.
+        Va aparte y en rojo abajo del todo: la acción que no se deshace no comparte
+        fila con «Nota» ni «Ticket».
+      -->
+      <button v-if="showCancel" type="button" class="order-card__cancel" @click.stop="emit('cancel', order)">
+        <i class="fa-solid fa-ban" /> Cancelar orden
+      </button>
     </div>
   </article>
 </template>
@@ -317,6 +334,20 @@ function auditTime(timestamp: string) { return new Date(timestamp).toLocaleTimeS
 .order-card__delivery--live { background: linear-gradient(135deg, rgba(35,89,49,.13), rgba(239,213,55,.13)); }.order-card__delivery-head { display:flex; flex-direction:column; gap:.18rem; }.order-card__delivery-head span { color:#235931; font-size:.66rem; font-weight:900; letter-spacing:.09em; text-transform:uppercase; }.order-card__delivery-head strong { font-size:.82rem; }.order-card__driver { align-items:center; display:flex; gap:.55rem; }.order-card__driver-avatar { align-items:center; background:#235931; border-radius:50%; color:#fff; display:flex; flex:0 0 34px; height:34px; justify-content:center; overflow:hidden; width:34px; }.order-card__driver-avatar img { height:100%; object-fit:cover; width:100%; }.order-card__driver > div { display:flex; flex:1; flex-direction:column; min-width:0; }.order-card__driver strong { font-size:.8rem; }.order-card__driver small,.order-card__delivery > small { color:rgba(24,33,27,.62); font-size:.7rem; }.order-card__driver a { align-items:center; background:#235931; border-radius:50%; color:#fff; display:flex; flex:0 0 34px; height:34px; justify-content:center; text-decoration:none; width:34px; }.order-card__delivery-meta { align-items:center; display:flex; flex-wrap:wrap; gap:.4rem; }.order-card__delivery-meta span,.order-card__delivery-meta a { background:#fff; border-radius:999px; color:#235931; font-size:.69rem; font-weight:800; padding:.3rem .45rem; text-decoration:none; }.order-card__delivery > small { line-height:1.35; }
 .order-card__actions .driver-action { background:#efd537; color:#18211b; flex:1 1 100%; }
 .order-card__actions .order-card__finish { background:#00a523; }
+
+.order-card__actions .order-card__cancel {
+  background: transparent;
+  border: 1px solid rgba(165, 35, 35, 0.35);
+  color: #a52323;
+  flex: 1 1 100%;
+  font-weight: 800;
+}
+
+.order-card__actions .order-card__cancel:hover {
+  background: #a52323;
+  border-color: #a52323;
+  color: #fff;
+}
 .order-card__drag-handle:hover { background:rgba(35,89,49,.1); color:#235931; }.order-card__drag-handle:active { cursor:grabbing; }
 .order-card__audit { background:#fff; border-top:1px solid rgba(8,17,13,.08); display:flex; flex-direction:column; gap:.45rem; padding:.75rem 1rem; }.order-card__audit > p { color:#235931; font-size:.66rem; font-weight:900; letter-spacing:.08em; margin:0; text-transform:uppercase; }.order-card__audit > div { align-items:baseline; display:flex; flex-wrap:wrap; gap:.35rem; padding-left:.7rem; position:relative; }.order-card__audit > div > span { background:#235931; border-radius:50%; height:5px; left:0; position:absolute; top:.35rem; width:5px; }.order-card__audit strong { font-size:.72rem; }.order-card__audit small { color:rgba(24,33,27,.58); flex:1 1 100%; font-size:.68rem; line-height:1.35; }
 

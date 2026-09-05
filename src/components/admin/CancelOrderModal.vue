@@ -12,6 +12,9 @@ const reasons = ['Cliente pidió cancelar', 'Producto sin stock', 'Error al toma
 const canConfirm = computed(() => reason.value.trim().length >= 3)
 // Una cancelación NO reversa el cobro: el dinero se devuelve aparte desde el detalle.
 const cardCharged = computed(() => Boolean(props.order?.paymentMethod === 'card' && props.order?.payphone?.transactionId))
+// Con reserva de Picker viva, cancelar acá también la cancela allá. Decirlo antes
+// es lo que evita la duda de «¿tengo que entrar al panel de Picker además?».
+const hasPickerBooking = computed(() => Boolean(props.order?.picker?.bookingId))
 watch(() => props.order?._id, () => { reason.value = '' })
 
 // Cancelar es irreversible para el cliente (recibe correo): se confirma manteniendo
@@ -64,6 +67,13 @@ onBeforeUnmount(() => cancelAnimationFrame(frame))
           <p>
             El pedido de <b>{{ order.customerName || order.customerEmail }}</b> pasará a
             <b>Cancelada</b> y el cliente recibirá el aviso por correo.
+          </p>
+
+          <p v-if="hasPickerBooking" class="cancel-modal__picker">
+            <i class="fa-solid fa-motorcycle" />
+            <span>También se <b>cancela el delivery en Picker</b>, así que el motorizado deja de
+              buscarse y no llega al local. Si Picker no acepta, te avisamos acá mismo para que
+              lo canceles desde su panel.</span>
           </p>
 
           <p v-if="cardCharged" class="cancel-modal__warning">
@@ -175,6 +185,21 @@ onBeforeUnmount(() => cancelAnimationFrame(frame))
 
 .cancel-modal__hold.holding { background: #8a1d1d; }
 .cancel-modal__hold.disabled { background: rgba(8, 17, 13, 0.25); cursor: not-allowed; }
+
+.cancel-modal__picker {
+  align-items: flex-start;
+  background: rgba(35, 89, 49, 0.07);
+  border-radius: 12px;
+  color: #1b3f26;
+  display: flex;
+  font-size: 0.84rem;
+  gap: 0.5rem;
+  line-height: 1.5;
+  padding: 0.7rem 0.85rem;
+  text-align: left;
+
+  i { margin-top: 0.2rem; }
+}
 
 .cancel-modal__warning {
   align-items: flex-start;

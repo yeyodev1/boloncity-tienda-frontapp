@@ -14,6 +14,7 @@ const props = defineProps<{
   status: OrderStatus
   orders: OrderDTO[]
   driverLoadingId?: string
+  canCancel?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -23,6 +24,7 @@ const emit = defineEmits<{
   (event: 'drop', orderId: string, status: OrderStatus): void
   (event: 'driver', order: OrderDTO): void
   (event: 'print', order: OrderDTO): void
+  (event: 'cancel', order: OrderDTO): void
 }>()
 
 function onAdd(event: { item?: HTMLElement }) {
@@ -68,11 +70,13 @@ function emitAdvance(order: OrderDTO, status: OrderStatus) {
         :order="order"
         :status="status"
         :driver-loading="driverLoadingId === order._id"
+        :can-cancel="canCancel"
         @open="emit('open', $event)"
         @advance="emitAdvance"
         @note="emit('note', $event)"
         @driver="emit('driver', $event)"
         @print="emit('print', $event)"
+        @cancel="emit('cancel', $event)"
       />
     </VueDraggable>
   </section>

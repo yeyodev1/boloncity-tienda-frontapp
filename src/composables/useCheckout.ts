@@ -38,6 +38,9 @@ export function useCheckout() {
    */
   const outOfCoverage = ref('')
 
+  /** Modal del mapa: elegir el punto arrastrando, en vez de pegar un link. */
+  const mapPickerOpen = ref(false)
+
   // ─── Puntos ─────────────────────────────────────────────────────────────────
   const pointsEnabled = ref(true)
   const pointsEarnDollars = ref(1)
@@ -359,12 +362,38 @@ export function useCheckout() {
     }
   }
 
+  /**
+   * Punto elegido en el mapa.
+   *
+   * Se guarda igual que un link pegado —coordenadas manuales + la URL canónica de
+   * Maps— porque el backend ya lee esa forma. Así el mapa es otra manera de llegar
+   * al mismo dato, y nada río abajo necesita enterarse de que hubo un mapa.
+   */
+  async function confirmMapLocation(coords: { lat: number; lng: number }) {
+    mapPickerOpen.value = false
+    locationDetected.value = false
+    manualLat.value = coords.lat
+    manualLng.value = coords.lng
+    deliveryGoogleMapsUrl.value = `https://www.google.com/maps/search/?api=1&query=${coords.lat},${coords.lng}`
+    mapsError.value = ''
+    try {
+      await callPreCheckout(coords.lat, coords.lng)
+    } catch (err) {
+      branch.value = null
+      mapsError.value = preCheckoutErrorMessage(err)
+      manualLat.value = 0; manualLng.value = 0
+      deliveryGoogleMapsUrl.value = ''
+      deliveryCost.value = 0; deliveryDistance.value = 0
+    }
+  }
+
   function clearLocation() {
     locationDetected.value = false; detectedLat.value = 0; detectedLng.value = 0
     manualLat.value = 0; manualLng.value = 0
     deliveryGoogleMapsUrl.value = ''; manualMapsLink.value = ''
     deliveryCost.value = 0; deliveryDistance.value = 0; mapsError.value = ''
     outOfCoverage.value = ''
+    mapPickerOpen.value = false
     branch.value = null
   }
 
@@ -612,6 +641,7 @@ export function useCheckout() {
     scheduleOrder, scheduledDate, scheduledTime, scheduleSlots, scheduleDays, availableScheduleDays,
     selectedScheduleDay, isScheduleValid, selectScheduleDay, toggleScheduleOrder,
     branchClosedInfo, scheduleForNextOpening, outOfCoverage,
+    mapPickerOpen, confirmMapLocation,
     pointsEnabled, pointsToEarn, pointsBalance, pointsBalanceLoading, useMyPoints, pointsDiscount, pointsRedeemPerDollar,
     loading, ready, branch, branchLoading, publicBranches,
     deliveryCost, deliveryDistance, mapsError, locating, resolvingLink, locationDetected, hasDeliveryCoords,

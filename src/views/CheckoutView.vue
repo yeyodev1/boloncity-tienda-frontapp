@@ -15,6 +15,7 @@ import {
   CheckoutPoints,
   CheckoutClosedNotice,
   CheckoutCoverageNotice,
+  CheckoutMapPicker,
   CheckoutPaymentModal,
   CheckoutSuccessModal,
 } from '@/components/checkout'
@@ -35,6 +36,7 @@ const {
   detectLocation, useManualLink, clearLocation,
   detectBranch, reloadBranches, createOrder, selectBranch,
   branchClosedInfo, scheduleForNextOpening, outOfCoverage,
+  mapPickerOpen, confirmMapLocation,
   pointsEnabled, pointsToEarn, pointsBalance, pointsBalanceLoading, useMyPoints, pointsDiscount,
 } = useCheckout()
 </script>
@@ -99,6 +101,7 @@ const {
                   :branch-name="branch?.name || ''"
                   :display-lat="displayLat"
                   :display-lng="displayLng"
+                  @open-map="mapPickerOpen = true"
                   @detect-location="detectLocation"
                   @use-manual-link="useManualLink"
                   @clear-location="clearLocation"
@@ -109,6 +112,13 @@ const {
                   v-if="outOfCoverage"
                   :message="outOfCoverage"
                   @switch-to-pickup="toggleDeliveryType('pickup')"
+                />
+
+                <CheckoutMapPicker
+                  :open="mapPickerOpen"
+                  :initial="displayLat && displayLng ? { lat: displayLat, lng: displayLng } : null"
+                  @close="mapPickerOpen = false"
+                  @confirm="confirmMapLocation"
                 />
               </template>
 

@@ -264,13 +264,13 @@ onUnmounted(() => {
           :key="status"
           :status="status"
            :orders="grouped[status]"
-           :driver-loading-id="driverLoadingId"
+           :driver-loading-id="driverLoadingId" :can-cancel="canCancel"
           @open="openDetail"
           @note="openNoteModal"
           @advance="handleAdvance"
            @drop="handleDrop"
            @driver="handleDriver"
-           @print="printOrderTicket"
+           @print="printOrderTicket" @cancel="requestCancel"
         />
       </div>
 
