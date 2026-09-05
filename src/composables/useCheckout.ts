@@ -59,6 +59,8 @@ export function useCheckout() {
   const publicBranches = ref<BranchDTO[]>([])
   const deliveryCost = ref(0)
   const deliveryDistance = ref(0)
+  /** Minutos hasta que el motorizado llega al LOCAL (dato de Picker). */
+  const driverEtaMinutes = ref<number | null>(null)
   const mapsError = ref('')
   const locating = ref(false)
   const locationDetected = ref(false)
@@ -299,6 +301,7 @@ export function useCheckout() {
     branchStore.setSelectedBranch(branch.value?._id || null)
     deliveryDistance.value = res.data.distance
     deliveryCost.value = res.data.deliveryFee
+    driverEtaMinutes.value = res.data.driverEtaMinutes ?? null
     outOfCoverage.value = ''
   }
 
@@ -626,7 +629,7 @@ export function useCheckout() {
     mapPickerOpen, confirmMapLocation,
     pointsEnabled, pointsToEarn, pointsBalance, pointsBalanceLoading, useMyPoints, pointsDiscount, pointsRedeemPerDollar,
     loading, ready, branch, branchLoading, publicBranches,
-    deliveryCost, deliveryDistance, mapsError, locating, locationDetected, hasDeliveryCoords,
+    deliveryCost, deliveryDistance, driverEtaMinutes, mapsError, locating, locationDetected, hasDeliveryCoords,
     detectedLat, detectedLng, displayLat, displayLng,
     showBilling, billingDocType, billingName, billingDocNumber, billingEmail, billingAddress,
     total, promo, promoDiscount, effectiveBranchId, isFormValid, missingFields, cardPaymentBroken,
