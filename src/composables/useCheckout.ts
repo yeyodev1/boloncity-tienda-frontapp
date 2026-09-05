@@ -235,20 +235,55 @@ export function useCheckout() {
     return billingName.value.trim().length > 0 && digits.length === expected
   })
 
-  const isFormValid = computed(() => {
-    const hasItems = cart.items.length > 0
-    const hasName = customerFirstName.value.trim().length > 0 && customerLastName.value.trim().length > 0
-    const hasEmail = customerEmail.value.trim().length > 0
-    const scheduleOk = !scheduleOrder.value || isScheduleValid.value
+  /**
+   * Qué falta para poder pagar, en palabras que el cliente entienda.
+   *
+   * El botón se apagaba y ya: nueve condiciones distintas lo desactivaban y
+   * ninguna se nombraba. El cliente llenaba todo, veía un botón gris y escribía
+   * al local — «no me sale algún botón para confirmar». Nombrar lo que falta es
+   * la diferencia entre una compra y un mensaje de WhatsApp.
+   */
+  const missingFields = computed<string[]>(() => {
+    const missing: string[] = []
+
+    if (cart.items.length === 0) missing.push('Agregar algo al carrito')
+    if (!customerFirstName.value.trim()) missing.push('Tu nombre')
+    if (!customerLastName.value.trim()) missing.push('Tu apellido')
+    if (!customerEmail.value.trim()) missing.push('Tu email')
+
     if (deliveryType.value === 'delivery') {
-      const hasAddress = deliveryAddress.value.trim().length > 0
-      const hasLocation = hasDeliveryCoords.value
-      // Fuera de zona el botón de pagar queda apagado: dejarlo activo solo lleva al
-      // cliente a un rechazo del backend después de llenar todo el formulario.
-      return hasItems && hasName && hasEmail && hasAddress && hasLocation && !mapsError.value && !outOfCoverage.value && scheduleOk && billingValid.value
+      if (!deliveryAddress.value.trim()) missing.push('La dirección de entrega')
+      if (!hasDeliveryCoords.value) missing.push('Marcar tu ubicación en el mapa')
+    } else if (effectiveBranchId.value === null) {
+      missing.push('La sucursal donde vas a retirar')
     }
-    return hasItems && hasName && hasEmail && effectiveBranchId.value !== null && scheduleOk && billingValid.value
+
+    if (scheduleOrder.value && !isScheduleValid.value) missing.push('El día y la hora de tu pedido programado')
+    if (!billingValid.value) missing.push('Completar los datos de facturación')
+
+    return missing
   })
+
+  /**
+   * Se deriva de `missingFields` a propósito: si fueran dos listas separadas
+   * podrían discrepar, y volveríamos al botón apagado que no explica nada.
+   *
+   * `mapsError` y `outOfCoverage` no entran en la lista porque ya tienen su
+   * propio aviso grande en pantalla; repetirlos sería decir lo mismo dos veces.
+   */
+  /**
+   * La cajita de PayPhone no puede abrir sin su token.
+   *
+   * Sin esta guardia el cliente tocaba «Pedir», el pedido SÍ se creaba, y no
+   * aparecía ninguna ventana de pago ni ningún error: quedaba una orden
+   * pendiente que nadie iba a pagar y un cliente escribiendo al local. Falla
+   * ruidosa y antes de crear nada.
+   */
+  const cardPaymentBroken = computed(() =>
+    paymentMethod.value === 'card' && !String(import.meta.env.VITE_PAYPHONE_TOKEN || '').trim())
+
+  const isFormValid = computed(() =>
+    missingFields.value.length === 0 && !mapsError.value && !outOfCoverage.value && !cardPaymentBroken.value)
 
   function onPayPhoneReady() { ready.value = true }
   function closePayment() { order.value = null; ready.value = false }
@@ -594,7 +629,7 @@ export function useCheckout() {
     deliveryCost, deliveryDistance, mapsError, locating, locationDetected, hasDeliveryCoords,
     detectedLat, detectedLng, displayLat, displayLng,
     showBilling, billingDocType, billingName, billingDocNumber, billingEmail, billingAddress,
-    total, promo, promoDiscount, effectiveBranchId, isFormValid,
+    total, promo, promoDiscount, effectiveBranchId, isFormValid, missingFields, cardPaymentBroken,
     ivaRate, pricesIncludeIva, payphoneAmounts,
     payphoneToken, payphoneStoreId,
     onPayPhoneReady, closePayment, toggleDeliveryType,
