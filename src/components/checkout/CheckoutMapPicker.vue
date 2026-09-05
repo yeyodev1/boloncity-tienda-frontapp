@@ -46,7 +46,7 @@ const locateError = ref('')
 const isMoving = ref(false)
 
 /** Respuesta del servidor para el pin actual: sucursal, distancia y envío. */
-const quote = ref<{ branchName: string; distance: number; fee: number } | null>(null)
+const quote = ref<{ branchName: string; distance: number; fee: number; eta: number | null } | null>(null)
 const outOfRange = ref('')
 const isQuoting = ref(false)
 
@@ -75,6 +75,7 @@ function quoteCentre() {
         branchName: res.data.branch?.name || '',
         distance: res.data.distance,
         fee: res.data.deliveryFee,
+        eta: res.data.driverEtaMinutes ?? null,
       }
       outOfRange.value = ''
     } catch (err) {
@@ -256,7 +257,9 @@ onBeforeUnmount(destroy)
               <strong v-if="address">{{ address }}</strong>
               <strong v-else-if="isNaming">Buscando la dirección…</strong>
               <strong v-else>Punto seleccionado</strong>
-              <span v-if="quote">{{ quote.distance }} km desde {{ quote.branchName || 'la sucursal más cercana' }}</span>
+              <span v-if="quote">
+                {{ quote.distance }} km desde {{ quote.branchName || 'la sucursal más cercana' }}<template v-if="quote.eta"> · motorizado al local en ~{{ quote.eta }} min</template>
+              </span>
               <span v-else>Mueve el mapa hasta tu puerta</span>
             </div>
           </div>

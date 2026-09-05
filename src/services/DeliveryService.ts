@@ -5,6 +5,12 @@ export interface PreCheckoutResponse {
   branch: BranchDTO
   distance: number
   deliveryFee: number
+  /**
+   * Minutos que tarda un motorizado en llegar AL LOCAL, según Picker. NO es el
+   * tiempo total hasta la puerta: falta la cocina y el viaje de vuelta. Nunca
+   * mostrarlo como «tu pedido llega en X min».
+   */
+  driverEtaMinutes?: number
 }
 
 class DeliveryService extends APIBase {

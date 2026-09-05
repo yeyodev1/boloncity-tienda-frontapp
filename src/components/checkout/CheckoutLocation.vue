@@ -12,6 +12,8 @@ defineProps<{
   deliveryGoogleMapsUrl: string
   deliveryDistance: number
   deliveryCost: number
+  /** Minutos hasta que el motorizado llega AL LOCAL. No es el total hasta la casa. */
+  driverEtaMinutes?: number | null
   mapsError: string
   locating: boolean
   locationDetected: boolean
@@ -68,6 +70,14 @@ const emit = defineEmits<{
           <div class="loc__fee-copy">
             <strong>Envío a tu dirección</strong>
             <span>{{ deliveryDistance }} km desde {{ branchName || 'la sucursal más cercana' }}</span>
+            <!--
+              Se dice qué mide el número: es el tiempo del motorizado HASTA EL LOCAL,
+              no hasta la puerta del cliente. Llamarlo «tu pedido llega en X» sería
+              prometer algo que no incluye ni la cocina ni el viaje de vuelta.
+            -->
+            <span v-if="driverEtaMinutes" class="loc__eta">
+              <i class="fa-solid fa-clock" /> Un motorizado llega al local en ~{{ driverEtaMinutes }} min
+            </span>
           </div>
           <strong class="loc__fee-price">${{ deliveryCost.toFixed(2) }}</strong>
         </div>
@@ -202,6 +212,16 @@ const emit = defineEmits<{
 
   strong { font-size: 0.88rem; font-weight: 800; }
   span { color: rgba(8, 17, 13, 0.52); font-size: 0.76rem; line-height: 1.35; }
+}
+
+.loc__eta {
+  align-items: center;
+  color: #235931 !important;
+  display: flex;
+  font-weight: 700;
+  gap: 0.3rem;
+
+  i { font-size: 0.7rem; }
 }
 
 .loc__fee-price {

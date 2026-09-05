@@ -27,7 +27,7 @@ const {
   notes, deliveryAddress, deliveryGoogleMapsUrl, deliveryType, paymentMethod, order, promo, promoDiscount,
   scheduleOrder, scheduledDate, scheduledTime, scheduleSlots, scheduleDays, selectScheduleDay, toggleScheduleOrder,
   loading, ready, branch, branchLoading, publicBranches,
-  deliveryCost, deliveryDistance, mapsError, locating, locationDetected,
+  deliveryCost, deliveryDistance, driverEtaMinutes, mapsError, locating, locationDetected,
   displayLat, displayLng,
   showBilling, billingDocType, billingName, billingDocNumber, billingEmail, billingAddress,
   total, isFormValid, missingFields, cardPaymentBroken,
@@ -65,6 +65,7 @@ const {
                   :delivery-google-maps-url="deliveryGoogleMapsUrl"
                   :delivery-distance="deliveryDistance"
                   :delivery-cost="deliveryCost"
+                  :driver-eta-minutes="driverEtaMinutes"
                   :maps-error="mapsError"
                   :locating="locating"
                   :location-detected="locationDetected"
