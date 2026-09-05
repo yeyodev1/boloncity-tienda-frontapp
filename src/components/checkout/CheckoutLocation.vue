@@ -14,6 +14,7 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{
+  (e: 'openMap'): void
   (e: 'detectLocation'): void
   (e: 'useManualLink'): void
   (e: 'clearLocation'): void
@@ -27,12 +28,23 @@ const emit = defineEmits<{
 
     <Transition name="location-fade" mode="out-in">
       <div v-if="!locationDetected && !deliveryGoogleMapsUrl" key="actions" class="checkout-location__actions">
-        <button type="button" class="checkout-location__detect" :class="{ 'is-loading': locating }" :disabled="locating" @click="emit('detectLocation')">
+        <!--
+          El mapa va primero y el link de Maps queda como alternativa. Pegar un link
+          falla de maneras que el cliente no puede diagnosticar —un lugar compartido
+          desde la app lleva nombre y no pin, el chat lo rompe— y cada uno de esos
+          casos terminaba en un mensaje al local.
+        -->
+        <button type="button" class="checkout-location__detect" @click="emit('openMap')">
+          <i class="fa-solid fa-map-location-dot" />
+          <span>Elegir en el mapa</span>
+        </button>
+
+        <button type="button" class="checkout-location__alt" :class="{ 'is-loading': locating }" :disabled="locating" @click="emit('detectLocation')">
           <i class="fa-solid fa-location-crosshairs" :class="{ 'fa-spin': locating }" />
           <span>{{ locating ? 'Detectando ubicación…' : 'Usar mi ubicación actual' }}</span>
         </button>
 
-        <div class="checkout-location__divider"><span>o</span></div>
+        <div class="checkout-location__divider"><span>o pega un link</span></div>
 
         <div class="checkout-location__manual">
           <input class="checkout-field__input" :value="manualMapsLink" @input="emit('update:manualMapsLink', ($event.target as HTMLInputElement).value)" placeholder="Pega el link de Google Maps de tu dirección" />
@@ -54,9 +66,14 @@ const emit = defineEmits<{
             <i class="fa-solid fa-map" /> Abrir en Google Maps
           </a>
         </div>
-        <button type="button" class="checkout-location__change" @click="emit('clearLocation')">
-          <i class="fa-solid fa-pen" />
-        </button>
+        <div class="checkout-location__status-actions">
+          <button type="button" class="checkout-location__change" title="Ajustar en el mapa" @click="emit('openMap')">
+            <i class="fa-solid fa-map-location-dot" />
+          </button>
+          <button type="button" class="checkout-location__change" title="Borrar ubicación" @click="emit('clearLocation')">
+            <i class="fa-solid fa-xmark" />
+          </button>
+        </div>
       </div>
     </Transition>
 
@@ -89,6 +106,26 @@ const emit = defineEmits<{
 </template>
 
 <style scoped lang="scss">
+.checkout-location__alt {
+  align-items: center;
+  background: #fff;
+  border: 1px solid rgba(35, 89, 49, 0.22);
+  border-radius: 999px;
+  color: #235931;
+  display: flex;
+  font-weight: 700;
+  gap: 0.6rem;
+  justify-content: center;
+  min-height: 46px;
+  padding: 0.7rem 1.2rem;
+  transition: background-color 0.2s ease;
+}
+
+.checkout-location__alt:hover:not(:disabled) { background: rgba(35, 89, 49, 0.07); }
+.checkout-location__alt:disabled { opacity: 0.7; }
+
+.checkout-location__status-actions { display: flex; gap: 0.35rem; }
+
 .checkout-location__fee {
   align-items: center;
   background: #fff;
