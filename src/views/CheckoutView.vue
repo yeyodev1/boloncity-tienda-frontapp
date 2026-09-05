@@ -30,7 +30,7 @@ const {
   deliveryCost, deliveryDistance, mapsError, locating, locationDetected,
   displayLat, displayLng,
   showBilling, billingDocType, billingName, billingDocNumber, billingEmail, billingAddress,
-  total, isFormValid,
+  total, isFormValid, missingFields, cardPaymentBroken,
   ivaRate, pricesIncludeIva, payphoneAmounts,
   payphoneToken, payphoneStoreId,
   onPayPhoneReady, closePayment, toggleDeliveryType,
@@ -191,6 +191,26 @@ const {
               @confirm="confirmMapLocation"
             />
 
+            <!--
+              Un botón gris que no dice por qué está gris es lo que termina en un
+              mensaje al local («no me sale algún botón para confirmar»). Acá se
+              nombra exactamente lo que falta.
+            -->
+            <div v-if="cardPaymentBroken" class="ck-broken" role="alert">
+              <p><i class="fa-solid fa-triangle-exclamation" /> El pago con tarjeta no está disponible en este momento.</p>
+              <p>Elige <b>Efectivo</b> para completar tu pedido, o escríbenos y lo tomamos por ti.</p>
+            </div>
+
+            <div v-else-if="!isFormValid && !loading" class="ck-missing">
+              <p class="ck-missing__title"><i class="fa-solid fa-circle-info" /> Para confirmar tu pedido falta:</p>
+              <ul>
+                <li v-for="item in missingFields" :key="item"><i class="fa-solid fa-circle" /> {{ item }}</li>
+              </ul>
+              <p v-if="!missingFields.length" class="ck-missing__single">
+                Revisa el aviso de la ubicación de arriba.
+              </p>
+            </div>
+
             <button class="btn-primary checkout-form__submit" type="submit" :disabled="loading || !isFormValid">
               <template v-if="loading">Procesando...</template>
               <template v-else-if="scheduleOrder"><i class="fa-solid fa-calendar-check" /> Programar pedido</template>
@@ -320,6 +340,55 @@ const {
   flex-direction: column;
   gap: 0.85rem;
 }
+
+.ck-broken {
+  background: #fdeceb;
+  border: 1px solid rgba(165, 35, 35, 0.35);
+  border-radius: 16px;
+  color: #7c1a1a;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  padding: 0.85rem 1rem;
+
+  p:first-child { font-weight: 800; }
+}
+
+.ck-missing {
+  background: #fff8d6;
+  border: 1px solid rgba(239, 213, 55, 0.7);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.85rem 1rem;
+
+  ul { display: flex; flex-direction: column; gap: 0.3rem; list-style: none; margin: 0; padding: 0; }
+
+  li {
+    align-items: center;
+    color: #4b4100;
+    display: flex;
+    font-size: 0.85rem;
+    gap: 0.5rem;
+    line-height: 1.4;
+  }
+
+  li i { font-size: 0.32rem; opacity: 0.55; }
+}
+
+.ck-missing__title {
+  align-items: center;
+  color: #4b4100;
+  display: flex;
+  font-size: 0.88rem;
+  font-weight: 800;
+  gap: 0.45rem;
+}
+
+.ck-missing__single { color: #4b4100; font-size: 0.85rem; line-height: 1.45; }
 
 .checkout-form__submit {
   align-items: center;
