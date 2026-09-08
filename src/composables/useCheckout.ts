@@ -8,7 +8,7 @@ import OrderService, { type OrderDTO } from '@/services/OrderService'
 import SettingsService from '@/services/SettingsService'
 import { useToast } from '@/composables/useToast'
 import { trackMetaEvent, trackMetaPurchase } from '@/services/metaPixel'
-import { composePhone, isPhoneValid } from '@/utils/phone'
+import { composePhone, isPhoneValid, phoneHint, phoneState, sanitizePhoneInput } from '@/utils/phone'
 
 export function useCheckout() {
   const cart = useCartStore()
@@ -22,6 +22,14 @@ export function useCheckout() {
   const customerPhone = ref('')
   const phoneCountryCode = ref('+593')
   const composedPhone = computed(() => composePhone(phoneCountryCode.value, customerPhone.value))
+  // El campo se limpia mientras se escribe: solo dígitos, sin el código de país si
+  // lo pegaron, con tope de largo. Así no puede volver a salir "+593 +593968434421".
+  watch([customerPhone, phoneCountryCode], ([raw, code]) => {
+    const clean = sanitizePhoneInput(code, raw)
+    if (clean !== raw) customerPhone.value = clean
+  })
+  const customerPhoneState = computed(() => phoneState(phoneCountryCode.value, customerPhone.value))
+  const customerPhoneHint = computed(() => phoneHint(phoneCountryCode.value, customerPhone.value))
   const notes = ref('')
   const deliveryAddress = ref('')
   const deliveryGoogleMapsUrl = ref('')
@@ -254,9 +262,9 @@ export function useCheckout() {
     if (!customerFirstName.value.trim()) missing.push('Tu nombre')
     if (!customerLastName.value.trim()) missing.push('Tu apellido')
     if (!customerEmail.value.trim()) missing.push('Tu email')
-    // Picker llama al cliente para entregar: sin un teléfono válido el pedido a
-    // domicilio se queda sin motorizado (ORD-00152).
-    if (deliveryType.value === 'delivery' && !isPhoneValid(phoneCountryCode.value, customerPhone.value)) missing.push('Un teléfono válido')
+    // Picker llama al cliente para entregar y el local para avisar que el pedido
+    // está listo: sin un teléfono válido no se puede pedir (ORD-00152).
+    if (!isPhoneValid(phoneCountryCode.value, customerPhone.value)) missing.push('Un teléfono válido')
 
     if (deliveryType.value === 'delivery') {
       if (!deliveryAddress.value.trim()) missing.push('La dirección de entrega')
@@ -626,7 +634,7 @@ export function useCheckout() {
 
   return {
     branchStore, countries,
-    customerFirstName, customerLastName, customerEmail, customerPhone, phoneCountryCode, composedPhone,
+    customerFirstName, customerLastName, customerEmail, customerPhone, phoneCountryCode, composedPhone, customerPhoneState, customerPhoneHint,
     notes, deliveryAddress, deliveryGoogleMapsUrl, deliveryType, paymentMethod, order,
     scheduleOrder, scheduledDate, scheduledTime, scheduleSlots, scheduleDays, availableScheduleDays,
     selectedScheduleDay, isScheduleValid, selectScheduleDay, toggleScheduleOrder,

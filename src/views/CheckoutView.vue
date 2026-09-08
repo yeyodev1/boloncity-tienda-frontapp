@@ -23,7 +23,7 @@ import {
 
 const {
   branchStore, countries,
-  customerFirstName, customerLastName, customerEmail, customerPhone, phoneCountryCode, composedPhone,
+  customerFirstName, customerLastName, customerEmail, customerPhone, phoneCountryCode, composedPhone, customerPhoneState, customerPhoneHint,
   notes, deliveryAddress, deliveryGoogleMapsUrl, deliveryType, paymentMethod, order, promo, promoDiscount,
   scheduleOrder, scheduledDate, scheduledTime, scheduleSlots, scheduleDays, selectScheduleDay, toggleScheduleOrder,
   loading, ready, branch, branchLoading, publicBranches,
@@ -120,9 +120,25 @@ const {
                     <option v-for="c in countries" :key="c.code" :value="c.code">{{ c.label }}</option>
                   </select>
                 </div>
-                <label class="ck-field ck-field--phone">
-                  <span class="ck-field__label">Teléfono <em v-if="deliveryType === 'delivery'">*</em></span>
-                  <input class="ck-field__input" v-model.trim="customerPhone" type="tel" inputmode="tel" placeholder="0991234567" autocomplete="tel-national" />
+                <label class="ck-field ck-field--phone" :class="`ck-field--${customerPhoneState}`">
+                  <span class="ck-field__label">Teléfono <em>*</em></span>
+                  <span class="ck-field__control">
+                    <input
+                      class="ck-field__input"
+                      v-model.trim="customerPhone"
+                      type="tel"
+                      inputmode="numeric"
+                      placeholder="0991234567"
+                      autocomplete="tel-national"
+                      :aria-invalid="customerPhoneState === 'invalid'"
+                      aria-describedby="ck-phone-hint"
+                    />
+                    <i v-if="customerPhoneState === 'valid'" class="fa-solid fa-circle-check ck-field__status ck-field__status--ok" aria-hidden="true" />
+                    <i v-else-if="customerPhoneState === 'invalid'" class="fa-solid fa-circle-exclamation ck-field__status ck-field__status--bad" aria-hidden="true" />
+                  </span>
+                  <small id="ck-phone-hint" class="ck-field__hint" :class="{ 'ck-field__hint--bad': customerPhoneState === 'invalid' }">
+                    {{ customerPhoneState === 'invalid' ? customerPhoneHint : customerPhoneState === 'valid' ? 'Listo, te llamamos a este número.' : 'Solo el número, sin +593.' }}
+                  </small>
                 </label>
               </div>
             </CheckoutSection>
@@ -335,6 +351,44 @@ const {
 
 .ck-field__select { appearance: none; cursor: pointer; }
 .ck-field__textarea { min-height: 88px; resize: vertical; }
+
+// Teléfono: el borde y el ícono dicen al instante si el número sirve. Nació de
+// ORD-00152, que salió con el prefijo duplicado y Picker rechazó el teléfono.
+.ck-field__control { position: relative; display: block; }
+
+.ck-field__control .ck-field__input { padding-right: 2.6rem; }
+
+.ck-field__status {
+  font-size: 1.05rem;
+  pointer-events: none;
+  position: absolute;
+  right: 0.9rem;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.ck-field__status--ok { color: #1e7a3c; }
+.ck-field__status--bad { color: #b3261e; }
+
+.ck-field__hint {
+  color: rgba(8, 17, 13, 0.5);
+  font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.35;
+  min-height: 1.05rem;
+}
+
+.ck-field__hint--bad { color: #b3261e; font-weight: 600; }
+
+.ck-field--valid .ck-field__input {
+  border-color: #1e7a3c;
+  &:focus { box-shadow: 0 0 0 3px rgba(30, 122, 60, 0.14); }
+}
+
+.ck-field--invalid .ck-field__input {
+  border-color: #b3261e;
+  &:focus { border-color: #b3261e; box-shadow: 0 0 0 3px rgba(179, 38, 30, 0.14); }
+}
 
 .ck-extras {
   display: flex;
