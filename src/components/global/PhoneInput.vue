@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { composePhone } from '@/utils/phone'
 
 const props = withDefaults(defineProps<{
   modelValue: string
@@ -31,11 +32,11 @@ const selected = computed(() => countries.find((c) => c.code === localCode.value
 
 watch(localCode, (code) => {
   emit('update:countryCode', code)
-  emit('update:modelValue', `${code} ${localNumber.value}`)
+  emit('update:modelValue', composePhone(code, localNumber.value))
 })
 
 watch(localNumber, (num) => {
-  emit('update:modelValue', `${localCode.value} ${num}`)
+  emit('update:modelValue', composePhone(localCode.value, num))
 })
 
 function selectCountry(code: string) {
