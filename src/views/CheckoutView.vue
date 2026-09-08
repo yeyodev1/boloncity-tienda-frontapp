@@ -23,7 +23,7 @@ import {
 
 const {
   branchStore, countries,
-  customerFirstName, customerLastName, customerEmail, customerPhone, phoneCountryCode,
+  customerFirstName, customerLastName, customerEmail, customerPhone, phoneCountryCode, composedPhone,
   notes, deliveryAddress, deliveryGoogleMapsUrl, deliveryType, paymentMethod, order, promo, promoDiscount,
   scheduleOrder, scheduledDate, scheduledTime, scheduleSlots, scheduleDays, selectScheduleDay, toggleScheduleOrder,
   loading, ready, branch, branchLoading, publicBranches,
@@ -121,8 +121,8 @@ const {
                   </select>
                 </div>
                 <label class="ck-field ck-field--phone">
-                  <span class="ck-field__label">Teléfono</span>
-                  <input class="ck-field__input" v-model.trim="customerPhone" type="tel" placeholder="Número" autocomplete="tel" />
+                  <span class="ck-field__label">Teléfono <em v-if="deliveryType === 'delivery'">*</em></span>
+                  <input class="ck-field__input" v-model.trim="customerPhone" type="tel" inputmode="tel" placeholder="0991234567" autocomplete="tel-national" />
                 </label>
               </div>
             </CheckoutSection>
@@ -241,7 +241,7 @@ const {
       :payphone-store-id="payphoneStoreId"
       :amounts="payphoneAmounts"
       :email="customerEmail"
-      :phone-number="`${phoneCountryCode} ${customerPhone}`"
+      :phone-number="composedPhone"
       :ready="ready"
       @close="closePayment"
       @ready="onPayPhoneReady"

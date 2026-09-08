@@ -8,6 +8,7 @@ import OrderService, { type OrderDTO } from '@/services/OrderService'
 import SettingsService from '@/services/SettingsService'
 import { useToast } from '@/composables/useToast'
 import { trackMetaEvent, trackMetaPurchase } from '@/services/metaPixel'
+import { composePhone, isPhoneValid } from '@/utils/phone'
 
 export function useCheckout() {
   const cart = useCartStore()
@@ -20,6 +21,7 @@ export function useCheckout() {
   const customerEmail = ref('')
   const customerPhone = ref('')
   const phoneCountryCode = ref('+593')
+  const composedPhone = computed(() => composePhone(phoneCountryCode.value, customerPhone.value))
   const notes = ref('')
   const deliveryAddress = ref('')
   const deliveryGoogleMapsUrl = ref('')
@@ -252,6 +254,9 @@ export function useCheckout() {
     if (!customerFirstName.value.trim()) missing.push('Tu nombre')
     if (!customerLastName.value.trim()) missing.push('Tu apellido')
     if (!customerEmail.value.trim()) missing.push('Tu email')
+    // Picker llama al cliente para entregar: sin un teléfono válido el pedido a
+    // domicilio se queda sin motorizado (ORD-00152).
+    if (deliveryType.value === 'delivery' && !isPhoneValid(phoneCountryCode.value, customerPhone.value)) missing.push('Un teléfono válido')
 
     if (deliveryType.value === 'delivery') {
       if (!deliveryAddress.value.trim()) missing.push('La dirección de entrega')
@@ -485,7 +490,7 @@ export function useCheckout() {
         items: cart.items.map((item) => ({ productId: item.productId, quantity: item.quantity })),
         customerName: `${customerFirstName.value.trim()} ${customerLastName.value.trim()}`,
         customerEmail: customerEmail.value,
-        customerPhone: `${phoneCountryCode.value} ${customerPhone.value.trim()}`,
+        customerPhone: composedPhone.value,
         notes: notes.value, deliveryType: deliveryType.value, branchId: effectiveBranchId.value,
         paymentMethod: paymentMethod.value,
         deliveryAddress: deliveryType.value === 'delivery' ? deliveryAddress.value.trim() : '',
@@ -621,7 +626,7 @@ export function useCheckout() {
 
   return {
     branchStore, countries,
-    customerFirstName, customerLastName, customerEmail, customerPhone, phoneCountryCode,
+    customerFirstName, customerLastName, customerEmail, customerPhone, phoneCountryCode, composedPhone,
     notes, deliveryAddress, deliveryGoogleMapsUrl, deliveryType, paymentMethod, order,
     scheduleOrder, scheduledDate, scheduledTime, scheduleSlots, scheduleDays, availableScheduleDays,
     selectedScheduleDay, isScheduleValid, selectScheduleDay, toggleScheduleOrder,
