@@ -7,14 +7,24 @@ import logoImg from '@/assets/logos/logo.png'
 const email = ref('')
 const loading = ref(false)
 const sent = ref(false)
+const sentMessage = ref('')
+const error = ref('')
+const accountNotFound = ref(false)
 
 async function submit() {
   loading.value = true
+  error.value = ''
+  accountNotFound.value = false
   try {
-    await AuthService.forgotPassword(email.value)
+    const { data } = await AuthService.forgotPassword(email.value)
+    sentMessage.value = data.message
     sent.value = true
-  } catch {
-    sent.value = true
+  } catch (err) {
+    const e = err as { data?: { code?: string; message?: string } }
+    accountNotFound.value = e.data?.code === 'ACCOUNT_NOT_FOUND'
+    // Sin respuesta del servidor (timeout, sin conexion) no hay `data`.
+    error.value = e.data?.message
+      || 'No pudimos conectar con Boloncity. Revisa tu conexión e intenta de nuevo.'
   } finally {
     loading.value = false
   }
@@ -40,7 +50,7 @@ async function submit() {
         <template v-if="sent">
           <div class="auth__card-head">
             <h2 class="auth__card-title">Revisa tu correo</h2>
-            <p class="auth__card-sub">Si el correo existe, recibirás un enlace para restablecer tu contraseña. Revisa también tu carpeta de spam.</p>
+            <p class="auth__card-sub">{{ sentMessage || 'Te enviamos un enlace para restablecer tu contraseña. Revisa también tu carpeta de spam.' }}</p>
           </div>
           <RouterLink class="auth__btn" to="/login">
             <i class="fa-solid fa-arrow-left" /> Volver a ingresar
@@ -60,6 +70,14 @@ async function submit() {
                 <input v-model.trim="email" type="email" placeholder="tu@email.com" autocomplete="email" />
               </div>
             </label>
+
+            <div v-if="error" class="auth__error" role="alert">
+              <i class="fa-solid fa-circle-exclamation" />
+              <span>{{ error }}</span>
+            </div>
+            <RouterLink v-if="accountNotFound" class="auth__btn auth__btn--ghost" to="/">
+              <i class="fa-solid fa-utensils" /> Ver el menú y pedir
+            </RouterLink>
 
             <button class="auth__btn" type="submit" :disabled="loading || !email">
               <template v-if="loading">
@@ -295,6 +313,35 @@ async function submit() {
 
 .auth__btn:disabled {
   opacity: 0.4;
+}
+
+.auth__btn--ghost {
+  background: transparent;
+  border: 1.5px solid #235931;
+  color: #235931;
+}
+
+.auth__btn--ghost:hover:not(:disabled) {
+  color: #fff;
+}
+
+.auth__error {
+  align-items: flex-start;
+  background: rgba(200, 40, 40, 0.06);
+  border: 1px solid rgba(200, 40, 40, 0.18);
+  border-radius: 14px;
+  color: #8a1f1f;
+  display: flex;
+  font-size: 0.85rem;
+  gap: 0.55rem;
+  line-height: 1.45;
+  padding: 0.75rem 0.9rem;
+  text-align: left;
+}
+
+.auth__error i {
+  flex: 0 0 auto;
+  margin-top: 0.15rem;
 }
 
 .auth__switch {
