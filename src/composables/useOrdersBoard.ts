@@ -107,14 +107,22 @@ function normalizeSearch(value: string) {
     .toLowerCase()
 }
 
+/** Dia actual en Guayaquil (y el inicio de su mes), en formato YYYY-MM-DD. */
+function guayaquilDay(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Guayaquil', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(date)
+  const part = (type: string) => parts.find((item) => item.type === type)?.value || ''
+  return {
+    day: `${part('year')}-${part('month')}-${part('day')}`,
+    monthStart: `${part('year')}-${part('month')}-01`,
+  }
+}
+
 export function useOrdersBoard() {
   const orders = ref<OrderDTO[]>([])
   const loading = ref(true)
   const searchQuery = ref('')
   const statusFilter = ref<OrderStatus | 'all'>('all')
-  const today = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Guayaquil', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date())
-  const todayValue = `${today.find((part) => part.type === 'year')?.value}-${today.find((part) => part.type === 'month')?.value}-${today.find((part) => part.type === 'day')?.value}`
-  const monthStart = `${today.find((part) => part.type === 'year')?.value}-${today.find((part) => part.type === 'month')?.value}-01`
+  const { day: todayValue, monthStart } = guayaquilDay()
   const periodFilter = ref<'today' | 'all' | 'range'>('range')
   const startDate = ref(monthStart)
   const endDate = ref(todayValue)
@@ -122,8 +130,25 @@ export function useOrdersBoard() {
   const { success, error, info, warning } = useToast()
   const { playNewOrder, playStatus, playPickerUpdate } = useOrderSounds()
 
+  /**
+   * El tablero del local queda abierto de un día para otro. El rango se calculaba una
+   * sola vez al montar, así que pasada la medianoche el "hasta" seguía apuntando a ayer
+   * y los pedidos del día nuevo no aparecían nunca: la sucursal los daba por perdidos
+   * aunque estuvieran bien guardados. Mientras el filtro sea un preset —no un rango
+   * elegido a mano— lo movemos al día actual antes de cada consulta.
+   */
+  function rollDateRangeToToday() {
+    if (!activeDatePreset.value) return
+    const { day, monthStart: currentMonthStart } = guayaquilDay()
+    if (endDate.value >= day) return
+    endDate.value = day
+    if (activeDatePreset.value === 'today') startDate.value = day
+    else if (activeDatePreset.value === 'month') startDate.value = currentMonthStart
+  }
+
   async function load(silent = false) {
     if (!silent) loading.value = true
+    rollDateRangeToToday()
     try {
       const response = await OrderService.getAll(periodFilter.value === 'range'
         ? { from: startDate.value, to: endDate.value, limit: 200 }
@@ -238,8 +263,9 @@ export function useOrdersBoard() {
     searchQuery.value = ''
     statusFilter.value = 'all'
     periodFilter.value = 'today'
-    startDate.value = todayValue
-    endDate.value = todayValue
+    const { day } = guayaquilDay()
+    startDate.value = day
+    endDate.value = day
     activeDatePreset.value = 'today'
     void load()
   }
