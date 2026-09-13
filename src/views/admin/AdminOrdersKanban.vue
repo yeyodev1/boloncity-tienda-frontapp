@@ -9,6 +9,7 @@ import SkeletonLoader from '@/components/global/SkeletonLoader.vue'
 import OrderNoteModal from '@/components/admin/order-notes/OrderNoteModal.vue'
 import CancelOrderModal from '@/components/admin/CancelOrderModal.vue'
 import OrderSoundToggle from '@/components/admin/OrderSoundToggle.vue'
+import OrderSoundArmBanner from '@/components/admin/OrderSoundArmBanner.vue'
 import type { OrderDTO } from '@/services/OrderService'
 import { printOrderTicket } from '@/utils/printOrderTicket'
 import { useUserStore } from '@/stores/user'
@@ -85,8 +86,10 @@ function clearSearch() {
   searchQuery.value = ''
 }
 
+// Se refresca aunque la pestaña esté de fondo: si dejamos de consultar no hay pedido
+// nuevo que detectar ni, por lo tanto, aviso sonoro que dar.
 function refreshBoard() {
-  if (document.visibilityState === 'visible' && !loading.value) void load(true)
+  if (!loading.value) void load(true)
 }
 
 function reloadBoard() {
@@ -193,6 +196,8 @@ onUnmounted(() => {
           <button type="button" class="hero-button hero-button--ghost" @click="resetFilters">Limpiar filtros</button>
         </div>
       </header>
+
+      <OrderSoundArmBanner />
 
       <section class="admin-orders__stats">
         <article class="panel stat-card">
