@@ -55,6 +55,8 @@ export interface OrderDTO {
   items?: Array<{ name: string; quantity: number; price: number; image?: string }>
   payphone?: {
     clientTransactionId?: string
+    /** "test" = pedido del bot cobrado con la app de PRUEBAS de PayPhone (no cobra de verdad). */
+    mode?: string
     storeId?: string
     transactionId?: number
     statusCode?: number
