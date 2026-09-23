@@ -8,7 +8,13 @@ const route = useRoute()
 const order = ref<OrderDTO | null>(null)
 const error = ref('')
 const ready = ref(false)
-const payphoneToken = import.meta.env.VITE_PAYPHONE_TOKEN as string
+// Pedido de PRUEBAS del bot (payphone.mode === 'test'): se abre la cajita con la app de PRUEBAS de PayPhone,
+// que aprueba sin cobrar de verdad. Cualquier otro pedido usa siempre las credenciales de producción.
+const payphoneToken = computed(() => {
+  const esPrueba = order.value?.payphone?.mode === 'test'
+  const tokenPrueba = String(import.meta.env.VITE_PAYPHONE_TEST_TOKEN || '').trim()
+  return esPrueba && tokenPrueba ? tokenPrueba : (import.meta.env.VITE_PAYPHONE_TOKEN as string)
+})
 // El cobro debe caer en la tienda de la sucursal que tomó el pedido, no en la global.
 const payphoneStoreId = computed(
   () => order.value?.payphone?.storeId || (import.meta.env.VITE_PAYPHONE_STORE_ID as string) || ''
