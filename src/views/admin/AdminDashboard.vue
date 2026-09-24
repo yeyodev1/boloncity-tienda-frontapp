@@ -32,8 +32,20 @@ const totalRevenue = computed(() => {
     .reduce((sum, o) => sum + (o.total || 0), 0)
 })
 const deliveryCharged = computed(() => orders.value.filter((o) => o.status !== 'cancelled').reduce((sum, o) => sum + (o.deliveryCost || 0), 0))
-const pickerDeliveryCost = computed(() => orders.value.filter((o) => o.status !== 'cancelled').reduce((sum, o) => sum + Math.round((o.picker?.deliveryFee || 0) * 100), 0))
-const deliveryDifference = computed(() => deliveryCharged.value - pickerDeliveryCost.value)
+// Solo los pedidos en los que Picker nos dijo cuánto nos cobra. El resto no entra ni arriba ni
+// abajo: mezclarlos daba una "diferencia" igual al total cobrado, como si el motorizado fuera gratis.
+const ordersConCostoPicker = computed(() =>
+  orders.value.filter((o) => o.status !== 'cancelled' && (o.picker?.deliveryFee || 0) > 0),
+)
+const pickerDeliveryCost = computed(() =>
+  ordersConCostoPicker.value.reduce((sum, o) => sum + Math.round((o.picker?.deliveryFee || 0) * 100), 0),
+)
+const deliveryChargedConPicker = computed(() =>
+  ordersConCostoPicker.value.reduce((sum, o) => sum + (o.deliveryCost || 0), 0),
+)
+const deliveryDifference = computed(() => deliveryChargedConPicker.value - pickerDeliveryCost.value)
+/** Sin un solo costo de Picker no hay diferencia que mostrar: se dice, en vez de inventar un número. */
+const haySaldoDelivery = computed(() => ordersConCostoPicker.value.length > 0)
 const pointsGranted = computed(() => orders.value.reduce((sum, o) => sum + (o.pointsEarned || 0), 0))
 
 const totalProducts = computed(() => products.value.length)
@@ -186,8 +198,8 @@ function applyDateRange() {
           </article>
           <article class="panel stat-card stat-card--picker">
             <i class="stat-card__icon fa-solid fa-scale-balanced" />
-            <span class="stat-card__value">${{ (deliveryDifference / 100).toLocaleString('es-EC') }}</span>
-            <span class="stat-card__label">Diferencia delivery</span>
+            <span class="stat-card__value">{{ haySaldoDelivery ? `$${(deliveryDifference / 100).toLocaleString('es-EC')}` : '—' }}</span>
+            <span class="stat-card__label">{{ haySaldoDelivery ? 'Diferencia delivery' : 'Sin costo de Picker' }}</span>
           </article>
           <article class="panel stat-card stat-card--points">
             <i class="stat-card__icon fa-solid fa-star" />
