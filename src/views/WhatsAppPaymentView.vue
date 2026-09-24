@@ -8,6 +8,10 @@ const route = useRoute()
 const order = ref<OrderDTO | null>(null)
 const error = ref('')
 const ready = ref(false)
+// Identificador de ESTE intento de pago. PayPhone no acepta dos veces el mismo
+// ("Ya existe una transacción con el ClientTransactionId especificado"), y este link vive en el
+// chat de WhatsApp: se abre cuantas veces quiera. Por eso el backend emite uno fresco en cada carga.
+const clientTransactionId = ref('')
 // Pedido de PRUEBAS del bot (payphone.mode === 'test'): se abre la cajita con la app de PRUEBAS de PayPhone,
 // que aprueba sin cobrar de verdad. Cualquier otro pedido usa siempre las credenciales de producción.
 const payphoneToken = computed(() => {
@@ -33,9 +37,22 @@ onMounted(async () => {
     order.value = response.data
     if (order.value.paymentMethod !== 'card' || order.value.status !== 'pending') {
       error.value = 'Este pedido no tiene un pago con tarjeta pendiente.'
+      return
     }
   } catch {
     error.value = 'No pudimos encontrar el pedido para pagar.'
+    return
+  }
+
+  try {
+    const intento = await OrderService.createPaymentIntent(orderNumber, email)
+    clientTransactionId.value = intento.data.clientTransactionId
+  } catch (err) {
+    // 409 = el pedido dejó de estar pendiente entre la consulta y ahora (lo pagaron en otra pestaña).
+    error.value =
+      (err as { status?: number })?.status === 409
+        ? 'Este pedido ya no tiene un pago pendiente.'
+        : 'No pudimos preparar el pago. Recarga la página.'
   }
 })
 </script>
@@ -46,13 +63,13 @@ onMounted(async () => {
       <p class="payment-card__brand">BOLONCITY</p>
       <h1>Pago seguro</h1>
       <p v-if="error" class="payment-card__error">{{ error }}</p>
-      <template v-else-if="order">
+      <template v-else-if="order && clientTransactionId">
         <p>Pedido <strong>{{ order.orderNumber }}</strong></p>
         <p class="payment-card__total">${{ (order.total / 100).toFixed(2) }}</p>
         <PayPhoneBox
           :token="payphoneToken"
           :store-id="payphoneStoreId"
-          :client-transaction-id="order.payphone?.clientTransactionId || ''"
+          :client-transaction-id="clientTransactionId"
           :amount="order.total"
           :amount-with-tax="order.total"
           :reference="`Pedido ${order.orderNumber}`"
@@ -62,7 +79,7 @@ onMounted(async () => {
         />
         <p v-if="ready" class="payment-card__ready">Módulo de pago listo.</p>
       </template>
-      <p v-else>Cargando pedido...</p>
+      <p v-else-if="!error">Cargando pedido...</p>
     </section>
   </main>
 </template>

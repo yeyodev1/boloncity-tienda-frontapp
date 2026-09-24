@@ -106,6 +106,18 @@ class OrderService extends APIBase {
     return this.post('orders/confirm', { id, clientTxId })
   }
 
+  /**
+   * Pide un identificador de pago NUEVO para volver a abrir la Cajita de un pedido pendiente.
+   * PayPhone rechaza un clientTransactionId repetido ("Ya existe una transacción con el
+   * ClientTransactionId especificado"), así que cada apertura del link necesita el suyo.
+   */
+  createPaymentIntent(orderNumber: string, email: string) {
+    return this.post<{ clientTransactionId: string; storeId: string; mode: string }>(
+      `orders/${orderNumber}/payment-intent`,
+      { email },
+    )
+  }
+
   getByNumber(orderNumber: string, email?: string) {
     const query = email ? `?email=${encodeURIComponent(email)}` : ''
     return this.get<OrderDTO>(`orders/${orderNumber}${query}`)
