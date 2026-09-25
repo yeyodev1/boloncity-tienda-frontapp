@@ -37,6 +37,12 @@ const routes: Array<RouteRecordRaw> = [
     meta: { title: 'Carrito | Boloncity' },
   },
   {
+    path: '/carrito/recuperar/:token',
+    name: 'RecoverCart',
+    component: () => import('../views/RecoverCartView.vue'),
+    meta: { title: 'Recupera tu carrito | Boloncity' },
+  },
+  {
     path: '/checkout',
     name: 'Checkout',
     component: () => import('../views/CheckoutView.vue'),
@@ -132,6 +138,12 @@ const routes: Array<RouteRecordRaw> = [
     name: 'AdminRewards',
     component: () => import('../views/admin/AdminRewards.vue'),
     meta: { title: 'Rewards | Boloncity', requiresAuth: true, requiresAdmin: true },
+  },
+  {
+    path: '/admin/carritos',
+    name: 'AdminAbandonedCarts',
+    component: () => import('../views/admin/AdminAbandonedCarts.vue'),
+    meta: { title: 'Carritos abandonados | Boloncity', requiresAuth: true, requiresAdmin: true },
   },
   {
     path: '/admin/clientes',
