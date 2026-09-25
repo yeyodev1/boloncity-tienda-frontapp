@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useCartTracking } from '@/composables/useCartTracking'
 import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import StoreHeader from '@/components/store/StoreHeader.vue'
@@ -38,6 +39,9 @@ async function confirmRemove(itemName: string, productId: string) {
   if (!ok) return
   cart.removeItem(productId)
 }
+
+// Registra el carrito vivo para poder recuperarlo si el cliente se va sin comprar.
+useCartTracking('cart')
 </script>
 
 <template>

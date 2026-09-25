@@ -2,7 +2,9 @@
 import { Transition } from 'vue'
 import StoreHeader from '@/components/store/StoreHeader.vue'
 import StoreFooter from '@/components/store/StoreFooter.vue'
+import { computed } from 'vue'
 import { useCheckout } from '@/composables/useCheckout'
+import { useCartTracking } from '@/composables/useCartTracking'
 import {
   CheckoutHero,
   CheckoutDeliveryType,
@@ -40,6 +42,17 @@ const {
   mapPickerOpen, confirmMapLocation,
   pointsEnabled, pointsToEarn, pointsBalance, pointsBalanceLoading, useMyPoints, pointsDiscount,
 } = useCheckout()
+
+// Carrito abandonado: se registra lo que el cliente lleva y los datos que ya dejó, para poder
+// escribirle por WhatsApp si se va sin confirmar. No interfiere con la compra.
+const nombreCompleto = computed(() => `${customerFirstName.value || ''} ${customerLastName.value || ''}`.trim())
+const sucursalId = computed(() => (branch.value as { _id?: string } | null)?._id)
+useCartTracking('checkout', {
+  name: nombreCompleto,
+  email: customerEmail,
+  phone: composedPhone,
+  branchId: sucursalId,
+})
 </script>
 
 <template>
