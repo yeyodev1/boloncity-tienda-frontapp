@@ -19,7 +19,7 @@ const etiquetaEstado: Record<string, string> = {
   notified: 'Mensaje enviado',
   recovered: 'Recuperado',
   expired: 'Vencido',
-  unreachable: 'Sin teléfono',
+  unreachable: 'Sin datos de contacto',
 }
 
 async function cargar() {
@@ -67,7 +67,7 @@ onMounted(cargar)
         <option value="pending">Pendientes</option>
         <option value="notified">Con mensaje enviado</option>
         <option value="recovered">Recuperados</option>
-        <option value="unreachable">Sin teléfono</option>
+        <option value="unreachable">Sin datos de contacto</option>
         <option value="expired">Vencidos</option>
       </select>
     </header>
@@ -75,8 +75,8 @@ onMounted(cargar)
     <p v-if="error" class="carts__error">{{ error }}</p>
 
     <p v-if="metrics && !canalListo" class="carts__warn">
-      ⚠️ No hay canal de WhatsApp configurado todavía: los carritos se registran y se miden, pero
-      los mensajes no salen. Falta cargar las credenciales del proveedor.
+      ⚠️ No hay canal de WhatsApp configurado todavía: los recordatorios salen por correo a quien
+      dejó su email. Los que solo dejaron teléfono esperan hasta que se carguen las credenciales del proveedor.
     </p>
 
     <section v-if="metrics" class="carts__stats">
