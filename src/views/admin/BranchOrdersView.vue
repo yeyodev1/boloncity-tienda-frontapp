@@ -2,8 +2,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import AdminLayout from '@/components/admin/AdminLayout.vue'
-import BranchSelector from '@/components/admin/BranchSelector.vue'
-import OrderColumn from '@/components/admin/OrderColumn.vue'
+import OrdersBoard from '@/components/admin/OrdersBoard.vue'
 import OrderNoteModal from '@/components/admin/order-notes/OrderNoteModal.vue'
 import CancelOrderModal from '@/components/admin/CancelOrderModal.vue'
 import OrderSoundToggle from '@/components/admin/OrderSoundToggle.vue'
@@ -18,7 +17,11 @@ const router = useRouter()
 const { loading, grouped, totals, load, move, addNote, findOrder, requestDriver } = useOrdersBoard()
 const noteOpen = ref(false); const noteTarget = ref<OrderDTO | null>(null); const noteText = ref(''); const noteSaving = ref(false); const driverLoadingId = ref('')
 let refreshTimer: ReturnType<typeof setInterval> | null = null
-const operationCount = computed(() => totals.value.active + totals.value.pending)
+// Lo que el local tiene que atender ahora, en el orden en que se trabaja.
+const toAttend = computed(() => grouped.value.pending.length + grouped.value.paid.length)
+const unpaidCards = computed(() => grouped.value.pending.filter((order) => order.paymentMethod === 'card' && !order.payphone?.transactionId).length)
+const todayRaw = new Intl.DateTimeFormat('es-EC', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())
+const todayLabel = todayRaw.charAt(0).toUpperCase() + todayRaw.slice(1)
 // Se refresca aunque la pestaña esté de fondo: en el local el tablero suele quedar
 // detrás del POS, y si dejamos de consultar no hay pedido nuevo que detectar ni,
 // por lo tanto, aviso sonoro que dar.
@@ -42,8 +45,147 @@ onMounted(() => { void load(); window.addEventListener('admin:branch-change', re
 onUnmounted(() => { window.removeEventListener('admin:branch-change', refresh); document.removeEventListener('visibilitychange', refresh); if (refreshTimer) clearInterval(refreshTimer) })
 </script>
 <template>
-  <AdminLayout><main class="operation"><section class="operation__hero"><div><p><i class="fa-solid fa-store" /> Operación de sucursal</p><h1>Órdenes de tu sucursal</h1><span>Gestiona las etapas de cocina y entrega de las sucursales que tienes asignadas.</span></div><div class="operation__hero-side"><OrderSoundToggle /><BranchSelector /></div></section><section class="operation__stats"><article><i class="fa-solid fa-clipboard-list" /><span><small>Órdenes activas</small><strong>{{ operationCount }}</strong></span></article><article><i class="fa-solid fa-kitchen-set" /><span><small>En preparación</small><strong>{{ grouped.preparing.length }}</strong></span></article><article><i class="fa-solid fa-motorcycle" /><span><small>Para recolección</small><strong>{{ grouped.awaiting_pickup.length }}</strong></span></article></section><OrderSoundArmBanner /><section class="operation__guide"><i class="fa-solid fa-circle-info" /><span><strong>Flujo de cocina:</strong> valida el pago, prepara, deja lista para recolección y Picker actualizará la entrega.</span></section><div v-if="loading" class="operation__loading"><i class="fa-solid fa-spinner fa-spin" /> Cargando órdenes</div><div v-else class="operation__board"><OrderColumn v-for="status in orderStatuses" :key="status" :status="status" :orders="grouped[status]" :driver-loading-id="driverLoadingId" :can-cancel="canCancel" @open="openDetail" @note="openNote" @advance="changeStatus" @drop="drop" @driver="requestDriverFor" @print="printOrderTicket" @cancel="requestCancel" /></div><OrderNoteModal :open="noteOpen" :order="noteTarget" :text="noteText" :saving="noteSaving" @update:text="noteText = $event" @close="closeNote" @submit="saveNote" /><CancelOrderModal :order="cancelTarget" @close="cancelTarget = null" @confirm="confirmCancel" /></main></AdminLayout>
+  <AdminLayout>
+    <main class="operation">
+      <header class="operation__head">
+        <div class="operation__title">
+          <p>{{ todayLabel }}</p>
+          <h1>Pedidos de tu local</h1>
+        </div>
+        <OrderSoundToggle />
+      </header>
+
+      <section class="operation__pulse" aria-label="Resumen de ahora">
+        <article class="is-attend" :class="{ 'is-hot': toAttend > 0 }">
+          <strong>{{ toAttend }}</strong>
+          <span>Por atender</span>
+        </article>
+        <article class="is-kitchen">
+          <strong>{{ grouped.preparing.length }}</strong>
+          <span>En cocina</span>
+        </article>
+        <article class="is-ready">
+          <strong>{{ grouped.awaiting_pickup.length + grouped.ready.length }}</strong>
+          <span>Listos o saliendo</span>
+        </article>
+        <article class="is-done">
+          <strong>{{ totals.completed }}</strong>
+          <span>Entregados</span>
+        </article>
+      </section>
+
+      <p v-if="unpaidCards" class="operation__alert" role="status">
+        <i class="fa-solid fa-triangle-exclamation" aria-hidden="true" />
+        {{ unpaidCards === 1 ? '1 pedido con tarjeta todavía no está pagado' : `${unpaidCards} pedidos con tarjeta todavía no están pagados` }}: no los prepares hasta que se confirme el pago.
+      </p>
+
+      <OrderSoundArmBanner />
+
+      <div v-if="loading" class="operation__loading"><i class="fa-solid fa-spinner fa-spin" aria-hidden="true" /> Cargando pedidos…</div>
+      <OrdersBoard
+        v-else
+        :statuses="orderStatuses"
+        :grouped="grouped"
+        :driver-loading-id="driverLoadingId"
+        :can-cancel="canCancel"
+        @open="openDetail"
+        @note="openNote"
+        @advance="changeStatus"
+        @drop="drop"
+        @driver="requestDriverFor"
+        @print="printOrderTicket"
+        @cancel="requestCancel"
+      />
+
+      <OrderNoteModal :open="noteOpen" :order="noteTarget" :text="noteText" :saving="noteSaving" @update:text="noteText = $event" @close="closeNote" @submit="saveNote" />
+      <CancelOrderModal :order="cancelTarget" @close="cancelTarget = null" @confirm="confirmCancel" />
+    </main>
+  </AdminLayout>
 </template>
+
 <style scoped lang="scss">
-.operation { display:flex; flex-direction:column; gap:1rem; padding:clamp(.75rem,2vw,1.5rem); }.operation__hero { align-items:flex-start; background:linear-gradient(135deg,#173e22,#235931); border-radius:20px; color:#fff; display:flex; flex-direction:column; gap:1rem; justify-content:space-between; padding:1.25rem; }.operation__hero p { color:#efd537; font-size:.7rem; font-weight:900; letter-spacing:.1em; text-transform:uppercase; }.operation__hero h1 { font-size:clamp(1.65rem,4vw,2.4rem); margin:.35rem 0; }.operation__hero span { color:rgba(255,255,255,.75); max-width:38rem; }.operation__hero-side { align-items:stretch; display:flex; flex-direction:column; gap:.6rem; }.operation__hero-side :deep(.sound-toggle) { background:rgba(255,255,255,.14); border-color:rgba(255,255,255,.35); color:#fff; justify-content:center; }.operation__hero-side :deep(.sound-toggle.muted) { background:rgba(0,0,0,.25); border-color:rgba(255,255,255,.2); color:rgba(255,255,255,.6); }.operation__stats { display:flex; flex-wrap:wrap; gap:.65rem; }.operation__stats article { align-items:center; background:#fff; border:1px solid var(--admin-line); border-radius:16px; display:flex; flex:1 1 150px; gap:.6rem; padding:.8rem; }.operation__stats article > i { align-items:center; background:rgba(35,89,49,.1); border-radius:10px; color:#235931; display:flex; height:36px; justify-content:center; width:36px; }.operation__stats span { display:flex; flex-direction:column; }.operation__stats small { color:var(--admin-muted); font-size:.65rem; font-weight:900; letter-spacing:.06em; text-transform:uppercase; }.operation__stats strong { color:#235931; font-size:1.3rem; }.operation__guide { align-items:flex-start; background:#fff8d6; border:1px solid rgba(239,213,55,.6); border-radius:14px; color:#4b4100; display:flex; font-size:.8rem; gap:.6rem; padding:.8rem; }.operation__guide i { color:#a98b00; margin-top:.1rem; }.operation__loading { align-items:center; color:var(--admin-muted); display:flex; flex-direction:column; gap:.5rem; justify-content:center; min-height:280px; }.operation__loading i { color:#235931; font-size:1.7rem; }.operation__board { align-items:flex-start; display:flex; gap:1rem; overflow-x:auto; padding-bottom:.5rem; scroll-snap-type:x mandatory; }.operation__board :deep(.column) { flex:0 0 min(340px,calc(100vw - 3rem)); scroll-snap-align:start; } @media (min-width:700px) { .operation__hero { align-items:center; flex-direction:row; } }
+.operation { display: flex; flex-direction: column; gap: 0.9rem; padding: 0.25rem 0 1.5rem; }
+
+.operation__head { align-items: flex-end; display: flex; flex-wrap: wrap; gap: 0.75rem; justify-content: space-between; }
+
+.operation__title {
+  p { color: var(--admin-muted); font-size: 0.78rem; font-weight: 700; margin: 0; }
+  h1 { font-size: clamp(1.5rem, 5vw, 2.1rem); font-weight: 800; letter-spacing: -0.035em; line-height: 1.05; margin: 0.15rem 0 0; }
+}
+
+.operation__pulse {
+  display: flex;
+  gap: 0.6rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar { display: none; }
+
+  article {
+    background: var(--admin-surface);
+    border: 1px solid var(--admin-line);
+    border-radius: 16px;
+    box-shadow: var(--admin-shadow);
+    display: flex;
+    flex: 1 0 128px;
+    flex-direction: column;
+    gap: 0.1rem;
+    padding: 0.8rem 0.95rem;
+    position: relative;
+  }
+
+  strong { font-size: 1.9rem; font-variant-numeric: tabular-nums; font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
+  span { color: var(--admin-muted); font-size: 0.76rem; font-weight: 700; }
+
+  .is-attend strong { color: var(--st-pending); }
+  .is-kitchen strong { color: var(--st-preparing); }
+  .is-ready strong { color: var(--st-awaiting_pickup); }
+  .is-done strong { color: var(--st-delivered); }
+
+  // Hay pedidos esperando: la tarjeta se ve "encendida".
+  .is-attend.is-hot {
+    background: var(--st-pending-soft);
+    border-color: color-mix(in srgb, var(--st-pending) 40%, transparent);
+
+    &::after {
+      animation: attend-dot 1.4s ease-in-out infinite;
+      background: var(--st-pending);
+      border-radius: 50%;
+      content: '';
+      height: 9px;
+      position: absolute;
+      right: 0.85rem;
+      top: 0.85rem;
+      width: 9px;
+    }
+  }
+}
+
+@keyframes attend-dot { 50% { opacity: 0.25; transform: scale(0.7); } }
+
+.operation__alert {
+  align-items: center;
+  background: var(--admin-danger-soft);
+  border: 1px solid color-mix(in srgb, var(--admin-danger) 35%, transparent);
+  border-radius: 14px;
+  color: var(--admin-danger);
+  display: flex;
+  font-size: 0.84rem;
+  font-weight: 700;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0.75rem 0.95rem;
+}
+
+.operation__loading { align-items: center; color: var(--admin-muted); display: flex; gap: 0.6rem; justify-content: center; min-height: 260px; }
+.operation__loading i { color: var(--admin-accent); font-size: 1.4rem; }
+
+/* En el celular la fila se desliza de borde a borde. */
+@media (max-width: 640px) {
+  .operation__pulse { margin: 0 -0.75rem; padding: 0 0.75rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .operation__pulse .is-attend.is-hot::after { animation: none; }
+}
 </style>

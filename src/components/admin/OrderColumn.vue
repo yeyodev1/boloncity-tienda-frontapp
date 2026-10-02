@@ -6,7 +6,6 @@ import {
   orderStatusDescriptions,
   orderStatusIcons,
   orderStatusLabels,
-  orderStatusTones,
   type OrderStatus,
 } from '@/composables/useOrdersBoard'
 
@@ -41,13 +40,16 @@ function emitAdvance(order: OrderDTO, status: OrderStatus) {
 </script>
 
 <template>
-  <section class="column panel" :class="orderStatusTones[status]">
+  <section class="column" :class="`is-${status}`" :aria-label="`${orderStatusLabels[status]}: ${orders.length}`">
     <header class="column__header">
-      <div>
-        <p><i :class="['fa-solid', orderStatusIcons[status]]" /> {{ orderStatusLabels[status] }}</p>
+      <span class="column__icon" aria-hidden="true"><i :class="['fa-solid', orderStatusIcons[status]]" /></span>
+      <span class="column__title">
+        <strong>{{ orderStatusLabels[status] }}</strong>
         <small>{{ orderStatusDescriptions[status] }}</small>
-      </div>
-      <strong>{{ orders.length }}</strong>
+      </span>
+      <Transition name="count" mode="out-in">
+        <span :key="orders.length" class="column__count" :class="{ 'is-empty': !orders.length }">{{ orders.length }}</span>
+      </Transition>
     </header>
 
     <VueDraggable
@@ -79,90 +81,122 @@ function emitAdvance(order: OrderDTO, status: OrderStatus) {
         @cancel="emit('cancel', $event)"
       />
     </VueDraggable>
+    <p v-if="!orders.length" class="column__empty">Nada por aquí</p>
   </section>
 </template>
 
 <style scoped lang="scss">
 .column {
-  background: #fff;
-  border-color: rgba(8, 17, 13, 0.08);
-  color: #18211b;
-  min-height: 460px;
-  padding: 1rem;
+  background: var(--admin-surface-2);
+  border: 1px solid var(--admin-line);
+  border-radius: var(--admin-radius);
+  color: var(--admin-text);
+  display: flex;
+  flex-direction: column;
+  min-height: 220px;
+  position: relative;
+  --tone: var(--st-pending);
+  --tone-soft: var(--st-pending-soft);
+
+  @each $status in pending, paid, preparing, awaiting_pickup, ready, delivered, cancelled {
+    &.is-#{$status} { --tone: var(--st-#{$status}); --tone-soft: var(--st-#{$status}-soft); }
+  }
 }
 
 .column__header {
-  align-items: start;
+  align-items: center;
+  background: var(--admin-surface-2);
+  border-bottom: 1px solid var(--admin-line);
+  border-radius: var(--admin-radius) var(--admin-radius) 0 0;
   display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1rem;
+  gap: 0.6rem;
+  padding: 0.8rem 0.85rem;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+
+  // Banda superior con el color del estado.
+  &::before {
+    background: var(--tone);
+    border-radius: var(--admin-radius) var(--admin-radius) 0 0;
+    content: '';
+    height: 3px;
+    inset: 0 0 auto;
+    position: absolute;
+  }
 }
 
-.column__header p {
-  font-size: 1rem;
+.column__icon {
+  align-items: center;
+  background: var(--tone-soft);
+  border-radius: 10px;
+  color: var(--tone);
+  display: flex;
+  flex: 0 0 34px;
+  font-size: 0.85rem;
+  height: 34px;
+  justify-content: center;
+}
+
+.column__title {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+
+  strong { font-size: 0.92rem; letter-spacing: -0.01em; }
+  small { color: var(--admin-muted); font-size: 0.72rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+
+.column__count {
+  background: var(--tone);
+  border-radius: 999px;
+  color: var(--admin-surface);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
   font-weight: 800;
-  letter-spacing: -0.03em;
-}
+  min-width: 2rem;
+  padding: 0.2rem 0.55rem;
+  text-align: center;
 
-.column__header small {
-  color: rgba(24, 33, 27, 0.56);
-  display: block;
-  line-height: 1.4;
-  margin-top: 0.25rem;
-}
-
-.column__header strong {
-  color: #235931;
-  font-size: 1.2rem;
+  &.is-empty { background: var(--admin-hover); color: var(--admin-subtle); }
 }
 
 .column__body {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
-  gap: 0.75rem;
-  min-height: 220px;
+  gap: 0.65rem;
+  min-height: 140px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.7rem;
+  scrollbar-width: thin;
 }
 
-.tone--amber {
-  background: linear-gradient(180deg, rgba(239, 213, 55, 0.18), #fff 44%);
+// Las tarjetas no se encogen para caber: la columna hace scroll.
+.column__body > :deep(*) { flex-shrink: 0; }
+
+.column__empty {
+  color: var(--admin-subtle);
+  font-size: 0.8rem;
+  inset: 5rem 0 auto;
+  margin: 0;
+  pointer-events: none;
+  position: absolute;
+  text-align: center;
 }
 
-.tone--blue {
-  background: linear-gradient(180deg, rgba(27, 77, 126, 0.12), #fff 44%);
+.count-enter-active, .count-leave-active { transition: transform 0.25s var(--admin-ease), opacity 0.2s ease; }
+.count-enter-from { opacity: 0; transform: translateY(-6px) scale(0.8); }
+.count-leave-to { opacity: 0; transform: translateY(6px) scale(0.8); }
+
+/* Escritorio: cada columna con su propio scroll; en el celular scrollea la página. */
+@media (min-width: 1100px) {
+  .column { max-height: calc(100vh - 11rem); }
 }
 
-.tone--green {
-  background: linear-gradient(180deg, rgba(35, 89, 49, 0.12), #fff 44%);
-}
-
-.tone--violet {
-  background: linear-gradient(180deg, rgba(90, 52, 139, 0.12), #fff 44%);
-}
-
-.tone--neutral {
-  background: linear-gradient(180deg, rgba(24, 33, 27, 0.08), #fff 44%);
-}
-
-.tone--red {
-  background: linear-gradient(180deg, rgba(126, 33, 33, 0.12), #fff 44%);
-}
-
-:deep(.order-card--ghost) {
-  opacity: 0.45;
-  transform: rotate(1deg) scale(0.98);
-}
-
-:deep(.order-card--chosen) {
-  box-shadow: 0 20px 44px rgba(0, 0, 0, 0.32);
-  cursor: grabbing;
-}
-
-:deep(.sortable-fallback) {
-  cursor: grabbing !important;
-}
-
-.column {
-  scroll-snap-align: start;
+@media (prefers-reduced-motion: reduce) {
+  .count-enter-active, .count-leave-active { transition: none; }
 }
 </style>

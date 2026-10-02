@@ -11,45 +11,25 @@ const hasBilling = computed(() => {
 </script>
 
 <template>
-  <article class="panel billing-card">
+  <article class="od-card">
     <div class="card-head">
-      <span class="card-head__icon card-head__icon--yellow"><i class="fa-solid fa-file-invoice" /></span>
+      <span class="card-head__icon card-head__icon--yellow" aria-hidden="true"><i class="fa-solid fa-file-invoice" /></span>
       <div>
         <p class="card-head__eyebrow">Facturación</p>
-        <h2>{{ hasBilling ? 'Datos de factura' : 'Consumidor final' }}</h2>
+        <h2>{{ hasBilling ? 'Pidió factura' : 'Consumidor final' }}</h2>
       </div>
-      <span v-if="hasBilling" class="card-head__pill card-head__pill--yellow"><i class="fa-solid fa-file-invoice" /> Pidió factura</span>
     </div>
 
-    <div v-if="hasBilling" class="billing-fields">
-      <div><span>Documento</span><strong>{{ (order.billing?.docType || 'documento').toUpperCase() }} · {{ order.billing?.docNumber || '—' }}</strong></div>
-      <div><span>Nombre / Razón social</span><strong>{{ order.billing?.name || '—' }}</strong></div>
-      <div><span>Email para la factura</span><strong>{{ order.billing?.email || order.customerEmail }}</strong></div>
-      <div><span>Dirección</span><strong>{{ order.billing?.address || '—' }}</strong></div>
-    </div>
-    <p v-else class="billing-empty">El cliente no pidió factura con datos: se factura como consumidor final.</p>
+    <dl v-if="hasBilling" class="od-facts">
+      <div><dt>{{ (order.billing?.docType || 'Documento').toUpperCase() }}</dt><dd>{{ order.billing?.docNumber || '—' }}</dd></div>
+      <div><dt>Nombre / razón social</dt><dd>{{ order.billing?.name || '—' }}</dd></div>
+      <div><dt>Correo</dt><dd>{{ order.billing?.email || order.customerEmail }}</dd></div>
+      <div v-if="order.billing?.address"><dt>Dirección</dt><dd>{{ order.billing.address }}</dd></div>
+    </dl>
+    <p v-else class="od-note od-note--muted"><i class="fa-solid fa-circle-info" aria-hidden="true" /> No pidió factura con datos.</p>
   </article>
 </template>
 
 <style scoped lang="scss">
 @use './order-detail-cards' as *;
-
-.billing-card {
-  background: #fffdf3;
-  border: 1px solid rgba(239, 213, 55, 0.45);
-  flex: 1 1 420px;
-  padding: 1.1rem;
-}
-
-.billing-fields { display: flex; flex-direction: column; gap: 0.75rem; }
-.billing-fields > div { display: flex; flex-direction: column; gap: 0.15rem; }
-.billing-fields span { color: rgba($text-dark, 0.55); font-size: 0.7rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
-.billing-fields strong { font-size: 0.95rem; font-weight: 800; overflow-wrap: anywhere; }
-
-.billing-empty { color: rgba($text-dark, 0.66); font-size: 0.9rem; }
-
-@media (min-width: 768px) {
-  .billing-fields { flex-direction: row; flex-wrap: wrap; }
-  .billing-fields > div { flex: 1 1 40%; }
-}
 </style>

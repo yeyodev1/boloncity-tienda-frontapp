@@ -6,16 +6,126 @@ import type { BranchForm } from './types'
 const props = defineProps<{ open: boolean; editing: boolean; saving: boolean; form: BranchForm }>()
 const emit = defineEmits<{ close: []; submit: [] }>()
 const step = ref(3)
+const steps = [{ n: 1, label: 'Datos', icon: 'fa-store' }, { n: 2, label: 'Ubicación', icon: 'fa-location-dot' }, { n: 3, label: 'Operación', icon: 'fa-clock' }]
 watch(() => props.open, (open) => { if (open) step.value = 3 })
 function imageChange(event: Event) { const file = (event.target as HTMLInputElement).files?.[0] || null; props.form.imageFile = file; if (file) props.form.imagePreview = URL.createObjectURL(file) }
 </script>
 
 <template>
-  <ModalShell :open="open" :title="editing ? 'Editar sucursal' : 'Nueva sucursal'" subtitle="Configura información, ubicación, operación y horarios en pocos pasos." size="lg" @close="emit('close')"><form class="wizard" @submit.prevent="emit('submit')"><aside class="preview"><div class="image"><img v-if="form.imagePreview" :src="form.imagePreview" :alt="form.name || 'Sucursal'" /><i v-else class="fa-solid fa-store" /></div><strong>{{ form.name || 'Nueva sucursal' }}</strong><small>{{ form.city || 'Ciudad por definir' }}</small><label><input type="file" accept="image/*" @change="imageChange" /><i class="fa-solid fa-image" /> {{ form.imagePreview ? 'Cambiar imagen' : 'Subir imagen' }}</label></aside><section class="form"><nav><button v-for="(label, index) in ['Datos', 'Ubicación', 'Operación']" :key="label" type="button" :class="{ active: step === index + 1 }" @click="step = index + 1"><i :class="index === 0 ? 'fa-solid fa-store' : index === 1 ? 'fa-solid fa-location-dot' : 'fa-solid fa-clock'" />{{ label }}</button></nav><Transition name="wizard-step" mode="out-in"><div :key="step" class="fields"><template v-if="step === 1"><header><h2>Datos de la sucursal</h2><p>Estos datos identifican el local en el catálogo y operaciones.</p></header><label><span>Nombre</span><input v-model="form.name" required placeholder="Boloncity Garzota" /></label><label><span>Ciudad</span><input v-model="form.city" required placeholder="Guayaquil" /></label><label><span>Teléfono</span><input v-model="form.phone" required placeholder="+593 96 000 0000" /></label><label><span>Email</span><input v-model="form.email" required type="email" placeholder="local@boloncity.com" /></label></template><template v-else-if="step === 2"><header><h2>Ubicación</h2><p>Pega el enlace de Google Maps para extraer las coordenadas de atención y delivery.</p></header><label class="full"><span>Dirección</span><input v-model="form.address" required placeholder="Dirección completa del local" /></label><label class="full"><span>Google Maps <em>Recomendado</em></span><input v-model="form.googleMapsUrl" placeholder="https://maps.google.com/..." /><small>Se usa para encontrar la sucursal más cercana al cliente.</small></label></template><template v-else><header><h2>Operación</h2><p>Una sucursal inactiva no recibe pedidos. Los horarios bloquean pedidos fuera de atención.</p></header><label class="active-toggle"><input v-model="form.isActive" type="checkbox" /><span><strong>Sucursal activa</strong><small>Disponible para pedidos y asignación.</small></span></label><label class="full"><span>Store ID de PayPhone <em>Requerido para cobrar</em></span><input v-model.trim="form.payphoneStoreId" placeholder="00000000-0000-0000-0000-000000000000" /><small>Identifica la tienda de PayPhone de este local. Sin este dato el cobro cae en la tienda principal y no en la sucursal.</small></label><label class="full"><span>Tiempo de cocina <em>Minutos</em></span><input v-model.number="form.cookTimeMinutes" type="number" min="0" max="240" step="1" placeholder="0" /><small>Picker espera este tiempo antes de buscar motorizado para los pedidos de esta sucursal. 0 = buscar de inmediato. No aplica cuando el pedido ya está listo para recolección.</small></label><BranchHoursEditor v-model="form.openingHours" /></template></div></Transition><footer><button v-if="step > 1" type="button" class="secondary" @click="step--"><i class="fa-solid fa-arrow-left" /> Atrás</button><button v-if="step < 3" type="button" @click="step++">Siguiente <i class="fa-solid fa-arrow-right" /></button><button v-else type="submit" :disabled="saving"><i class="fa-solid fa-floppy-disk" /> {{ saving ? 'Guardando...' : editing ? 'Guardar cambios' : 'Crear sucursal' }}</button></footer></section></form></ModalShell>
+  <ModalShell :open="open" :title="editing ? 'Editar sucursal' : 'Nueva sucursal'" subtitle="Datos del local, ubicación, cobro y horarios." size="lg" @close="emit('close')">
+    <form class="wizard" @submit.prevent="emit('submit')">
+      <aside class="preview">
+        <div class="preview__image">
+          <img v-if="form.imagePreview" :src="form.imagePreview" :alt="form.name || 'Sucursal'" />
+          <i v-else class="fa-solid fa-store" aria-hidden="true" />
+        </div>
+        <strong>{{ form.name || 'Nueva sucursal' }}</strong>
+        <small>{{ form.city || 'Ciudad por definir' }}</small>
+        <span class="cui-chip" :class="form.isActive ? 'cui-chip--good' : 'cui-chip--bad'">{{ form.isActive ? 'Activa' : 'Inactiva' }}</span>
+        <label class="cui-btn cui-btn--ghost preview__upload"><input type="file" accept="image/*" @change="imageChange" /><i class="fa-solid fa-image" /> {{ form.imagePreview ? 'Cambiar foto' : 'Subir foto' }}</label>
+      </aside>
+
+      <section class="form">
+        <nav class="cui-segments" aria-label="Pasos">
+          <button v-for="s in steps" :key="s.n" type="button" :class="{ 'is-active': step === s.n }" :aria-current="step === s.n ? 'step' : undefined" @click="step = s.n">
+            <i :class="['fa-solid', s.icon]" aria-hidden="true" />{{ s.label }}
+          </button>
+        </nav>
+
+        <Transition name="wizard-step" mode="out-in">
+          <div :key="step" class="fields">
+            <template v-if="step === 1">
+              <label class="cui-field cui-half"><span>Nombre</span><input v-model="form.name" required placeholder="Boloncity Garzota" /></label>
+              <label class="cui-field cui-half"><span>Ciudad</span><input v-model="form.city" required placeholder="Guayaquil" /></label>
+              <label class="cui-field cui-half"><span>Teléfono</span><input v-model="form.phone" required placeholder="+593 96 000 0000" /></label>
+              <label class="cui-field cui-half"><span>Correo</span><input v-model="form.email" required type="email" placeholder="local@boloncity.com" /></label>
+            </template>
+            <template v-else-if="step === 2">
+              <label class="cui-field"><span>Dirección</span><input v-model="form.address" required placeholder="Dirección completa del local" /></label>
+              <label class="cui-field"><span>Link de Google Maps <em>recomendado</em></span><input v-model="form.googleMapsUrl" placeholder="https://maps.app.goo.gl/…" /><small>Con esto se calcula qué local le queda más cerca a cada cliente.</small></label>
+            </template>
+            <template v-else>
+              <button type="button" class="cui-switch" :class="{ 'is-on': form.isActive }" role="switch" :aria-checked="form.isActive" @click="form.isActive = !form.isActive">
+                <i class="fa-solid fa-power-off" aria-hidden="true" /><span><strong>Sucursal activa</strong><small>{{ form.isActive ? 'Recibe pedidos' : 'No recibe pedidos' }}</small></span><span class="cui-switch__knob" />
+              </button>
+              <label class="cui-field"><span>Store ID de PayPhone <em>necesario para cobrar con tarjeta</em></span><input v-model.trim="form.payphoneStoreId" placeholder="00000000-0000-0000-0000-000000000000" /><small>Sin este dato, el cobro cae en la tienda principal y no en este local.</small></label>
+              <label class="cui-field"><span>Tiempo de cocina <em>minutos</em></span><input v-model.number="form.cookTimeMinutes" type="number" min="0" max="240" step="1" placeholder="0" /><small>Picker espera este tiempo antes de buscar motorizado. 0 = de inmediato.</small></label>
+              <BranchHoursEditor v-model="form.openingHours" />
+            </template>
+          </div>
+        </Transition>
+
+        <footer class="cui-footer form__footer">
+          <button v-if="step > 1" type="button" class="cui-btn" @click="step--"><i class="fa-solid fa-arrow-left" /> Atrás</button>
+          <button v-if="step < 3" type="button" class="cui-btn cui-btn--primary" @click="step++">Siguiente <i class="fa-solid fa-arrow-right" /></button>
+          <button v-else type="submit" class="cui-btn cui-btn--primary" :disabled="saving"><i class="fa-solid fa-floppy-disk" /> {{ saving ? 'Guardando…' : editing ? 'Guardar cambios' : 'Crear sucursal' }}</button>
+        </footer>
+      </section>
+    </form>
+  </ModalShell>
 </template>
 
 <style scoped lang="scss">
-.wizard { display:flex; flex-direction:column; gap:1rem; }.preview,.form { border:1px solid rgba(8,17,13,.08); border-radius:20px; padding:1rem; }.preview { background:#edf2ed; display:flex; flex-direction:column; gap:.45rem; }.image { align-items:center; aspect-ratio:4/3; background:rgba(35,89,49,.12); border-radius:15px; color:#235931; display:flex; font-size:3rem; justify-content:center; overflow:hidden; }.image img { height:100%; object-fit:cover; width:100%; }.preview small,.fields p,.fields small { color:rgba(8,17,13,.57); font-size:.78rem; }.preview label { align-items:center; border:1px dashed rgba(35,89,49,.35); border-radius:12px; color:#235931; cursor:pointer; display:flex; font-size:.76rem; font-weight:800; gap:.45rem; justify-content:center; margin-top:.4rem; min-height:40px; position:relative; }.preview input { inset:0; opacity:0; position:absolute; } .form { display:flex; flex:1; flex-direction:column; }.form nav { background:#eef3ef; border-radius:14px; display:flex; gap:.2rem; padding:.25rem; }.form nav button { background:transparent; color:rgba(8,17,13,.52); flex:1; font-size:.7rem; }.form nav button.active { background:#235931; color:#fff; }.form button { align-items:center; background:#235931; border:0; border-radius:999px; color:#fff; display:inline-flex; font-weight:800; gap:.4rem; justify-content:center; min-height:42px; padding:.65rem .85rem; }.fields { display:flex; flex-flow:row wrap; gap:.75rem; padding:1rem 0; }.fields header,.fields .full { flex-basis:100%; }.fields h2 { font-size:1.05rem; }.fields p { margin-top:.25rem; }.fields label { display:flex; flex:1 1 180px; flex-direction:column; gap:.35rem; }.fields label > span { color:#235931; font-size:.7rem; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }.fields em { color:rgba(8,17,13,.48); font-size:.62rem; font-style:normal; text-transform:none; }.fields input { background:#fff; border:1px solid rgba(8,17,13,.12); border-radius:11px; min-height:42px; padding:.55rem .65rem; }.active-toggle { align-items:center; background:rgba(35,89,49,.06); border:1px solid rgba(35,89,49,.13); border-radius:14px; flex-direction:row !important; padding:.7rem; }.active-toggle input { min-height:auto !important; }.active-toggle span { display:flex; flex-direction:column; }.active-toggle strong { color:#235931; font-size:.82rem; } footer { display:flex; flex-wrap:wrap; gap:.65rem; justify-content:flex-end; margin-top:auto; }.secondary { background:rgba(8,17,13,.07) !important; color:#152019 !important; }.wizard-step-enter-active,.wizard-step-leave-active { transition:opacity .2s ease, transform .25s ease; }.wizard-step-enter-from { opacity:0; transform:translateX(12px); }.wizard-step-leave-to { opacity:0; transform:translateX(-12px); } @media (min-width:769px) { .wizard { flex-direction:row; }.preview { flex:0 0 240px; } }
-@media (min-width:769px) { .wizard { align-items:flex-start; }.preview { align-self:flex-start; position:sticky; top:0; } }
-.active-toggle { background:transparent !important; border:0 !important; min-height:76px; padding:0 !important; position:relative; }.active-toggle input { appearance:none; background:rgba(180,35,24,.1); border:1px solid rgba(180,35,24,.2); border-radius:14px; cursor:pointer; height:76px; inset:0; margin:0; min-height:76px !important; position:absolute; width:100%; }.active-toggle input::after { align-items:center; color:#a02828; content:'Sucursal inactiva'; display:flex; font-size:.86rem; font-weight:900; height:100%; justify-content:center; text-transform:uppercase; }.active-toggle input:checked { background:rgba(35,89,49,.1); border-color:rgba(35,89,49,.26); }.active-toggle input:checked::after { color:#235931; content:'Sucursal activa'; }.active-toggle span { display:none !important; }
+.wizard { display: flex; flex-direction: column; gap: 0.9rem; }
+
+.preview {
+  align-items: flex-start;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-line);
+  border-radius: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.75rem;
+
+  strong { color: var(--admin-text); font-size: 1rem; margin-top: 0.4rem; }
+  small { color: var(--admin-muted); font-size: 0.78rem; }
+}
+
+.preview__image {
+  align-items: center;
+  aspect-ratio: 4 / 3;
+  background: var(--admin-accent-soft);
+  border-radius: 14px;
+  color: var(--admin-accent);
+  display: flex;
+  font-size: 2.5rem;
+  justify-content: center;
+  overflow: hidden;
+  width: 100%;
+
+  img { height: 100%; object-fit: cover; width: 100%; }
+}
+
+.preview__upload { margin-top: 0.5rem; position: relative; width: 100%; }
+.preview__upload input { cursor: pointer; inset: 0; opacity: 0; position: absolute; }
+
+.form {
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-line);
+  border-radius: 18px;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+  padding: 0.9rem;
+}
+
+.fields { display: flex; flex-flow: row wrap; gap: 0.85rem; }
+.fields > * { flex: 1 1 100%; }
+.fields > .cui-half { flex: 1 1 220px; }
+
+.form__footer { border-top: 1px solid var(--admin-line); margin-top: auto; padding-top: 0.85rem; }
+
+.wizard-step-enter-active, .wizard-step-leave-active { transition: opacity 0.2s ease, transform 0.25s ease; }
+.wizard-step-enter-from { opacity: 0; transform: translateX(12px); }
+.wizard-step-leave-to { opacity: 0; transform: translateX(-12px); }
+
+@media (min-width: 769px) {
+  .wizard { align-items: flex-start; flex-direction: row; }
+  .preview { flex: 0 0 230px; position: sticky; top: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) { .wizard-step-enter-active, .wizard-step-leave-active { transition: none; } }
 </style>

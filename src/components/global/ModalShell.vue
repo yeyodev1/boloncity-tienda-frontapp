@@ -80,7 +80,8 @@ onBeforeUnmount(() => {
 }
 
 .modal-shell__panel {
-  background: #fff;
+  background: var(--admin-surface, #fff);
+  color: var(--admin-text, inherit);
   border-radius: 24px;
   box-shadow: 0 -24px 60px rgba(0, 0, 0, 0.35);
   display: flex;
@@ -161,13 +162,13 @@ onBeforeUnmount(() => {
 .modal-shell__body {
   overflow-y: auto;
   padding: 1rem;
-  background: #f4f4f0;
+  background: var(--admin-bg, #f4f4f0);
 }
 
 .modal-shell__footer {
   align-items: center;
-  background: #f4f4f0;
-  border-top: 1px solid rgba(8, 17, 13, 0.08);
+  background: var(--admin-bg, #f4f4f0);
+  border-top: 1px solid var(--admin-line, rgba(8, 17, 13, 0.08));
   display: flex;
   gap: 0.75rem;
   justify-content: flex-end;

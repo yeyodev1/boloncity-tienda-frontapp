@@ -1,13 +1,16 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Chart, registerables, type ChartConfiguration } from 'chart.js'
 import type { OrderDTO } from '@/services/OrderService'
+import { useAdminTheme } from '@/composables/useAdminTheme'
+import { chartTokens } from './adminChartTokens'
 
 Chart.register(...registerables)
 
 const props = defineProps<{ orders: OrderDTO[]; period: 'today' | 'all' | 'range' }>()
 const canvas = ref<HTMLCanvasElement | null>(null)
 let chart: Chart<'line'> | null = null
+const { theme } = useAdminTheme()
 const timeZone = 'America/Guayaquil'
 
 function dayKey(date: Date) {
@@ -19,7 +22,7 @@ function dayKey(date: Date) {
 const data = computed(() => {
   const isToday = props.period === 'today'
   const buckets = isToday
-    ? Array.from({ length: 15 }, (_, index) => ({ key: String(index + 8), label: `${index + 8}:00`, count: 0 }))
+    ? Array.from({ length: 15 }, (_, index) => ({ key: String(index + 7).padStart(2, '0'), label: `${index + 7}h`, count: 0 }))
     : Array.from({ length: 7 }, (_, index) => {
         const date = new Date()
         date.setDate(date.getDate() - (6 - index))
@@ -38,50 +41,56 @@ const data = computed(() => {
   return buckets
 })
 
+const total = computed(() => data.value.reduce((sum, item) => sum + item.count, 0))
+
 function render() {
   if (!canvas.value) return
   chart?.destroy()
   const context = canvas.value.getContext('2d')
   if (!context) return
-  const gradient = context.createLinearGradient(0, 0, 0, 230)
-  gradient.addColorStop(0, 'rgba(0, 165, 35, 0.22)')
-  gradient.addColorStop(1, 'rgba(0, 165, 35, 0)')
+  const t = chartTokens()
+  const gradient = context.createLinearGradient(0, 0, 0, 200)
+  gradient.addColorStop(0, t.alpha(t.accent, 0.26))
+  gradient.addColorStop(1, t.alpha(t.accent, 0))
   const config: ChartConfiguration<'line'> = {
     type: 'line',
     data: {
       labels: data.value.map((item) => item.label),
       datasets: [{
         data: data.value.map((item) => item.count),
-        borderColor: '#00a523',
+        borderColor: t.accent,
         backgroundColor: gradient,
-        borderWidth: 3,
+        borderWidth: 2.5,
         fill: true,
-        tension: 0.42,
-        pointBackgroundColor: '#fff',
-        pointBorderColor: '#235931',
-        pointBorderWidth: 2.5,
-        pointHoverBackgroundColor: '#efd537',
-        pointHoverBorderColor: '#235931',
+        tension: 0.38,
+        cubicInterpolationMode: 'monotone',
+        pointBackgroundColor: t.surface,
+        pointBorderColor: t.accent,
+        pointBorderWidth: 2,
         pointHoverRadius: 6,
-        pointRadius: 3.5,
+        pointRadius: (ctx) => ((ctx.raw as number) > 0 ? 3 : 0),
       }],
     },
     options: {
-      animation: { duration: 550, easing: 'easeOutQuart' },
+      animation: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? false : { duration: 500, easing: 'easeOutQuart' },
+      // Los puntos solo crecen hacia arriba: animar la X los dejaba amontonados a la izquierda si se cortaba la animación.
+      animations: { x: { duration: 0 } },
+      interaction: { intersect: false, mode: 'index' },
       maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: '#18211b',
-          bodyFont: { family: 'Switzer, sans-serif', weight: 700 },
-          callbacks: { label: (item) => `${item.parsed.y} ${item.parsed.y === 1 ? 'orden' : 'órdenes'}` },
+          backgroundColor: t.text,
+          bodyColor: t.surface,
+          titleColor: t.surface,
+          callbacks: { label: (item) => `${item.parsed.y} ${item.parsed.y === 1 ? 'pedido' : 'pedidos'}` },
           displayColors: false,
           padding: 10,
         },
       },
       scales: {
-        x: { border: { display: false }, grid: { display: false }, ticks: { color: '#748078', font: { family: 'Switzer, sans-serif', size: 10, weight: 700 }, maxRotation: 0 } },
-        y: { beginAtZero: true, border: { display: false }, grid: { color: 'rgba(8, 17, 13, 0.08)' }, ticks: { color: '#748078', font: { family: 'Switzer, sans-serif', size: 10, weight: 700 }, precision: 0, stepSize: 1 } },
+        x: { border: { display: false }, grid: { display: false }, ticks: { color: t.muted, font: { size: 10, weight: 700 }, maxRotation: 0, autoSkipPadding: 8 } },
+        y: { beginAtZero: true, border: { display: false }, grid: { color: t.grid }, ticks: { color: t.muted, font: { size: 10, weight: 700 }, maxTicksLimit: 4, precision: 0 } },
       },
     },
   }
@@ -91,15 +100,45 @@ function render() {
 onMounted(render)
 onBeforeUnmount(() => chart?.destroy())
 watch([() => props.orders, () => props.period], render, { deep: true })
+watch(theme, () => nextTick(render))
 </script>
 
 <template>
-  <section class="orders-line panel">
-    <div class="orders-line__head"><div><span><i class="fa-solid fa-chart-line" /> Flujo de pedidos</span><h2>{{ period === 'today' ? 'Órdenes por hora' : 'Órdenes por día' }}</h2></div><small>{{ period === 'today' ? 'Hoy · Guayaquil' : period === 'range' ? 'Período seleccionado' : 'Últimos 7 días' }}</small></div>
-    <div class="orders-line__canvas"><canvas ref="canvas" aria-label="Tendencia de órdenes" role="img" /></div>
+  <section class="chart-card">
+    <header class="chart-card__head">
+      <div>
+        <h2>{{ period === 'today' ? 'Pedidos por hora' : 'Pedidos por día' }}</h2>
+        <p>{{ period === 'today' ? 'Hoy · hora de Guayaquil' : period === 'range' ? 'Período seleccionado' : 'Últimos 7 días' }}</p>
+      </div>
+      <strong>{{ total }}</strong>
+    </header>
+    <div class="chart-card__canvas"><canvas ref="canvas" aria-label="Tendencia de pedidos" role="img" /></div>
   </section>
 </template>
 
 <style scoped lang="scss">
-.orders-line { padding:1rem; }.orders-line__head { align-items:flex-start; display:flex; justify-content:space-between; margin-bottom:.8rem; }.orders-line__head span { color:var(--admin-muted); font-size:.68rem; font-weight:900; letter-spacing:.1em; text-transform:uppercase; }.orders-line__head span i { color:#00a523; }.orders-line__head h2 { font-size:1.08rem; letter-spacing:-.03em; margin-top:.2rem; }.orders-line__head small { color:var(--admin-muted); font-size:.68rem; text-align:right; }.orders-line__canvas { height:220px; position:relative; width:100%; }
+.chart-card {
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-line);
+  border-radius: var(--admin-radius, 18px);
+  box-shadow: var(--admin-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 1rem 1.1rem;
+}
+
+.chart-card__head {
+  align-items: flex-start;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+
+  h2 { font-size: 0.98rem; font-weight: 800; letter-spacing: -0.02em; margin: 0; }
+  p { color: var(--admin-muted); font-size: 0.76rem; margin: 0.2rem 0 0; }
+  strong { font-size: 1.15rem; font-variant-numeric: tabular-nums; font-weight: 800; }
+}
+
+.chart-card__canvas { height: 200px; position: relative; width: 100%; }
 </style>

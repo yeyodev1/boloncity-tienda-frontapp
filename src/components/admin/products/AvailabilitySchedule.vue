@@ -50,28 +50,31 @@ function toggle() {
 </template>
 
 <style scoped lang="scss">
-.schedule { background:#f8fbf8; border:1px solid rgba(35,89,49,.14); border-radius:16px; overflow:hidden; }
-.schedule--on { background:#fff; }
-.schedule--invalid { border-color:rgba(165,35,35,.45); }
+.schedule { background: var(--admin-surface-2); border: 1px solid var(--admin-line); border-radius: 14px; overflow: hidden; transition: background-color 0.2s ease, border-color 0.2s ease; }
+.schedule--on { background: var(--admin-surface); }
+.schedule--invalid { border-color: var(--admin-danger); }
 
-.schedule__toggle { align-items:center; background:transparent; border:0; cursor:pointer; display:flex; gap:.75rem; justify-content:space-between; padding:.9rem 1rem; text-align:left; width:100%; }
-.schedule__toggle-info { align-items:center; display:flex; gap:.7rem; }
-.schedule__toggle-info > i { color:#235931; font-size:1.05rem; }
-.schedule__toggle-info span { display:flex; flex-direction:column; }
-.schedule__toggle-info strong { color:#152019; font-size:.92rem; }
-.schedule__toggle-info small { color:rgba(8,17,13,.55); font-size:.72rem; }
+.schedule__toggle { align-items: center; background: transparent; border: 0; color: var(--admin-text); cursor: pointer; display: flex; gap: 0.75rem; justify-content: space-between; min-height: 64px; padding: 0.7rem 0.85rem; text-align: left; width: 100%; }
+.schedule__toggle:focus-visible { outline: 2px solid var(--admin-accent); outline-offset: -2px; }
+.schedule__toggle-info { align-items: center; display: flex; gap: 0.75rem; }
+.schedule__toggle-info > i { color: var(--admin-accent); width: 18px; }
+.schedule__toggle-info span { display: flex; flex-direction: column; }
+.schedule__toggle-info strong { font-size: 0.86rem; }
+.schedule__toggle-info small { color: var(--admin-muted); font-size: 0.74rem; }
 
-.schedule__switch { background:rgba(8,17,13,.16); border-radius:999px; flex:0 0 44px; height:26px; padding:3px; transition:background-color .2s; }
-.schedule__switch b { background:#fff; border-radius:50%; display:block; height:20px; transition:transform .2s; width:20px; }
-.schedule__switch.active { background:#235931; }
-.schedule__switch.active b { transform:translateX(18px); }
+.schedule__switch { background: var(--admin-line-strong); border-radius: 999px; flex: 0 0 44px; height: 26px; padding: 3px; transition: background-color 0.25s ease; }
+.schedule__switch b { background: var(--admin-surface); border-radius: 50%; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25); display: block; height: 20px; transition: transform 0.25s var(--admin-ease, ease); width: 20px; }
+.schedule__switch.active { background: var(--admin-accent); }
+.schedule__switch.active b { transform: translateX(18px); }
 
-.schedule__body { border-top:1px solid rgba(8,17,13,.08); display:flex; flex-direction:column; gap:.75rem; padding:.9rem 1rem 1rem; }
-.schedule__dates { display:flex; flex-direction:column; gap:.9rem; }
-.schedule__summary { display:flex; flex-direction:column; gap:.35rem; }
-.schedule__summary span { color:#235931; font-size:.75rem; font-weight:800; }
-.schedule__summary i { width:16px; }
-.schedule__body small { color:rgba(8,17,13,.58); font-size:.72rem; line-height:1.35; }
-.schedule__msg-bad { color:#a52323 !important; font-weight:700; }
-@media (min-width: 620px) { .schedule__dates { flex-direction:row; } .schedule__dates > * { flex:1 1 0; } }
+.schedule__body { border-top: 1px solid var(--admin-line); display: flex; flex-direction: column; gap: 0.75rem; padding: 0.85rem; }
+.schedule__dates { display: flex; flex-direction: column; gap: 0.85rem; }
+.schedule__summary { display: flex; flex-direction: column; gap: 0.3rem; }
+.schedule__summary span { color: var(--admin-accent); font-size: 0.76rem; font-weight: 800; }
+.schedule__summary i { width: 16px; }
+.schedule__body small { color: var(--admin-muted); font-size: 0.74rem; line-height: 1.4; }
+.schedule__msg-bad { color: var(--admin-danger) !important; font-weight: 700; }
+
+@media (min-width: 620px) { .schedule__dates { flex-direction: row; } .schedule__dates > * { flex: 1 1 0; } }
+@media (prefers-reduced-motion: reduce) { .schedule__switch, .schedule__switch b { transition: none; } }
 </style>

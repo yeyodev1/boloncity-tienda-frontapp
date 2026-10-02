@@ -28,6 +28,8 @@ export interface OrderDTO {
   _id: string
   orderNumber: string
   status: string
+  /** Canal por el que entró el pedido. */
+  source?: 'web' | 'whatsapp'
   paymentMethod?: 'card' | 'cash'
   pointsEarned?: number
   pointsRedeemed?: number
