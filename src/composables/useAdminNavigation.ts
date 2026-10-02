@@ -22,6 +22,7 @@ export function useAdminNavigation() {
     { label: 'Disponibilidad', path: '/admin/disponibilidad', icon: 'fa-solid fa-list-check' },
     { label: 'Rewards', path: '/admin/rewards', icon: 'fa-solid fa-gift' },
     { label: 'Clientes', path: '/admin/clientes', icon: 'fa-solid fa-user-group' },
+    { label: 'Carritos', path: '/admin/carritos', icon: 'fa-solid fa-cart-arrow-down' },
     { label: 'Categorías', path: '/admin/categorias', icon: 'fa-solid fa-layer-group' },
     ...(isAdmin.value ? [{ label: 'Sucursales', path: '/admin/sucursales', icon: 'fa-solid fa-store' }] : []),
     { label: 'Usuarios', path: '/admin/usuarios', icon: 'fa-solid fa-users' },
