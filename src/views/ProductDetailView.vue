@@ -11,6 +11,7 @@ import CategoryService, { type CategoryDTO } from '@/services/CategoryService'
 import { useCartStore } from '@/stores/cart'
 import { useSettingsStore } from '@/stores/settings'
 import { trackMetaEvent } from '@/services/metaPixel'
+import { displayDescription, displayProductName, isCustomerCategory } from '@/utils/productName'
 
 const route = useRoute()
 const cart = useCartStore()
@@ -20,6 +21,8 @@ const drinks = ref<ProductDTO[]>([])
 const loading = ref(true)
 const recommendationsLoading = ref(true)
 const imageLoaded = ref(false)
+// Imagen rota o borrada: se muestra el plato de respaldo en vez de un hueco.
+const imageFailed = ref(false)
 const quantity = ref(1)
 const adding = ref(false)
 const addedModalOpen = ref(false)
@@ -34,6 +37,8 @@ const promoUnitPrice = computed(() => settings.promoPrice(product.value?.price |
 const promoTotal = computed(() => Math.round(total.value * (100 - (promo.value.active ? promo.value.percent : 0))) / 100)
 const categoryNames = computed(() => product.value?.categories?.map((category) => category.name).filter(Boolean) || [])
 const isDrink = computed(() => categoryNames.value.some((name) => /bebida|cafe|café|jugo/i.test(name)))
+// Lo que ve el cliente: sin grupos internos del POS ("Cocina", "Caja") y sin mayúsculas sostenidas.
+const visibleCategoryNames = computed(() => (product.value?.categories || []).filter(isCustomerCategory).map((category) => displayProductName(category.name)))
 const companionTitle = computed(() => (isDrink.value ? 'Algo rico para comer' : 'Acompaña tu elección'))
 const companionCopy = computed(() => (isDrink.value ? 'Platos que hacen una gran pareja con tu bebida.' : 'Extras y opciones que completan tu plato.'))
 
@@ -104,6 +109,7 @@ async function loadProduct() {
   adding.value = false
   addedModalOpen.value = false
   imageLoaded.value = false
+  imageFailed.value = false
 
   try {
     const [productResponse, categoriesResponse] = await Promise.all([
@@ -184,25 +190,24 @@ onBeforeUnmount(() => {
       <template v-else-if="product">
         <nav class="product-breadcrumb" aria-label="Navegación">
           <RouterLink to="/catalogo"><i class="fa-solid fa-arrow-left" /> Volver al menú</RouterLink>
-          <span>{{ categoryNames.at(-1) || 'Boloncity' }}</span>
+          <span>{{ visibleCategoryNames[visibleCategoryNames.length - 1] || 'Boloncity' }}</span>
         </nav>
 
         <article class="product-detail">
           <div class="product-detail__media">
-            <div v-if="product.images[0]?.url && !imageLoaded" class="product-detail__image-skeleton" />
-            <img v-if="product.images[0]?.url" :class="{ 'is-loaded': imageLoaded }" :src="product.images[0].url" :alt="product.name" @load="imageLoaded = true" />
+            <div v-if="product.images[0]?.url && !imageFailed && !imageLoaded" class="product-detail__image-skeleton" />
+            <img v-if="product.images[0]?.url && !imageFailed" :class="{ 'is-loaded': imageLoaded }" :src="product.images[0].url" :alt="product.name" @load="imageLoaded = true" @error="imageFailed = true" />
             <span v-else><i class="fa-solid fa-utensils" /></span>
             <div class="product-detail__media-badge"><i class="fa-solid fa-fire-burner" /> Preparado al momento</div>
           </div>
 
           <div class="product-detail__copy">
             <div class="product-detail__categories">
-              <span v-for="category in categoryNames" :key="category">{{ category }}</span>
+              <span v-for="category in visibleCategoryNames" :key="category">{{ category }}</span>
             </div>
 
-            <p class="product-detail__eyebrow">Producto {{ product.code }}</p>
-            <h1>{{ product.name }}</h1>
-            <p class="product-detail__text">{{ product.description || 'Una opción preparada con el sabor auténtico de Boloncity.' }}</p>
+            <h1>{{ displayProductName(product.name) }}</h1>
+            <p class="product-detail__text">{{ displayDescription(product.description) || 'Una opción preparada con el sabor auténtico de Boloncity.' }}</p>
 
             <div class="product-detail__benefits">
               <span><i class="fa-solid fa-circle-check" /> Disponible ahora</span>
