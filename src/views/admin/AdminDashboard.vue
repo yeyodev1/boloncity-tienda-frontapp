@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import AdminLayout from '@/components/admin/AdminLayout.vue'
 import { AdminDateRangeFilter, AdminHourlyChart, AdminRevenueChart } from '@/components/admin'
 import SkeletonLoader from '@/components/global/SkeletonLoader.vue'
@@ -8,8 +9,7 @@ import ProductService, { type ProductDTO } from '@/services/ProductService'
 import CategoryService, { type CategoryDTO } from '@/services/CategoryService'
 import BranchService, { type BranchDTO } from '@/services/BranchService'
 import UserService, { type UserDTO } from '@/services/UserService'
-import { orderStatusLabels, orderStatusTones } from '@/composables/useOrdersBoard'
-import { useRouter } from 'vue-router'
+import { relativeTime, statusLabel } from '@/components/admin/order-detail/orderStory'
 
 const router = useRouter()
 const loading = ref(true)
@@ -21,53 +21,57 @@ const users = ref<UserDTO[]>([])
 const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Guayaquil' }).format(new Date())
 const startDate = ref(today)
 const endDate = ref(today)
+const activePreset = ref('today')
 
-const pendingOrders = computed(() => orders.value.filter((o) => o.status === 'pending').length)
-const preparingOrders = computed(() => orders.value.filter((o) => o.status === 'preparing').length)
+const money = (cents: number) => `$${(cents / 100).toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
+const validOrders = computed(() => orders.value.filter((o) => o.status !== 'cancelled'))
+const totalRevenue = computed(() => validOrders.value.reduce((sum, o) => sum + (o.total || 0), 0))
+const averageTicket = computed(() => (validOrders.value.length ? totalRevenue.value / validOrders.value.length : 0))
 const deliveredOrders = computed(() => orders.value.filter((o) => o.status === 'delivered').length)
-
-const totalRevenue = computed(() => {
-  return orders.value
-    .filter((o) => o.status !== 'cancelled')
-    .reduce((sum, o) => sum + (o.total || 0), 0)
+const cancelledOrders = computed(() => orders.value.filter((o) => o.status === 'cancelled').length)
+/** Lo que el equipo todavía tiene que mover: sin entregar ni cancelar. */
+const inProgress = computed(() => orders.value.filter((o) => ['paid', 'preparing', 'awaiting_pickup', 'ready'].includes(o.status)).length)
+const unpaidCards = computed(() => orders.value.filter((o) => o.status === 'pending' && o.paymentMethod === 'card').length)
+const whatsappShare = computed(() => {
+  const total = orders.value.length
+  if (!total) return 0
+  return Math.round((orders.value.filter((o) => o.source === 'whatsapp').length / total) * 100)
 })
-const deliveryCharged = computed(() => orders.value.filter((o) => o.status !== 'cancelled').reduce((sum, o) => sum + (o.deliveryCost || 0), 0))
+
+const deliveryCharged = computed(() => validOrders.value.reduce((sum, o) => sum + (o.deliveryCost || 0), 0))
 // Solo los pedidos en los que Picker nos dijo cuánto nos cobra. El resto no entra ni arriba ni
 // abajo: mezclarlos daba una "diferencia" igual al total cobrado, como si el motorizado fuera gratis.
-const ordersConCostoPicker = computed(() =>
-  orders.value.filter((o) => o.status !== 'cancelled' && (o.picker?.deliveryFee || 0) > 0),
-)
-const pickerDeliveryCost = computed(() =>
-  ordersConCostoPicker.value.reduce((sum, o) => sum + Math.round((o.picker?.deliveryFee || 0) * 100), 0),
-)
-const deliveryChargedConPicker = computed(() =>
-  ordersConCostoPicker.value.reduce((sum, o) => sum + (o.deliveryCost || 0), 0),
-)
+const ordersConCostoPicker = computed(() => validOrders.value.filter((o) => (o.picker?.deliveryFee || 0) > 0))
+const pickerDeliveryCost = computed(() => ordersConCostoPicker.value.reduce((sum, o) => sum + Math.round((o.picker?.deliveryFee || 0) * 100), 0))
+const deliveryChargedConPicker = computed(() => ordersConCostoPicker.value.reduce((sum, o) => sum + (o.deliveryCost || 0), 0))
 const deliveryDifference = computed(() => deliveryChargedConPicker.value - pickerDeliveryCost.value)
-/** Sin un solo costo de Picker no hay diferencia que mostrar: se dice, en vez de inventar un número. */
 const haySaldoDelivery = computed(() => ordersConCostoPicker.value.length > 0)
 const pointsGranted = computed(() => orders.value.reduce((sum, o) => sum + (o.pointsEarned || 0), 0))
 
-const totalProducts = computed(() => products.value.length)
 const activeProducts = computed(() => products.value.filter((p) => p.isAvailable).length)
-const totalCategories = computed(() => categories.value.length)
 const activeBranches = computed(() => branches.value.filter((b) => b.isActive).length)
-const totalUsers = computed(() => users.value.length)
 
-const recentOrders = computed(() => {
-  return [...orders.value]
+const recentOrders = computed(() =>
+  [...orders.value]
     .sort((a, b) => new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime())
-    .slice(0, 10)
+    .slice(0, 8),
+)
+
+/** Reparto por estado, en el orden del ciclo del pedido (para la barra apilada). */
+const STATUS_ORDER = ['pending', 'paid', 'preparing', 'awaiting_pickup', 'ready', 'delivered', 'cancelled']
+const statusBreakdown = computed(() => {
+  const total = orders.value.length || 1
+  return STATUS_ORDER.map((status) => {
+    const count = orders.value.filter((o) => o.status === status).length
+    return { status, count, percent: (count / total) * 100 }
+  }).filter((item) => item.count > 0)
 })
 
-const statusGroups = computed(() => {
-  const groups: Record<string, OrderDTO[]> = {}
-  for (const order of orders.value) {
-    const status = order.status
-    if (!groups[status]) groups[status] = []
-    groups[status].push(order)
-  }
-  return groups
+const rangeLabel = computed(() => {
+  const fmt = (value: string) => new Date(`${value}T12:00:00-05:00`).toLocaleDateString('es-EC', { day: 'numeric', month: 'short', timeZone: 'America/Guayaquil' })
+  if (startDate.value === endDate.value) return startDate.value === today ? 'Hoy' : fmt(startDate.value)
+  return `${fmt(startDate.value)} – ${fmt(endDate.value)}`
 })
 
 async function load() {
@@ -101,14 +105,6 @@ onMounted(() => {
 
 onUnmounted(() => window.removeEventListener('admin:branch-change', load))
 
-function goStore() {
-  window.open('/', '_blank')
-}
-
-function goCatalog() {
-  window.open('/catalogo', '_blank')
-}
-
 function applyDateRange() {
   if (startDate.value > endDate.value) [startDate.value, endDate.value] = [endDate.value, startDate.value]
   void load()
@@ -117,429 +113,338 @@ function applyDateRange() {
 
 <template>
   <AdminLayout>
-    <section class="dashboard">
-      <header class="dashboard-hero panel">
+    <section class="dash">
+      <header class="dash__head">
         <div>
-          <p class="eyebrow">Panel interno · Boloncity</p>
-          <h1>Dashboard</h1>
-          <p>Resumen general de operaci&oacute;n, ventas y movimiento.</p>
-        </div>
-        <div class="hero-actions">
-          <button class="hero-btn hero-btn--store" type="button" @click="goStore">
-            <i class="fa-solid fa-store" />
-            Ver tienda
-          </button>
-          <button class="hero-btn hero-btn--catalog" type="button" @click="goCatalog">
-            <i class="fa-solid fa-eye" />
-            Ver cat&aacute;logo
-          </button>
+          <p class="dash__eyebrow">Resumen · {{ rangeLabel }}</p>
+          <h1>Cómo va el negocio</h1>
         </div>
       </header>
 
-      <SkeletonLoader v-if="loading" type="card" :count="4" />
+      <AdminDateRangeFilter
+        v-model:start-date="startDate"
+        v-model:end-date="endDate"
+        :loading="loading"
+        :active-preset="activePreset"
+        @preset="activePreset = $event"
+        @apply="applyDateRange"
+      />
+
+      <SkeletonLoader v-if="loading" type="card" :count="3" />
 
       <template v-else>
-        <AdminDateRangeFilter v-model:start-date="startDate" v-model:end-date="endDate" :loading="loading" @apply="applyDateRange" />
-        <section class="stats-grid">
-          <article class="panel stat-card stat-card--orders">
-            <i class="stat-card__icon fa-solid fa-receipt" />
-            <span class="stat-card__value">{{ orders.length }}</span>
-            <span class="stat-card__label">Ordenes totales</span>
+        <!-- Lo que importa, en 4 números. -->
+        <section class="kpis" aria-label="Indicadores principales">
+          <article class="kpi kpi--hero">
+            <span class="kpi__label"><i class="fa-solid fa-sack-dollar" aria-hidden="true" /> Ventas</span>
+            <strong class="kpi__value">{{ money(totalRevenue) }}</strong>
+            <span class="kpi__hint">Sin contar cancelados</span>
           </article>
-          <article class="panel stat-card stat-card--delivered">
-            <i class="stat-card__icon fa-solid fa-circle-check" />
-            <span class="stat-card__value">{{ deliveredOrders }}</span>
-            <span class="stat-card__label">Entregadas</span>
+          <article class="kpi">
+            <span class="kpi__label"><i class="fa-solid fa-receipt" aria-hidden="true" /> Pedidos</span>
+            <strong class="kpi__value">{{ orders.length }}</strong>
+            <span class="kpi__hint">{{ deliveredOrders }} entregados<template v-if="cancelledOrders"> · {{ cancelledOrders }} cancelados</template></span>
           </article>
-          <article class="panel stat-card stat-card--pending">
-            <i class="stat-card__icon fa-solid fa-clock" />
-            <span class="stat-card__value">{{ pendingOrders }}</span>
-            <span class="stat-card__label">Pendientes</span>
+          <article class="kpi">
+            <span class="kpi__label"><i class="fa-solid fa-ticket" aria-hidden="true" /> Ticket promedio</span>
+            <strong class="kpi__value">{{ money(averageTicket) }}</strong>
+            <span class="kpi__hint">{{ whatsappShare }}% llegó por WhatsApp</span>
           </article>
-          <article class="panel stat-card stat-card--preparing">
-            <i class="stat-card__icon fa-solid fa-fire" />
-            <span class="stat-card__value">{{ preparingOrders }}</span>
-            <span class="stat-card__label">En preparaci&oacute;n</span>
-          </article>
-          <article class="panel stat-card stat-card--products">
-            <i class="stat-card__icon fa-solid fa-box" />
-            <span class="stat-card__value">{{ totalProducts }}</span>
-            <span class="stat-card__label">Productos</span>
-          </article>
-          <article class="panel stat-card stat-card--available">
-            <i class="stat-card__icon fa-solid fa-check" />
-            <span class="stat-card__value">{{ activeProducts }}</span>
-            <span class="stat-card__label">Disponibles</span>
-          </article>
-          <article class="panel stat-card stat-card--categories">
-            <i class="stat-card__icon fa-solid fa-layer-group" />
-            <span class="stat-card__value">{{ totalCategories }}</span>
-            <span class="stat-card__label">Categor&iacute;as</span>
-          </article>
-          <article class="panel stat-card stat-card--branches">
-            <i class="stat-card__icon fa-solid fa-location-dot" />
-            <span class="stat-card__value">{{ activeBranches }}</span>
-            <span class="stat-card__label">Sucursales activas</span>
-          </article>
-          <article class="panel stat-card stat-card--users">
-            <i class="stat-card__icon fa-solid fa-users" />
-            <span class="stat-card__value">{{ totalUsers }}</span>
-            <span class="stat-card__label">Usuarios</span>
-          </article>
-          <article class="panel stat-card stat-card--revenue">
-            <i class="stat-card__icon fa-solid fa-dollar-sign" />
-            <span class="stat-card__value">${{ (totalRevenue / 100).toLocaleString('es-EC') }}</span>
-            <span class="stat-card__label">Ingresos</span>
-          </article>
-          <article class="panel stat-card stat-card--delivery">
-            <i class="stat-card__icon fa-solid fa-truck-fast" />
-            <span class="stat-card__value">${{ (deliveryCharged / 100).toLocaleString('es-EC') }}</span>
-            <span class="stat-card__label">Delivery cobrado</span>
-          </article>
-          <article class="panel stat-card stat-card--picker">
-            <i class="stat-card__icon fa-solid fa-scale-balanced" />
-            <span class="stat-card__value">{{ haySaldoDelivery ? `$${(deliveryDifference / 100).toLocaleString('es-EC')}` : '—' }}</span>
-            <span class="stat-card__label">{{ haySaldoDelivery ? 'Diferencia delivery' : 'Sin costo de Picker' }}</span>
-          </article>
-          <article class="panel stat-card stat-card--points">
-            <i class="stat-card__icon fa-solid fa-star" />
-            <span class="stat-card__value">{{ pointsGranted }}</span>
-            <span class="stat-card__label">Puntos entregados</span>
-          </article>
+          <button type="button" class="kpi kpi--action" :class="{ 'kpi--alert': inProgress > 0 }" @click="router.push('/admin/ordenes')">
+            <span class="kpi__label"><i class="fa-solid fa-fire-burner" aria-hidden="true" /> En curso ahora</span>
+            <strong class="kpi__value">{{ inProgress }}</strong>
+            <span class="kpi__hint">{{ unpaidCards ? `${unpaidCards} con tarjeta sin pagar · ` : '' }}Ver tablero <i class="fa-solid fa-arrow-right" aria-hidden="true" /></span>
+          </button>
         </section>
 
-        <AdminHourlyChart :orders="orders" />
-        <AdminRevenueChart :orders="orders" />
+        <div class="dash__charts">
+          <AdminHourlyChart :orders="orders" />
+          <AdminRevenueChart :orders="orders" />
+        </div>
 
-        <section class="dashboard-main">
-          <div class="panel dashboard-recent">
-            <div class="section-head">
-              <h2>&Uacute;ltimas ordenes</h2>
-              <button type="button" @click="router.push('/admin/ordenes')">Ver todas</button>
-            </div>
+        <div class="dash__bottom">
+          <section class="card recent">
+            <header class="card__head">
+              <h2>Últimos pedidos</h2>
+              <button type="button" class="card__link" @click="router.push('/admin/ordenes')">Ver todos <i class="fa-solid fa-arrow-right" aria-hidden="true" /></button>
+            </header>
+            <p v-if="!recentOrders.length" class="card__empty"><i class="fa-solid fa-mug-hot" aria-hidden="true" /> Todavía no hay pedidos en este período.</p>
+            <ul v-else class="recent__list">
+              <li v-for="order in recentOrders" :key="order._id">
+                <button type="button" class="recent__row" @click="router.push(`/admin/ordenes/${order._id}`)">
+                  <span class="recent__who">
+                    <strong>{{ order.customerName || order.customerEmail }}</strong>
+                    <small>{{ order.orderNumber }} · {{ order.branch?.name || 'Sin sucursal' }} · {{ relativeTime(order.createdAt) }}</small>
+                  </span>
+                  <span class="status-pill" :data-status="order.status">{{ statusLabel(order.status) }}</span>
+                  <span class="recent__total">{{ money(order.total) }}</span>
+                </button>
+              </li>
+            </ul>
+          </section>
 
-            <div v-if="!recentOrders.length" class="dashboard-empty">
-              <p>No hay ordenes registradas a&uacute;n.</p>
-            </div>
+          <aside class="dash__side">
+            <section class="card">
+              <header class="card__head"><h2>Por estado</h2></header>
+              <p v-if="!statusBreakdown.length" class="card__empty">Sin pedidos.</p>
+              <template v-else>
+                <div class="stack" role="img" :aria-label="statusBreakdown.map((s) => `${statusLabel(s.status)}: ${s.count}`).join(', ')">
+                  <span v-for="item in statusBreakdown" :key="item.status" :style="{ flexGrow: item.percent, background: `var(--st-${item.status})` }" />
+                </div>
+                <ul class="legend">
+                  <li v-for="item in statusBreakdown" :key="item.status">
+                    <i :style="{ background: `var(--st-${item.status})` }" aria-hidden="true" />
+                    <span>{{ statusLabel(item.status) }}</span>
+                    <b>{{ item.count }}</b>
+                  </li>
+                </ul>
+              </template>
+            </section>
 
-            <table v-else class="dashboard-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Cliente</th>
-                  <th>Total</th>
-                  <th>Estado</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="order in recentOrders" :key="order._id">
-                  <td class="dashboard-table__number">#{{ order.orderNumber }}</td>
-                  <td>{{ order.customerEmail }}</td>
-                  <td>${{ (order.total / 100).toLocaleString('es-EC') }}</td>
-                  <td>
-                    <span class="dashboard-table__status" :class="orderStatusTones[order.status as keyof typeof orderStatusTones] || ''">
-                      {{ orderStatusLabels[order.status as keyof typeof orderStatusLabels] || order.status }}
-                    </span>
-                  </td>
-                  <td>
-                    <button type="button" class="dashboard-table__action" @click="router.push(`/admin/ordenes/${order._id}`)">Ver</button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <aside class="panel dashboard-statuses">
-            <div class="section-head">
-              <h2>Resumen por estado</h2>
-            </div>
-            <div v-for="(group, status) in statusGroups" :key="status" class="status-row">
-              <span class="status-row__label" :class="orderStatusTones[status as keyof typeof orderStatusTones] || ''">
-                {{ orderStatusLabels[status as keyof typeof orderStatusLabels] || status }}
-              </span>
-              <span class="status-row__count">{{ group.length }}</span>
-            </div>
+            <section class="card">
+              <header class="card__head"><h2>Delivery</h2></header>
+              <dl class="facts">
+                <div><dt>Cobrado a clientes</dt><dd>{{ money(deliveryCharged) }}</dd></div>
+                <div v-if="haySaldoDelivery"><dt>Pagado a Picker</dt><dd>{{ money(pickerDeliveryCost) }}</dd></div>
+                <div v-if="haySaldoDelivery" :class="deliveryDifference >= 0 ? 'is-good' : 'is-bad'"><dt>Diferencia</dt><dd>{{ money(deliveryDifference) }}</dd></div>
+                <div v-else class="is-muted"><dt>Picker</dt><dd>Sin costos reportados</dd></div>
+                <div><dt>Puntos entregados</dt><dd>{{ pointsGranted.toLocaleString('es-EC') }}</dd></div>
+              </dl>
+            </section>
           </aside>
-        </section>
+        </div>
+
+        <p class="dash__catalog">
+          <i class="fa-solid fa-store" aria-hidden="true" />
+          {{ activeProducts }} de {{ products.length }} productos disponibles · {{ categories.length }} categorías · {{ activeBranches }} sucursales activas · {{ users.length }} usuarios
+        </p>
       </template>
     </section>
   </AdminLayout>
 </template>
 
 <style scoped lang="scss">
-.dashboard {
-  color: $text-dark;
+.dash {
+  color: var(--admin-text);
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  padding: clamp(0.75rem, 2vw, 1.5rem);
-}
-
-.dashboard-hero {
-  align-items: flex-start;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  justify-content: space-between;
-  padding: 1.25rem;
-}
-
-.dashboard-hero h1 {
-  font-size: clamp(1.6rem, 3vw, 2.2rem);
-  letter-spacing: -0.04em;
-  margin-top: 0.35rem;
-}
-
-.dashboard-hero p {
-  color: rgba($text-dark, 0.68);
-  margin-top: 0.45rem;
-}
-
-.hero-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-}
-
-.hero-btn {
-  align-items: center;
-  border: 0;
-  border-radius: 999px;
-  cursor: pointer;
-  display: inline-flex;
-  gap: 0.6rem;
-  min-height: 48px;
-  padding: 0.75rem 1.2rem;
-  font-weight: 700;
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.hero-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
-}
-
-.hero-btn--store {
-  background: $primary-dark;
-  color: $white;
-}
-
-.hero-btn--catalog {
-  background: rgba($primary-dark, 0.1);
-  color: $primary-dark;
-}
-
-.stats-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-}
-
-.stats-grid > * {
-  flex: 1 1 160px;
-}
-
-.stat-card {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  padding: 1rem 1.1rem;
-  position: relative;
-  overflow: hidden;
-}
-
-.stat-card__icon {
-  font-size: 1.6rem;
-  opacity: 0.2;
-  position: absolute;
-  right: 0.8rem;
-  top: 0.8rem;
-}
-
-.stat-card__value {
-  font-size: 1.5rem;
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  position: relative;
-}
-
-.stat-card__label {
-  color: rgba($text-dark, 0.6);
-  font-size: 0.82rem;
-  font-weight: 600;
-  position: relative;
-}
-
-.stat-card--orders { border-left: 4px solid #6366f1; .stat-card__icon { color: #6366f1; } }
-.stat-card--delivered { border-left: 4px solid #10b981; .stat-card__icon { color: #10b981; } }
-.stat-card--pending { border-left: 4px solid #f59e0b; .stat-card__icon { color: #f59e0b; } }
-.stat-card--preparing { border-left: 4px solid #f97316; .stat-card__icon { color: #f97316; } }
-.stat-card--products { border-left: 4px solid #8b5cf6; .stat-card__icon { color: #8b5cf6; } }
-.stat-card--available { border-left: 4px solid #22c55e; .stat-card__icon { color: #22c55e; } }
-.stat-card--categories { border-left: 4px solid #ec4899; .stat-card__icon { color: #ec4899; } }
-.stat-card--branches { border-left: 4px solid #3b82f6; .stat-card__icon { color: #3b82f6; } }
-.stat-card--users { border-left: 4px solid #14b8a6; .stat-card__icon { color: #14b8a6; } }
-.stat-card--revenue { border-left: 4px solid $primary-dark; .stat-card__icon { color: $primary-dark; } }
-.stat-card--delivery { border-left: 4px solid $alert-info; .stat-card__icon { color: $alert-info; } }
-.stat-card--picker { border-left: 4px solid $secondary; .stat-card__icon { color: darken($secondary, 25%); } }
-.stat-card--points { border-left: 4px solid #b79200; .stat-card__icon { color: #b79200; } }
-
-
-.dashboard-main {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.dashboard-recent {
-  flex: 1 1 auto;
-  min-width: 0;
-  padding: 1.25rem;
-}
-
-.dashboard-statuses {
-  flex: 0 0 auto;
-  padding: 1.25rem;
-}
-
-.section-head {
-  align-items: center;
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 1rem;
-}
-
-.section-head h2 {
-  font-size: 1.1rem;
-  letter-spacing: -0.02em;
-}
-
-.section-head button {
-  background: rgba($primary-dark, 0.1);
-  border: 0;
-  border-radius: 999px;
-  color: $primary-dark;
-  cursor: pointer;
-  min-height: 40px;
-  padding: 0.6rem 1rem;
-  transition: background 0.2s;
-}
-
-.section-head button:hover {
-  background: rgba($primary-dark, 0.2);
-}
-
-.dashboard-empty {
-  color: rgba($text-dark, 0.5);
-  padding: 2rem 0;
-  text-align: center;
-}
-
-.dashboard-table {
-  border-collapse: collapse;
+  gap: 0.9rem;
+  margin: 0 auto;
+  max-width: 1240px;
   width: 100%;
 }
 
-.dashboard-table thead {
-  display: none;
-}
+.dash__head h1 { font-size: clamp(1.5rem, 4vw, 2.1rem); font-weight: 800; letter-spacing: -0.04em; margin: 0.15rem 0 0; }
 
-.dashboard-table tr {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  padding: 0.75rem 0;
-}
-
-.dashboard-table th {
-  color: rgba($text-dark, 0.55);
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  padding: 0.5rem 0.5rem 0.5rem 0;
-  text-align: left;
+.dash__eyebrow {
+  color: var(--admin-accent);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  margin: 0;
   text-transform: uppercase;
 }
 
-.dashboard-table td {
-  border: 0;
-  padding: 0;
+// ─── KPIs ───
+.kpis { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+
+.kpi {
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-line);
+  border-radius: var(--admin-radius, 18px);
+  box-shadow: var(--admin-shadow);
+  color: var(--admin-text);
+  display: flex;
+  flex: 1 1 calc(50% - 0.75rem);
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+  padding: 0.95rem 1rem;
+  text-align: left;
 }
 
-.dashboard-table__number {
+.kpi__label {
+  align-items: center;
+  color: var(--admin-muted);
+  display: flex;
+  font-size: 0.74rem;
   font-weight: 700;
+  gap: 0.4rem;
+
+  i { color: var(--admin-accent); }
 }
 
-.dashboard-table__status {
-  border-radius: 999px;
-  display: inline-block;
-  font-size: 0.82rem;
-  font-weight: 700;
-  padding: 0.3rem 0.7rem;
+.kpi__value { font-size: clamp(1.4rem, 5vw, 1.9rem); font-variant-numeric: tabular-nums; font-weight: 800; letter-spacing: -0.035em; line-height: 1.05; }
+.kpi__hint { color: var(--admin-muted); font-size: 0.74rem; i { font-size: 0.65rem; margin-left: 0.15rem; } }
+
+.kpi--hero {
+  background: linear-gradient(150deg, #2b6b3b, #173e22);
+  border-color: transparent;
+  color: #fff;
+
+  .kpi__label, .kpi__hint { color: rgba(255, 255, 255, 0.75); }
+  .kpi__label i { color: var(--admin-yellow); }
+  .kpi__value { color: var(--admin-yellow); }
 }
 
-.dashboard-table__action {
-  background: transparent;
-  border: 1px solid rgba($text-dark, 0.12);
-  border-radius: 999px;
-  color: $text-dark;
+.kpi--action {
   cursor: pointer;
-  min-height: 36px;
-  padding: 0.4rem 0.8rem;
+  transition: border-color 0.2s ease, transform 0.2s var(--admin-ease);
+
+  &:hover { border-color: var(--admin-line-strong); transform: translateY(-2px); }
+  &:focus-visible { outline: 2px solid var(--admin-accent); outline-offset: 2px; }
 }
 
-::v-deep(.tone--amber) { background: rgba($alert-warning, 0.12); color: darken($alert-warning, 15%); }
-::v-deep(.tone--blue) { background: rgba($alert-info, 0.12); color: darken($alert-info, 15%); }
-::v-deep(.tone--green) { background: rgba($alert-success, 0.12); color: darken($alert-success, 15%); }
-::v-deep(.tone--violet) { background: rgba($text-dark, 0.08); color: $text-dark; }
-::v-deep(.tone--neutral) { background: rgba($text-dark, 0.06); color: rgba($text-dark, 0.7); }
-::v-deep(.tone--red) { background: rgba($alert-error, 0.12); color: darken($alert-error, 15%); }
+.kpi--alert {
+  background: var(--admin-warning-soft);
+  border-color: color-mix(in srgb, var(--admin-warning) 35%, transparent);
 
-.status-row {
+  .kpi__label i, .kpi__value { color: var(--admin-warning); }
+}
+
+// ─── Gráficos ───
+.dash__charts { display: flex; flex-direction: column; gap: 0.75rem; }
+.dash__charts > * { flex: 1 1 0; min-width: 0; }
+
+// ─── Abajo ───
+.dash__bottom { display: flex; flex-direction: column; gap: 0.75rem; }
+.dash__side { display: flex; flex-direction: column; gap: 0.75rem; }
+
+.card {
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-line);
+  border-radius: var(--admin-radius, 18px);
+  box-shadow: var(--admin-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  min-width: 0;
+  padding: 1rem 1.1rem;
+}
+
+.card__head {
   align-items: center;
   display: flex;
   justify-content: space-between;
-  padding: 0.6rem 0;
-  border-top: 1px solid rgba($text-dark, 0.06);
+
+  h2 { font-size: 0.98rem; font-weight: 800; letter-spacing: -0.02em; margin: 0; }
 }
 
-.status-row:first-child {
-  border-top: 0;
-}
-
-.status-row__count {
+.card__link {
+  align-items: center;
+  background: transparent;
+  border-radius: 999px;
+  color: var(--admin-accent);
+  display: inline-flex;
+  font-size: 0.78rem;
   font-weight: 800;
-  font-size: 1.1rem;
+  gap: 0.35rem;
+  padding: 0.35rem 0.5rem;
+
+  &:hover { background: var(--admin-accent-soft); }
+  i { font-size: 0.65rem; }
 }
 
-@media (min-width: 961px) {
-  .dashboard-main {
-    flex-direction: row;
-  }
+.card__empty { align-items: center; color: var(--admin-muted); display: flex; font-size: 0.86rem; gap: 0.5rem; margin: 0; padding: 1rem 0; }
 
-  .dashboard-statuses {
-    flex-basis: 260px;
-  }
+.recent { flex: 1 1 auto; }
+.recent__list { display: flex; flex-direction: column; list-style: none; margin: 0 -0.5rem; padding: 0; }
+
+.recent__row {
+  align-items: center;
+  background: transparent;
+  border-radius: 12px;
+  color: var(--admin-text);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  padding: 0.65rem 0.5rem;
+  text-align: left;
+  transition: background 0.2s ease;
+  width: 100%;
+
+  &:hover { background: var(--admin-hover); }
+  &:focus-visible { outline: 2px solid var(--admin-accent); outline-offset: -2px; }
 }
 
-@media (min-width: 641px) {
-  .dashboard-hero {
-    flex-direction: row;
-  }
+.recent__list li + li .recent__row { border-top: 1px solid var(--admin-line); border-radius: 0; }
 
-  .dashboard-table thead {
-    display: table-header-group;
-  }
+.recent__who {
+  display: flex;
+  flex: 1 1 100%;
+  flex-direction: column;
+  min-width: 0;
 
-  .dashboard-table tr {
-    display: table-row;
-    padding: 0;
-  }
+  strong { font-size: 0.88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  small { color: var(--admin-muted); font-size: 0.74rem; }
+}
 
-  .dashboard-table td {
-    border-top: 1px solid rgba($text-dark, 0.06);
-    padding: 0.75rem 0.5rem 0.75rem 0;
-  }
+.recent__total { font-size: 0.9rem; font-variant-numeric: tabular-nums; font-weight: 800; margin-left: auto; min-width: 4.5rem; text-align: right; }
+
+// Barra apilada por estado.
+.stack {
+  border-radius: 999px;
+  display: flex;
+  gap: 2px;
+  height: 12px;
+  overflow: hidden;
+
+  span { flex-basis: 0; min-width: 4px; }
+}
+
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  li { align-items: center; display: flex; font-size: 0.82rem; gap: 0.5rem; }
+  i { border-radius: 3px; flex: 0 0 10px; height: 10px; }
+  span { color: var(--admin-muted); flex: 1 1 auto; }
+  b { font-variant-numeric: tabular-nums; }
+}
+
+.facts {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+
+  > div { align-items: baseline; border-top: 1px solid var(--admin-line); display: flex; gap: 1rem; justify-content: space-between; padding: 0.5rem 0; }
+  > div:first-child { border-top: 0; padding-top: 0; }
+  dt { color: var(--admin-muted); font-size: 0.8rem; }
+  dd { font-size: 0.86rem; font-variant-numeric: tabular-nums; font-weight: 800; margin: 0; }
+  .is-good dd { color: var(--admin-success); }
+  .is-bad dd { color: var(--admin-danger); }
+  .is-muted dd { color: var(--admin-muted); font-weight: 600; }
+}
+
+.dash__catalog {
+  align-items: center;
+  color: var(--admin-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.78rem;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0 0.25rem 0.5rem;
+
+  i { color: var(--admin-subtle); }
+}
+
+@media (min-width: 640px) {
+  .recent__who { flex: 1 1 200px; }
+}
+
+@media (min-width: 1000px) {
+  .kpi { flex: 1 1 0; }
+  .dash__charts { flex-direction: row; }
+  .dash__bottom { align-items: flex-start; flex-direction: row; }
+  .dash__side { flex: 0 0 340px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kpi--action { transition: none; &:hover { transform: none; } }
 }
 </style>

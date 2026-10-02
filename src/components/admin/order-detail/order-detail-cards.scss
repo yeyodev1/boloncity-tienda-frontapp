@@ -1,57 +1,114 @@
-@use "@/styles/index.scss" as *;
+// Piezas compartidas de las tarjetas del detalle de orden. Solo tokens del panel (claro y oscuro).
 
-// Cabecera compartida de las tarjetas del detalle de orden: icono de color + título + pill.
+.od-card {
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-line);
+  border-radius: var(--admin-radius, 18px);
+  box-shadow: var(--admin-shadow);
+  color: var(--admin-text);
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  min-width: 0;
+  padding: 1rem 1.1rem;
+}
+
+// Cabecera: icono + título + (opcional) pastilla a la derecha.
 .card-head {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.7rem;
-  margin-bottom: 1rem;
+  gap: 0.65rem;
 }
 
+.card-head > div { display: flex; flex: 1 1 auto; flex-direction: column; min-width: 0; }
+
 .card-head h2 {
-  font-size: 1.15rem;
+  font-size: 1rem;
   font-weight: 800;
   letter-spacing: -0.02em;
+  margin: 0;
 }
 
 .card-head__eyebrow {
-  color: rgba($text-dark, 0.55);
-  font-size: 0.7rem;
-  font-weight: 900;
-  letter-spacing: 0.14em;
+  color: var(--admin-muted);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  margin: 0;
   text-transform: uppercase;
 }
 
 .card-head__icon {
   align-items: center;
-  background: rgba($text-dark, 0.07);
-  border-radius: 12px;
-  color: rgba($text-dark, 0.7);
+  background: var(--admin-hover);
+  border-radius: 11px;
+  color: var(--admin-muted);
   display: flex;
-  flex: 0 0 42px;
-  font-size: 1rem;
-  height: 42px;
+  flex: 0 0 36px;
+  font-size: 0.85rem;
+  height: 36px;
   justify-content: center;
-  width: 42px;
 }
 
-.card-head__icon--green { background: rgba(35, 89, 49, 0.12); color: #235931; }
-.card-head__icon--yellow { background: rgba(239, 213, 55, 0.32); color: #6a4e05; }
+.card-head__icon--green { background: var(--admin-accent-soft); color: var(--admin-accent); }
+.card-head__icon--yellow { background: var(--admin-warning-soft); color: var(--admin-warning); }
+.card-head__icon--blue { background: var(--admin-info-soft); color: var(--admin-info); }
 
 .card-head__pill {
   align-items: center;
-  background: rgba(0, 165, 35, 0.12);
+  background: var(--admin-hover);
   border-radius: 999px;
-  color: #087c25;
-  display: flex;
+  color: var(--admin-muted);
+  display: inline-flex;
   flex: 0 0 auto;
-  font-size: 0.74rem;
+  font-size: 0.72rem;
   font-weight: 800;
-  gap: 0.4rem;
-  margin-left: auto;
-  padding: 0.45rem 0.85rem;
+  gap: 0.35rem;
+  padding: 0.3rem 0.7rem;
   white-space: nowrap;
 }
 
-.card-head__pill--yellow { background: rgba(239, 213, 55, 0.28); color: #6a4e05; }
+.card-head__pill--green { background: var(--admin-success-soft); color: var(--admin-success); }
+.card-head__pill--yellow { background: var(--admin-warning-soft); color: var(--admin-warning); }
+.card-head__pill--red { background: var(--admin-danger-soft); color: var(--admin-danger); }
+
+// Fila "dato: valor".
+.od-facts {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+
+  > div {
+    align-items: baseline;
+    border-top: 1px solid var(--admin-line);
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+    padding: 0.55rem 0;
+
+    &:first-child { border-top: 0; padding-top: 0; }
+  }
+
+  dt { color: var(--admin-muted); font-size: 0.8rem; }
+  dd { font-size: 0.86rem; font-variant-numeric: tabular-nums; font-weight: 700; margin: 0; overflow-wrap: anywhere; text-align: right; }
+}
+
+// Aviso de una línea (info / peligro / ok).
+.od-note {
+  align-items: flex-start;
+  border-radius: 12px;
+  display: flex;
+  font-size: 0.82rem;
+  gap: 0.55rem;
+  line-height: 1.45;
+  margin: 0;
+  padding: 0.7rem 0.85rem;
+
+  i { margin-top: 0.18rem; }
+}
+
+.od-note--danger { background: var(--admin-danger-soft); color: var(--admin-danger); }
+.od-note--warning { background: var(--admin-warning-soft); color: var(--admin-warning); }
+.od-note--ok { background: var(--admin-success-soft); color: var(--admin-success); }
+.od-note--muted { background: var(--admin-hover); color: var(--admin-muted); }

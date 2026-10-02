@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { OrderDTO } from '@/services/OrderService'
+import { displayProductName } from '@/utils/productName'
 
 const props = defineProps<{ order: OrderDTO }>()
 
@@ -17,44 +18,44 @@ function formatDollars(amount: number) {
 </script>
 
 <template>
-  <article class="panel items-card">
+  <article class="od-card items">
     <div class="card-head">
-      <span class="card-head__icon card-head__icon--green"><i class="fa-solid fa-basket-shopping" /></span>
+      <span class="card-head__icon card-head__icon--green" aria-hidden="true"><i class="fa-solid fa-basket-shopping" /></span>
       <div>
-        <p class="card-head__eyebrow">Contenido</p>
+        <p class="card-head__eyebrow">Qué pidió</p>
         <h2>Productos</h2>
       </div>
-      <span class="card-head__pill">{{ itemCount }} item{{ itemCount === 1 ? '' : 's' }}</span>
+      <span class="card-head__pill">{{ itemCount }} {{ itemCount === 1 ? 'unidad' : 'unidades' }}</span>
     </div>
 
-    <div class="item-list">
-      <article v-for="item in order.items || []" :key="`${item.name}-${item.quantity}`" class="item-row">
-        <div class="item-row__info">
-          <img v-if="item.image" :src="item.image" :alt="item.name" />
-          <i v-else class="fa-solid fa-utensils" />
-          <div>
-            <strong>{{ item.name }}</strong>
-            <p>Cantidad: {{ item.quantity }}</p>
-          </div>
-        </div>
-        <span>{{ formatDollars(item.price * item.quantity) }}</span>
-      </article>
-    </div>
+    <ul class="items__list">
+      <li v-for="(item, index) in order.items || []" :key="`${item.name}-${index}`" class="items__row">
+        <span class="items__qty">{{ item.quantity }}×</span>
+        <img v-if="item.image" :src="item.image" :alt="displayProductName(item.name)" loading="lazy" />
+        <span v-else class="items__ph" aria-hidden="true"><i class="fa-solid fa-utensils" /></span>
+        <strong class="items__name">{{ displayProductName(item.name) }}</strong>
+        <span class="items__price">{{ formatDollars(item.price * item.quantity) }}</span>
+      </li>
+    </ul>
 
-    <div class="cost-breakdown">
-      <div><span>Subtotal</span><strong>{{ formatCurrency(order.subtotal) }}</strong></div>
-      <div v-if="order.tax"><span>IVA incluido</span><strong>{{ formatCurrency(order.tax) }}</strong></div>
+    <dl class="od-facts items__totals">
+      <div><dt>Subtotal</dt><dd>{{ formatCurrency(order.subtotal) }}</dd></div>
+      <div v-if="order.tax"><dt>IVA incluido</dt><dd>{{ formatCurrency(order.tax) }}</dd></div>
       <div v-if="order.deliveryType === 'delivery'">
-        <span>Envío cobrado al cliente{{ order.deliveryDistance ? ` · ${order.deliveryDistance.toFixed(1)} km` : '' }}</span>
-        <strong>{{ formatCurrency(order.deliveryCost || 0) }}</strong>
+        <dt>Envío al cliente{{ order.deliveryDistance ? ` · ${order.deliveryDistance.toFixed(1)} km` : '' }}</dt>
+        <dd>{{ formatCurrency(order.deliveryCost || 0) }}</dd>
       </div>
-      <div v-if="order.picker?.deliveryFee" class="cost-breakdown__picker">
-        <span><i class="fa-solid fa-motorcycle" /> Tarifa Picker (costo real del delivery)</span>
-        <strong>{{ formatDollars(order.picker.deliveryFee) }}</strong>
+      <div v-if="order.picker?.deliveryFee" class="items__picker">
+        <dt><i class="fa-solid fa-motorcycle" aria-hidden="true" /> Lo que cobra Picker</dt>
+        <dd>{{ formatDollars(order.picker.deliveryFee) }}</dd>
       </div>
-      <div v-if="order.promo?.amount"><span>{{ order.promo.label || `Promo ${order.promo.percent}%` }}</span><strong>-{{ formatCurrency(order.promo.amount) }}</strong></div>
-      <div v-if="order.discount"><span>Descuento por puntos ({{ order.pointsRedeemed }} pts)</span><strong>-{{ formatCurrency(order.discount) }}</strong></div>
-      <div class="cost-breakdown__total"><span>Total cobrado</span><strong>{{ formatCurrency(order.total) }}</strong></div>
+      <div v-if="order.promo?.amount" class="items__minus"><dt>{{ order.promo.label || `Promo ${order.promo.percent}%` }}</dt><dd>-{{ formatCurrency(order.promo.amount) }}</dd></div>
+      <div v-if="order.discount" class="items__minus"><dt>Puntos canjeados ({{ order.pointsRedeemed }} pts)</dt><dd>-{{ formatCurrency(order.discount) }}</dd></div>
+    </dl>
+
+    <div class="items__total">
+      <span>Total</span>
+      <strong>{{ formatCurrency(order.total) }}</strong>
     </div>
   </article>
 </template>
@@ -62,56 +63,49 @@ function formatDollars(amount: number) {
 <style scoped lang="scss">
 @use './order-detail-cards' as *;
 
-.items-card { flex: 1 1 420px; padding: 1.1rem; }
+.items__list { display: flex; flex-direction: column; gap: 0.5rem; list-style: none; margin: 0; padding: 0; }
 
-.item-list { display: flex; flex-direction: column; gap: 0.6rem; }
-
-.item-row {
+.items__row {
   align-items: center;
-  background: $bg-light;
-  border: 1px solid rgba($text-dark, 0.08);
-  border-radius: 14px;
   display: flex;
-  gap: 1rem;
+  gap: 0.65rem;
+
+  img, .items__ph {
+    background: var(--admin-surface-2);
+    border-radius: 10px;
+    flex: 0 0 40px;
+    height: 40px;
+    object-fit: cover;
+    width: 40px;
+  }
+}
+
+.items__ph { align-items: center; color: var(--admin-subtle); display: flex; justify-content: center; }
+
+.items__qty {
+  color: var(--admin-accent);
+  flex: 0 0 2rem;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.items__name { flex: 1 1 auto; font-size: 0.88rem; line-height: 1.3; min-width: 0; }
+.items__price { font-size: 0.88rem; font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; }
+
+.items__totals { border-top: 1px dashed var(--admin-line-strong); padding-top: 0.75rem; }
+.items__picker dt, .items__picker dd { color: var(--admin-info); }
+.items__minus dd { color: var(--admin-danger); }
+
+.items__total {
+  align-items: center;
+  background: var(--admin-accent-soft);
+  border-radius: 12px;
+  display: flex;
   justify-content: space-between;
-  padding: 0.8rem 0.95rem;
+  padding: 0.65rem 0.85rem;
+
+  span { font-weight: 800; }
+  strong { color: var(--admin-accent); font-size: 1.25rem; font-variant-numeric: tabular-nums; }
 }
-
-.item-row > span { font-weight: 800; white-space: nowrap; }
-.item-row p { color: rgba($text-dark, 0.6); font-size: 0.82rem; }
-
-.item-row__info { align-items: center; display: flex; gap: 0.7rem; min-width: 0; }
-.item-row__info strong { display: block; font-weight: 800; }
-.item-row__info > img,
-.item-row__info > i {
-  align-items: center;
-  background: rgba(35, 89, 49, 0.1);
-  border-radius: 10px;
-  color: #235931;
-  display: flex;
-  flex: 0 0 42px;
-  height: 42px;
-  justify-content: center;
-  object-fit: cover;
-  width: 42px;
-}
-
-.cost-breakdown {
-  border-top: 1px solid rgba($text-dark, 0.08);
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-  margin-top: 1rem;
-  padding-top: 0.9rem;
-}
-
-.cost-breakdown > div { align-items: center; display: flex; font-size: 0.88rem; gap: 0.75rem; justify-content: space-between; }
-.cost-breakdown span { color: rgba($text-dark, 0.62); }
-.cost-breakdown strong { font-weight: 800; }
-.cost-breakdown__picker { background: rgba(35, 89, 49, 0.06); border-radius: 10px; padding: 0.45rem 0.65rem; }
-.cost-breakdown__picker span { color: #235931; font-weight: 700; }
-.cost-breakdown__picker i { margin-right: 0.3rem; }
-.cost-breakdown__total { border-top: 1px dashed rgba($text-dark, 0.15); font-size: 1rem; margin-top: 0.3rem; padding-top: 0.6rem; }
-.cost-breakdown__total span { color: $text-dark; font-weight: 800; }
-.cost-breakdown__total strong { color: #235931; font-size: 1.2rem; }
 </style>

@@ -11,5 +11,19 @@ function formatTime(value: string) { return new Date(value).toLocaleString('es-E
   <section class="history"><header><span><i class="fa-solid fa-clock-rotate-left" /> Historial reciente</span><small>{{ entries.length }} movimiento{{ entries.length === 1 ? '' : 's' }}</small></header><div v-if="entries.length" class="history__list"><article v-for="entry in entries" :key="`${entry.action}-${entry.timestamp}`" :class="labels[entry.action]?.tone || 'status'"><span class="history__icon"><i :class="['fa-solid', labels[entry.action]?.icon || 'fa-circle-info']" /></span><div><strong>{{ labels[entry.action]?.label || 'Actualización' }}</strong><p>{{ entry.details || `${entry.fromValue || '—'} → ${entry.toValue || '—'}` }}</p><small>{{ entry.performedByEmail || 'Sistema' }} · {{ formatTime(entry.timestamp) }}</small></div></article></div><div v-else class="history__empty"><i class="fa-solid fa-comment-dots" /> Aún no hay notas ni movimientos registrados.</div></section>
 </template>
 <style scoped lang="scss">
-.history { display:flex; flex-direction:column; gap:.75rem; }.history header { align-items:center; display:flex; justify-content:space-between; }.history header span { color:#235931; font-size:.7rem; font-weight:900; letter-spacing:.1em; text-transform:uppercase; }.history header small { color:rgba(8,17,13,.5); font-size:.72rem; }.history__list { border-left:2px solid rgba(35,89,49,.16); display:flex; flex-direction:column; gap:.7rem; margin-left:.55rem; padding-left:1rem; }.history article { display:flex; gap:.65rem; position:relative; }.history__icon { align-items:center; background:#235931; border:3px solid #f4f4f0; border-radius:50%; color:#fff; display:flex; height:30px; justify-content:center; left:-1.95rem; position:absolute; top:0; width:30px; }.history article.note .history__icon { background:#a35b10; }.history article.payment .history__icon { background:#1b4d7e; }.history article > div { display:flex; flex-direction:column; gap:.14rem; }.history strong { font-size:.8rem; }.history p { color:rgba(8,17,13,.68); font-size:.76rem; line-height:1.4; }.history article small { color:rgba(8,17,13,.45); font-size:.68rem; }.history__empty { align-items:center; background:rgba(35,89,49,.05); border:1px dashed rgba(35,89,49,.22); border-radius:13px; color:rgba(8,17,13,.55); display:flex; flex-direction:column; font-size:.78rem; gap:.4rem; padding:1rem; text-align:center; }.history__empty i { color:#235931; font-size:1.2rem; }
+.history { display:flex; flex-direction:column; gap:.75rem; }
+.history header { align-items:center; display:flex; justify-content:space-between; }
+.history header span { color:var(--admin-accent); font-size:.7rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
+.history header small { color:var(--admin-muted); font-size:.72rem; }
+.history__list { border-left:2px solid var(--admin-line-strong); display:flex; flex-direction:column; gap:.75rem; margin-left:.55rem; padding-left:1rem; }
+.history article { display:flex; gap:.65rem; position:relative; }
+.history__icon { align-items:center; background:var(--admin-info); border:3px solid var(--admin-surface); border-radius:50%; color:#fff; display:flex; font-size:.7rem; height:30px; justify-content:center; left:-1.95rem; position:absolute; top:0; width:30px; }
+.history article.note .history__icon { background:var(--admin-warning); }
+.history article.payment .history__icon { background:var(--admin-success); }
+.history article > div { display:flex; flex-direction:column; gap:.14rem; min-width:0; }
+.history strong { font-size:.82rem; }
+.history p { color:var(--admin-muted); font-size:.78rem; line-height:1.4; margin:0; overflow-wrap:anywhere; }
+.history article small { color:var(--admin-subtle); font-size:.68rem; }
+.history__empty { align-items:center; background:var(--admin-hover); border:1px dashed var(--admin-line-strong); border-radius:13px; color:var(--admin-muted); display:flex; flex-direction:column; font-size:.78rem; gap:.4rem; padding:1rem; text-align:center; }
+.history__empty i { color:var(--admin-accent); font-size:1.2rem; }
 </style>

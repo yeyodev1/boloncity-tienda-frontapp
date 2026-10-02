@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { OrderDTO } from '@/services/OrderService'
+import { absoluteTime, relativeTime, statusIcon, statusLabel } from './orderStory'
 
 const props = defineProps<{
   order: OrderDTO
@@ -13,24 +14,26 @@ const emit = defineEmits<{
   (e: 'print'): void
 }>()
 
-// El ciclo real del pedido, en el orden del tablero. El riel marca dónde está la orden.
-// Un retiro en local no pasa por «En entrega»: del mostrador va directo a entregado.
+// El backend sí manda `source` (web | whatsapp); el tipo compartido todavía no lo declara.
+const source = computed(() => props.order.source || 'web')
+
+// El ciclo real del pedido. Un retiro en local no pasa por «En entrega».
 const isPickup = computed(() => props.order.deliveryType === 'pickup')
 const steps = computed(() => isPickup.value
   ? [
-      { key: 'pending', label: 'Pendiente', icon: 'fa-clock' },
-      { key: 'paid', label: 'Pagada', icon: 'fa-credit-card' },
-      { key: 'preparing', label: 'Preparando', icon: 'fa-kitchen-set' },
-      { key: 'awaiting_pickup', label: 'Lista para retiro', icon: 'fa-bag-shopping' },
-      { key: 'delivered', label: 'Retirada', icon: 'fa-circle-check' },
+      { key: 'pending', label: 'Recibido' },
+      { key: 'paid', label: 'Pagado' },
+      { key: 'preparing', label: 'En cocina' },
+      { key: 'awaiting_pickup', label: 'Listo' },
+      { key: 'delivered', label: 'Retirado' },
     ]
   : [
-      { key: 'pending', label: 'Pendiente', icon: 'fa-clock' },
-      { key: 'paid', label: 'Pagada', icon: 'fa-credit-card' },
-      { key: 'preparing', label: 'Preparando', icon: 'fa-kitchen-set' },
-      { key: 'awaiting_pickup', label: 'Por recoger', icon: 'fa-box' },
-      { key: 'ready', label: 'En entrega', icon: 'fa-truck-fast' },
-      { key: 'delivered', label: 'Entregada', icon: 'fa-circle-check' },
+      { key: 'pending', label: 'Recibido' },
+      { key: 'paid', label: 'Pagado' },
+      { key: 'preparing', label: 'En cocina' },
+      { key: 'awaiting_pickup', label: 'Por recoger' },
+      { key: 'ready', label: 'En camino' },
+      { key: 'delivered', label: 'Entregado' },
     ])
 
 const isCancelled = computed(() => props.order.status === 'cancelled')
@@ -43,81 +46,82 @@ const cancelledBy = computed(() => {
   if (!entry) return null
   return { byEmail: entry.performedByEmail || 'system', reason: entry.details || '', at: entry.timestamp }
 })
-const cancelledAtLabel = computed(() => cancelledBy.value?.at
-  ? new Date(cancelledBy.value.at).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' })
-  : '')
 // Cancelar no reversa el cobro: hay que avisarlo aquí, arriba, no solo en el panel de pago.
 const cardStillCharged = computed(() => Boolean(
   props.order.paymentMethod === 'card'
   && props.order.payphone?.transactionId
   && props.order.payphone?.refund?.status !== 'refunded'))
 
-const statusLabels: Record<string, string> = {
-  pending: 'Pendiente', paid: 'Pagada', preparing: 'En preparación',
-  awaiting_pickup: 'Por recoger', ready: 'En entrega', delivered: 'Entregada', cancelled: 'Cancelada',
-}
-const statusColors: Record<string, string> = {
-  pending: '#b8860b', paid: '#0066cc', preparing: '#00a523',
-  awaiting_pickup: '#7c3aed', ready: '#0066cc', delivered: '#235931', cancelled: '#a52323',
-}
-const statusIcons: Record<string, string> = {
-  pending: 'fa-clock', paid: 'fa-credit-card', preparing: 'fa-kitchen-set',
-  awaiting_pickup: 'fa-box', ready: 'fa-truck-fast', delivered: 'fa-circle-check', cancelled: 'fa-ban',
-}
-
-const createdLabel = computed(() =>
-  props.order.createdAt
-    ? new Date(props.order.createdAt).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' })
-    : ''
-)
+const phoneDigits = computed(() => (props.order.customerPhone || '').replace(/\D/g, ''))
+const whatsappLink = computed(() => (phoneDigits.value.length >= 9 ? `https://wa.me/${phoneDigits.value}` : ''))
 </script>
 
 <template>
-  <header class="order-hero">
-    <div class="order-hero__top">
-      <div class="order-hero__id">
-        <p class="order-hero__eyebrow">Orden</p>
-        <h1>{{ order.orderNumber }}</h1>
-        <p class="order-hero__meta">
-          <i class="fa-solid fa-user" /> {{ order.customerName || order.customerEmail }}
-          <span v-if="createdLabel"> · {{ createdLabel }}</span>
+  <header class="hero">
+    <div class="hero__main">
+      <div class="hero__id">
+        <p class="hero__eyebrow">
+          <span class="hero__source" :data-source="source">
+            <i :class="source === 'whatsapp' ? 'fa-brands fa-whatsapp' : 'fa-solid fa-globe'" aria-hidden="true" />
+            {{ source === 'whatsapp' ? 'Pedido por WhatsApp' : 'Pedido web' }}
+          </span>
+          <span v-if="order.createdAt" :title="absoluteTime(order.createdAt)">{{ relativeTime(order.createdAt) }} · {{ absoluteTime(order.createdAt) }}</span>
         </p>
-      </div>
-
-      <div class="order-hero__side">
-        <span class="order-hero__status" :style="{ background: statusColors[order.status] || '#555' }">
-          <i :class="['fa-solid', statusIcons[order.status] || 'fa-circle-info']" /> {{ statusLabels[order.status] || order.status }}
+        <h1>{{ order.orderNumber }}</h1>
+        <span class="status-pill hero__status" :data-status="order.status">
+          <i :class="['fa-solid', statusIcon(order.status)]" aria-hidden="true" /> {{ statusLabel(order.status) }}
         </span>
-        <div class="order-hero__actions">
-          <button type="button" class="order-hero__print" @click="emit('print')">
-            <i class="fa-solid fa-print" /> Imprimir ticket
-          </button>
-          <button v-if="canRetry" type="button" class="order-hero__retry" :disabled="retrying" @click="emit('retry')">
-            <i class="fa-solid fa-truck-fast" /> {{ retrying ? 'Solicitando…' : 'Reintentar delivery' }}
-          </button>
-        </div>
+      </div>
+
+      <div class="hero__actions">
+        <button type="button" class="hero__btn hero__btn--primary" @click="emit('print')">
+          <i class="fa-solid fa-print" aria-hidden="true" /> Imprimir ticket
+        </button>
+        <button v-if="canRetry" type="button" class="hero__btn" :disabled="retrying" @click="emit('retry')">
+          <i class="fa-solid fa-motorcycle" aria-hidden="true" /> {{ retrying ? 'Solicitando…' : 'Reintentar delivery' }}
+        </button>
       </div>
     </div>
 
-    <div v-if="isCancelled" class="order-hero__cancelled">
-      <p class="order-hero__cancelled-head">
-        <i class="fa-solid fa-ban" />
-        <span v-if="cancelledBy">Cancelada por <b>{{ cancelledBy.byEmail }}</b><template v-if="cancelledAtLabel"> · {{ cancelledAtLabel }}</template></span>
-        <span v-else>Esta orden fue cancelada. Revisa la auditoría para ver quién y por qué.</span>
+    <div class="hero__customer">
+      <span class="hero__avatar" aria-hidden="true">{{ (order.customerName || order.customerEmail || '?').trim().slice(0, 1).toUpperCase() }}</span>
+      <div class="hero__who">
+        <strong>{{ order.customerName || 'Cliente sin nombre' }}</strong>
+        <small>{{ order.customerEmail }}<template v-if="order.customerPhone"> · {{ order.customerPhone }}</template></small>
+      </div>
+      <div class="hero__contact">
+        <a v-if="whatsappLink" :href="whatsappLink" target="_blank" rel="noopener" class="hero__chip hero__chip--wa" aria-label="Escribir por WhatsApp">
+          <i class="fa-brands fa-whatsapp" aria-hidden="true" /><span>WhatsApp</span>
+        </a>
+        <a v-if="order.customerPhone" :href="`tel:${order.customerPhone}`" class="hero__chip" aria-label="Llamar al cliente">
+          <i class="fa-solid fa-phone" aria-hidden="true" /><span>Llamar</span>
+        </a>
+        <a v-if="order.customerEmail" :href="`mailto:${order.customerEmail}`" class="hero__chip" aria-label="Escribir un correo">
+          <i class="fa-solid fa-envelope" aria-hidden="true" /><span>Correo</span>
+        </a>
+      </div>
+    </div>
+
+    <div v-if="isCancelled" class="hero__cancelled" role="note">
+      <p>
+        <i class="fa-solid fa-ban" aria-hidden="true" />
+        <span v-if="cancelledBy">Cancelado por <b>{{ cancelledBy.byEmail }}</b><template v-if="cancelledBy.at"> · {{ absoluteTime(cancelledBy.at) }}</template></span>
+        <span v-else>Este pedido fue cancelado. Mira la historia para ver quién y por qué.</span>
       </p>
-      <p v-if="cancelledBy?.reason" class="order-hero__cancelled-reason"><b>Motivo:</b> {{ cancelledBy.reason }}</p>
-      <p v-if="cardStillCharged" class="order-hero__cancelled-refund">
-        <i class="fa-solid fa-credit-card" /> El cobro con tarjeta <b>sigue vigente</b>: cancelar no lo anula.
-        Para devolver el dinero usa <b>Devolver</b> en la tarjeta de Pago.
+      <p v-if="cancelledBy?.reason" class="hero__cancelled-reason"><b>Motivo:</b> {{ cancelledBy.reason }}</p>
+      <p v-if="cardStillCharged" class="hero__cancelled-refund">
+        <i class="fa-solid fa-credit-card" aria-hidden="true" />
+        <span>El cobro con tarjeta <b>sigue vigente</b>: cancelar no lo anula. Para devolver el dinero usa <b>Devolver</b> en la tarjeta de Pago.</span>
       </p>
     </div>
-    <ol v-else class="order-hero__steps">
+    <ol v-else class="hero__steps" aria-label="Avance del pedido">
       <li
         v-for="(step, index) in steps"
         :key="step.key"
         :class="{ done: index < currentIndex, current: index === currentIndex }"
+        :aria-current="index === currentIndex ? 'step' : undefined"
       >
-        <span class="order-hero__dot"><i :class="['fa-solid', index < currentIndex ? 'fa-check' : step.icon]" /></span>
+        <span class="hero__bar" aria-hidden="true" />
         <small>{{ step.label }}</small>
       </li>
     </ol>
@@ -125,178 +129,227 @@ const createdLabel = computed(() =>
 </template>
 
 <style scoped lang="scss">
-.order-hero {
-  background: linear-gradient(135deg, #173e22, #235931);
+.hero {
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-line);
   border-radius: 22px;
-  color: #fff;
+  box-shadow: var(--admin-shadow);
+  color: var(--admin-text);
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
-  padding: clamp(1.1rem, 3vw, 1.75rem);
+  gap: 1.1rem;
+  overflow: hidden;
+  padding: 1.15rem;
+  position: relative;
+
+  // Franja de marca arriba: amarillo sobre verde, la firma de Boloncity.
+  &::before {
+    background: linear-gradient(90deg, var(--admin-accent) 0 70%, var(--admin-yellow) 70% 100%);
+    content: '';
+    height: 4px;
+    inset: 0 0 auto;
+    position: absolute;
+  }
 }
 
-.order-hero__top { display: flex; flex-direction: column; gap: 1rem; }
-.order-hero__id { min-width: 0; }
+.hero__main { display: flex; flex-direction: column; gap: 1rem; }
+.hero__id { display: flex; flex-direction: column; gap: 0.45rem; min-width: 0; }
 
-.order-hero__eyebrow {
-  color: #efd537;
-  font-size: 0.74rem;
-  font-weight: 900;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-}
-
-.order-hero h1 {
-  font-size: clamp(2rem, 5vw, 3rem);
-  font-weight: 900;
-  letter-spacing: -0.04em;
-  line-height: 1;
-  margin: 0.25rem 0 0.4rem;
-}
-
-.order-hero__meta { align-items: center; color: rgba(255, 255, 255, 0.78); display: flex; flex-wrap: wrap; font-size: 0.9rem; gap: 0.4rem; }
-.order-hero__meta i { color: #efd537; font-size: 0.8rem; }
-
-.order-hero__side { align-items: stretch; display: flex; flex-direction: column; gap: 0.6rem; }
-
-.order-hero__status {
+.hero__eyebrow {
   align-items: center;
+  color: var(--admin-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.76rem;
+  gap: 0.4rem 0.7rem;
+  margin: 0;
+}
+
+.hero__source {
+  align-items: center;
+  background: var(--admin-hover);
   border-radius: 999px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
-  color: #fff;
-  display: flex;
-  font-size: 0.9rem;
-  font-weight: 900;
-  gap: 0.5rem;
-  justify-content: center;
-  letter-spacing: 0.1em;
-  min-height: 48px;
-  padding: 0.7rem 1.3rem;
-  text-transform: uppercase;
+  color: var(--admin-text);
+  display: inline-flex;
+  font-weight: 800;
+  gap: 0.35rem;
+  padding: 0.22rem 0.6rem;
+
+  &[data-source='whatsapp'] { background: var(--admin-success-soft); color: var(--admin-success); }
 }
 
-.order-hero__actions { display: flex; flex-wrap: wrap; gap: 0.6rem; }
-.order-hero__actions > button { flex: 1 1 150px; }
-
-.order-hero__print {
-  align-items: center;
-  background: #efd537;
-  border: 0;
-  border-radius: 12px;
-  box-shadow: 0 4px 0 #b89e12;
-  color: #18211b;
-  cursor: pointer;
-  display: flex;
-  font-size: 0.82rem;
-  font-weight: 900;
-  gap: 0.5rem;
-  justify-content: center;
-  min-height: 46px;
-  padding: 0.65rem 1rem;
+.hero h1 {
+  font-size: clamp(1.9rem, 6vw, 2.7rem);
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 1;
+  margin: 0;
 }
 
-.order-hero__print:active { box-shadow: none; transform: translateY(4px); }
+.hero__status { align-self: flex-start; font-size: 0.82rem; padding: 0.4rem 0.85rem; }
+.hero__status::before { display: none; }
 
-.order-hero__retry {
+.hero__actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+.hero__btn {
   align-items: center;
-  background: rgba(255, 255, 255, 0.14);
-  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: var(--admin-hover);
+  border: 1px solid var(--admin-line);
   border-radius: 12px;
-  color: #fff;
-  cursor: pointer;
-  display: flex;
+  color: var(--admin-text);
+  display: inline-flex;
+  flex: 1 1 auto;
   font-size: 0.82rem;
   font-weight: 800;
   gap: 0.5rem;
   justify-content: center;
-  min-height: 46px;
-  padding: 0.65rem 1rem;
+  min-height: 44px;
+  padding: 0.6rem 1rem;
+  transition: filter 0.2s ease, background 0.2s ease;
+
+  &:hover:not(:disabled) { background: var(--admin-accent-soft); }
+  &:disabled { cursor: wait; opacity: 0.6; }
+  &:focus-visible { outline: 2px solid var(--admin-accent); outline-offset: 2px; }
 }
 
-.order-hero__retry:disabled { cursor: wait; opacity: 0.6; }
+.hero__btn--primary {
+  background: var(--admin-yellow);
+  border-color: transparent;
+  color: var(--admin-on-yellow);
 
-.order-hero__cancelled {
-  background: rgba(165, 35, 35, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 12px;
+  &:hover:not(:disabled) { background: var(--admin-yellow); filter: brightness(1.05); }
+}
+
+.hero__customer {
+  align-items: center;
+  background: var(--admin-surface-2);
+  border: 1px solid var(--admin-line);
+  border-radius: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.75rem;
+}
+
+.hero__avatar {
+  align-items: center;
+  background: var(--admin-accent);
+  border-radius: 50%;
+  color: var(--admin-on-accent);
+  display: flex;
+  flex: 0 0 40px;
+  font-weight: 800;
+  height: 40px;
+  justify-content: center;
+}
+
+.hero__who {
+  display: flex;
+  flex: 1 1 180px;
+  flex-direction: column;
+  min-width: 0;
+
+  strong { font-size: 0.95rem; }
+  small { color: var(--admin-muted); font-size: 0.78rem; overflow-wrap: anywhere; }
+}
+
+.hero__contact { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+
+.hero__chip {
+  align-items: center;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-line-strong);
+  border-radius: 999px;
+  color: var(--admin-text);
+  display: inline-flex;
+  font-size: 0.76rem;
+  font-weight: 800;
+  gap: 0.4rem;
+  min-height: 36px;
+  padding: 0.35rem 0.75rem;
+  text-decoration: none;
+  transition: background 0.2s ease, border-color 0.2s ease;
+
+  &:hover { background: var(--admin-hover); }
+  &:focus-visible { outline: 2px solid var(--admin-accent); outline-offset: 2px; }
+}
+
+.hero__chip--wa { background: var(--admin-success-soft); border-color: transparent; color: var(--admin-success); }
+
+.hero__cancelled {
+  background: var(--admin-danger-soft);
+  border-radius: 14px;
+  color: var(--admin-danger);
   display: flex;
   flex-direction: column;
-  font-size: 0.88rem;
+  font-size: 0.86rem;
   gap: 0.35rem;
   padding: 0.75rem 0.9rem;
+
+  p { margin: 0; }
+  > p:first-child { align-items: center; display: flex; font-weight: 700; gap: 0.5rem; }
 }
 
-.order-hero__cancelled-head { align-items: center; display: flex; font-weight: 800; gap: 0.55rem; }
-.order-hero__cancelled-reason { font-weight: 600; line-height: 1.45; opacity: 0.92; }
-.order-hero__cancelled-refund {
+.hero__cancelled-reason { color: var(--admin-text); line-height: 1.45; }
+
+.hero__cancelled-refund {
   align-items: flex-start;
-  background: rgba(239, 213, 55, 0.22);
+  background: var(--admin-warning-soft);
   border-radius: 10px;
+  color: var(--admin-warning);
   display: flex;
-  font-weight: 600;
   gap: 0.45rem;
   line-height: 1.45;
   padding: 0.5rem 0.65rem;
 }
 
-.order-hero__steps {
+// Riel de avance: barras que se llenan hasta el paso actual.
+.hero__steps {
   display: flex;
   gap: 0.35rem;
   list-style: none;
   margin: 0;
-  overflow-x: auto;
-  padding: 0 0 0.25rem;
-  scrollbar-width: none;
+  padding: 0;
+
+  li {
+    display: flex;
+    flex: 1 1 0;
+    flex-direction: column;
+    gap: 0.4rem;
+    min-width: 0;
+  }
+
+  small {
+    color: var(--admin-subtle);
+    font-size: 0.68rem;
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .done small { color: var(--admin-muted); }
+  .current small { color: var(--admin-text); font-weight: 800; }
 }
 
-.order-hero__steps::-webkit-scrollbar { display: none; }
+.hero__bar {
+  background: var(--admin-line-strong);
+  border-radius: 999px;
+  height: 6px;
 
-.order-hero__steps li {
-  align-items: center;
-  display: flex;
-  flex: 1 1 0;
-  flex-direction: column;
-  gap: 0.4rem;
-  min-width: 74px;
-  opacity: 0.42;
-  position: relative;
+  .done & { background: var(--admin-accent); }
+  .current & { background: var(--admin-yellow); box-shadow: 0 0 0 3px color-mix(in srgb, var(--admin-yellow) 30%, transparent); }
 }
-
-// Conector entre pasos: la línea sale hacia el paso siguiente.
-.order-hero__steps li:not(:last-child)::after {
-  background: rgba(255, 255, 255, 0.3);
-  content: '';
-  height: 2px;
-  left: calc(50% + 22px);
-  position: absolute;
-  top: 18px;
-  width: calc(100% - 44px);
-}
-
-.order-hero__steps li.done { opacity: 0.85; }
-.order-hero__steps li.done::after { background: #00a523; }
-.order-hero__steps li.current { opacity: 1; }
-
-.order-hero__dot {
-  align-items: center;
-  background: rgba(255, 255, 255, 0.14);
-  border: 2px solid rgba(255, 255, 255, 0.4);
-  border-radius: 50%;
-  display: flex;
-  font-size: 0.8rem;
-  height: 38px;
-  justify-content: center;
-  width: 38px;
-}
-
-.order-hero__steps li.done .order-hero__dot { background: #00a523; border-color: #00a523; }
-.order-hero__steps li.current .order-hero__dot { background: #efd537; border-color: #efd537; box-shadow: 0 0 0 5px rgba(239, 213, 55, 0.25); color: #18211b; }
-
-.order-hero__steps small { font-size: 0.68rem; font-weight: 800; letter-spacing: 0.04em; text-align: center; text-transform: uppercase; white-space: nowrap; }
 
 @media (min-width: 900px) {
-  .order-hero__top { align-items: flex-start; flex-direction: row; justify-content: space-between; }
-  .order-hero__side { align-items: flex-end; flex: 0 0 auto; }
-  .order-hero__actions > button { flex: 0 0 auto; }
+  .hero { padding: 1.4rem 1.5rem; }
+  .hero__main { align-items: flex-start; flex-direction: row; justify-content: space-between; }
+  .hero__actions { flex-wrap: nowrap; }
+  .hero__btn { flex: 0 0 auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero__btn, .hero__chip { transition: none; }
 }
 </style>
