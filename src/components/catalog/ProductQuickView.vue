@@ -5,17 +5,24 @@ import type { ProductDTO } from '@/services/ProductService'
 import { useCartStore } from '@/stores/cart'
 import { useSettingsStore } from '@/stores/settings'
 import { trackMetaEvent } from '@/services/metaPixel'
+import { displayDescription, displayProductName, isCustomerCategory } from '@/utils/productName'
 
 const props = defineProps<{ product: ProductDTO | null }>()
 const emit = defineEmits<{ (event: 'close'): void }>()
 const cart = useCartStore()
 const quantity = ref(1)
 const imageLoaded = ref(false)
+// Imagen rota o borrada: se muestra el plato de respaldo en vez de un hueco.
+const imageFailed = ref(false)
+const imageUrl = computed(() => (imageFailed.value ? '' : props.product?.images[0]?.url || ''))
+const name = computed(() => displayProductName(props.product?.name || ''))
+const description = computed(() => displayDescription(props.product?.description) || 'Preparado al momento, con el sabor de siempre de Boloncity.')
 const added = ref(false)
 const adding = ref(false)
 const addedQuantity = ref(0)
 const addedTotal = ref(0)
-const categories = computed(() => props.product?.categories?.map((category) => category.name).filter(Boolean) || [])
+// Solo las categorías del cliente: "Cocina" o "Caja" son grupos internos del POS.
+const categories = computed(() => props.product?.categories?.filter(isCustomerCategory).map((category) => displayProductName(category.name)) || [])
 const total = computed(() => (props.product?.price || 0) * quantity.value)
 // Promo global: el carrito guarda el precio de catálogo y el descuento se resta del
 // subtotal (igual que en el backend); aquí solo se muestra el precio ya rebajado.
@@ -79,6 +86,7 @@ watch(
     }
     quantity.value = 1
     imageLoaded.value = false
+    imageFailed.value = false
     added.value = false
     adding.value = false
     addedQuantity.value = 0
@@ -98,23 +106,19 @@ onBeforeUnmount(() => {
   <Teleport to="body">
     <Transition name="quick-view">
       <div v-if="product" class="quick-view" @click.self="close">
-        <article class="quick-view__panel" role="dialog" aria-modal="true" :aria-label="product.name">
+        <article class="quick-view__panel" role="dialog" aria-modal="true" :aria-label="name">
           <button class="quick-view__close" type="button" aria-label="Cerrar" @click="close"><i class="fa-solid fa-xmark" /></button>
 
           <div class="quick-view__media">
-            <div v-if="product.images[0]?.url && !imageLoaded" class="quick-view__skeleton" />
-            <img v-if="product.images[0]?.url" :class="{ 'is-loaded': imageLoaded }" :src="product.images[0].url" :alt="product.name" @load="imageLoaded = true" />
-            <span v-else><i class="fa-solid fa-utensils" /></span>
+            <div v-if="imageUrl && !imageLoaded" class="quick-view__skeleton" />
+            <img v-if="imageUrl" :class="{ 'is-loaded': imageLoaded }" :src="imageUrl" :alt="name" @load="imageLoaded = true" @error="imageFailed = true" />
+            <span v-else class="quick-view__fallback" aria-hidden="true"><i class="fa-solid fa-utensils" /></span>
           </div>
 
           <Transition name="quick-content" mode="out-in">
           <div v-if="!added" key="details" class="quick-view__content">
-            <div class="quick-view__categories">
-              <span v-for="category in categories" :key="category">{{ category }}</span>
-            </div>
-
             <div class="quick-view__heading">
-              <div><p>{{ product.code }}</p><h2>{{ product.name }}</h2></div>
+              <div><p v-if="categories.length">{{ categories[categories.length - 1] }}</p><h2>{{ name }}</h2></div>
               <span v-if="promo.active" class="quick-view__prices">
                 <small>${{ product.price.toFixed(2) }}</small>
                 <strong>${{ promoUnitPrice.toFixed(2) }}</strong>
@@ -123,7 +127,7 @@ onBeforeUnmount(() => {
               <strong v-else>${{ product.price.toFixed(2) }}</strong>
             </div>
 
-            <p class="quick-view__description">{{ product.description || 'Producto disponible en el menú Boloncity.' }}</p>
+            <p class="quick-view__description">{{ description }}</p>
 
             <div class="quick-view__facts">
               <span><i class="fa-solid fa-circle-check" /> Disponible</span>
@@ -151,8 +155,8 @@ onBeforeUnmount(() => {
           <div v-else key="success" class="quick-view__success">
             <span class="quick-view__success-icon"><i class="fa-solid fa-check" /></span>
             <p class="quick-view__success-eyebrow">Agregado a tu pedido</p>
-            <h2>¡Buena elección!</h2>
-            <p>Tu {{ product.name.toLowerCase() }} ya está en el carrito. Puedes seguir explorando y sumar más sabores.</p>
+            <h2>Buena elección!</h2>
+            <p>Tu {{ name.toLowerCase() }} ya está en el carrito. Puedes seguir explorando y sumar más sabores.</p>
 
             <div class="quick-view__success-summary">
               <div><span>Cantidad</span><strong>{{ addedQuantity }}</strong></div>
@@ -235,11 +239,15 @@ onBeforeUnmount(() => {
 
 .quick-view__media img.is-loaded { opacity: 1; }
 
-.quick-view__media > span {
+.quick-view__fallback {
   align-items: center;
-  color: #235931;
+  background:
+    radial-gradient(circle at 50% 50%, #fff 0 26%, transparent 27%),
+    radial-gradient(circle at 50% 50%, rgba(35, 89, 49, 0.08) 0 36%, transparent 37%),
+    linear-gradient(145deg, #e3ebdc, #f4ecbf);
+  color: rgba(35, 89, 49, 0.55);
   display: flex;
-  font-size: 3rem;
+  font-size: 2.4rem;
   height: 100%;
   justify-content: center;
 }
@@ -259,21 +267,10 @@ onBeforeUnmount(() => {
   padding: 1.25rem;
 }
 
-.quick-view__categories,
 .quick-view__facts {
   display: flex;
   flex-wrap: wrap;
   gap: 0.45rem;
-}
-
-.quick-view__categories span {
-  background: rgba(35, 89, 49, 0.08);
-  border-radius: 999px;
-  color: #235931;
-  font-size: 0.68rem;
-  font-weight: 900;
-  padding: 0.45rem 0.65rem;
-  text-transform: uppercase;
 }
 
 .quick-view__heading {
@@ -292,16 +289,26 @@ onBeforeUnmount(() => {
 }
 
 .quick-view__heading h2 {
-  font-size: clamp(1.7rem, 5vw, 2.7rem);
-  letter-spacing: -0.05em;
+  color: #102719;
+  font-size: clamp(1.6rem, 5vw, 2.4rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
   line-height: 0.98;
   margin-top: 0.3rem;
   overflow-wrap: anywhere;
 }
 
+/* Misma etiqueta de precio que en la tarjeta del catálogo. */
 .quick-view__heading > strong {
-  color: #235931;
-  font-size: 1.5rem;
+  background: #efd537;
+  border-radius: 10px 10px 10px 3px;
+  box-shadow: 0 6px 14px -6px rgba(16, 39, 25, 0.4);
+  color: #102719;
+  font-size: 1.3rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  padding: 0.3rem 0.65rem;
+  transform: rotate(-3deg);
   white-space: nowrap;
 }
 
@@ -372,7 +379,8 @@ onBeforeUnmount(() => {
 }
 
 .quick-view__content footer a { background: rgba(35, 89, 49, 0.08); color: #235931; }
-.quick-view__content footer button { background: #efd537; color: #102719; }
+.quick-view__content footer button { background: #235931; color: #fff; cursor: pointer; transition: background-color 0.2s ease; }
+.quick-view__content footer button:hover:not(:disabled) { background: #00a523; }
 .quick-view__content footer button:disabled { cursor: wait; opacity: 0.82; }
 
 .quick-content-enter-active,
@@ -514,6 +522,20 @@ onBeforeUnmount(() => {
 .quick-view-leave-to { opacity: 0; }
 .quick-view-enter-from .quick-view__panel,
 .quick-view-leave-to .quick-view__panel { transform: translateY(40px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .quick-view-enter-active .quick-view__panel,
+  .quick-view-leave-active .quick-view__panel,
+  .quick-content-enter-active,
+  .quick-content-leave-active { transition: opacity 0.15s ease; }
+  .quick-view-enter-from .quick-view__panel,
+  .quick-view-leave-to .quick-view__panel,
+  .quick-content-enter-from,
+  .quick-content-leave-to { filter: none; transform: none; }
+  .quick-content-enter-active.quick-view__success > * { animation: none; }
+  .quick-view__skeleton { animation: none; }
+  .quick-view__heading > strong { transform: none; }
+}
 
 @keyframes modal-shimmer {
   0% { background-position: 100% 0; }

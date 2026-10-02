@@ -127,8 +127,9 @@ onBeforeUnmount(() => {
         <RouterLink :class="{ active: route.path === '/' }" to="/">Inicio</RouterLink>
         <RouterLink :class="{ active: route.path === '/catalogo' }" to="/catalogo">Menú</RouterLink>
         <RouterLink :class="{ active: route.path === '/pedido' }" to="/pedido">Seguimiento</RouterLink>
-        <button v-if="!user.isAuthenticated" class="store-header__cta" @click="navigateAndClose('/login')">
-          Ingresar
+        <!-- "Ingresar" ya está a la derecha: aquí se invita a crear la cuenta (antes salían dos "Ingresar"). -->
+        <button v-if="!user.isAuthenticated" class="store-header__cta" @click="navigateAndClose('/registro')">
+          Crear cuenta
         </button>
       </nav>
 
