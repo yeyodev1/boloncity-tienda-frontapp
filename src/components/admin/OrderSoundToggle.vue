@@ -37,10 +37,10 @@ async function toggle() {
 <style scoped lang="scss">
 .sound-toggle {
   align-items: center;
-  background: rgba(0, 165, 35, 0.12);
+  background: var(--admin-success-soft, rgba(0, 165, 35, 0.12));
   border: 1px solid rgba(0, 165, 35, 0.3);
   border-radius: 999px;
-  color: #087c25;
+  color: var(--admin-success, #087c25);
   cursor: pointer;
   display: flex;
   font-size: 0.78rem;
@@ -52,8 +52,8 @@ async function toggle() {
 }
 
 .sound-toggle.muted {
-  background: rgba(8, 17, 13, 0.07);
-  border-color: rgba(8, 17, 13, 0.15);
-  color: rgba(8, 17, 13, 0.55);
+  background: var(--admin-hover, rgba(8, 17, 13, 0.07));
+  border-color: var(--admin-line-strong, rgba(8, 17, 13, 0.15));
+  color: var(--admin-muted, rgba(8, 17, 13, 0.55));
 }
 </style>
