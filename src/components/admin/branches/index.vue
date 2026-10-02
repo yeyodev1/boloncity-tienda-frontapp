@@ -4,6 +4,8 @@ import AdminLayout from '@/components/admin/AdminLayout.vue'
 import BranchService, { type BranchDTO } from '@/services/BranchService'
 import { useConfirm } from '@/composables/useConfirm'
 import { useToast } from '@/composables/useToast'
+import PageHead from '@/components/admin/catalog-ui/PageHead.vue'
+import '@/components/admin/catalog-ui/ui.scss'
 import BranchWizard from './BranchWizard.vue'
 import BranchesList from './BranchesList.vue'
 import BranchPickerLinkModal from './BranchPickerLinkModal.vue'
@@ -13,6 +15,13 @@ const form = reactive<BranchForm>({ name:'', city:'', address:'', phone:'', emai
 const activeCount = computed(() => branches.value.filter((branch) => branch.isActive).length)
 // Cuenta la llave del entorno que está corriendo el backend, no `creationStatus`.
 const pickerLinkedCount = computed(() => branches.value.filter((branch) => branch.pickerEnv === 'production' ? branch.pickerStore?.hasProdKey : branch.pickerStore?.hasDevKey).length)
+const payphoneCount = computed(() => branches.value.filter((branch) => branch.payphone?.storeId).length)
+const facts = computed(() => loading.value ? [] : [
+  { label: 'locales', value: branches.value.length },
+  { label: 'activos', value: activeCount.value, tone: 'good' as const },
+  { label: 'con Picker', value: pickerLinkedCount.value, tone: pickerLinkedCount.value < activeCount.value ? 'warn' as const : 'good' as const },
+  { label: 'con PayPhone', value: payphoneCount.value, tone: payphoneCount.value < activeCount.value ? 'warn' as const : 'good' as const },
+])
 function reset() { Object.assign(form, { name:'', city:'', address:'', phone:'', email:'', googleMapsUrl:'', payphoneStoreId:'', cookTimeMinutes:0, isActive:true, openingHours:defaultHours(), imageFile:null, imagePreview:'' }); editingId.value = '' }
 async function load() { loading.value = true; try { branches.value = (await BranchService.getAll()).data } catch { error('No se pudieron cargar las sucursales') } finally { loading.value = false } }
 function create() { reset(); open.value = true }
@@ -27,9 +36,20 @@ async function onPickerLinked() { await load(); pickerBranch.value = branches.va
 onMounted(load)
 </script>
 
-<template><AdminLayout><main class="branches"><section class="hero panel"><div><p>Operación y delivery</p><h1>Sucursales</h1><span>Gestiona locales, horarios, conexión con Picker y disponibilidad de pedidos.</span></div><button type="button" @click="create"><i class="fa-solid fa-plus" /> Nueva sucursal</button></section><section class="stats"><article class="panel"><span>Registradas</span><strong>{{ branches.length }}</strong></article><article class="panel"><span>Activas</span><strong>{{ activeCount }}</strong></article><article class="panel"><span>Picker vinculado</span><strong>{{ pickerLinkedCount }}</strong></article><article class="panel"><span>PayPhone listo</span><strong>{{ branches.filter((branch) => branch.payphone?.storeId).length }}</strong></article></section><BranchesList :branches="branches" :loading="loading" @create="create" @edit="edit" @remove="remove" @picker="picker" /><BranchWizard :open="open" :editing="Boolean(editingId)" :saving="saving" :form="form" @close="close" @submit="save" /><BranchPickerLinkModal :open="pickerOpen" :branch="pickerBranch" @close="closePicker" @linked="onPickerLinked" /></main></AdminLayout></template>
-
-<style scoped lang="scss">
-.branches { display:flex; flex-direction:column; gap:1rem; padding:clamp(.75rem,2vw,1.5rem); }.hero { align-items:flex-start; background:linear-gradient(135deg,#235931,#173e22); color:#fff; display:flex; flex-direction:column; gap:1rem; justify-content:space-between; padding:1.25rem; }.hero p { color:#efd537; font-size:.72rem; font-weight:900; letter-spacing:.12em; text-transform:uppercase; }.hero h1 { font-size:clamp(1.7rem,4vw,2.5rem); margin:.35rem 0; }.hero span { color:rgba(255,255,255,.76); }.hero button { align-items:center; background:#efd537; border:0; border-radius:999px; color:#152019; display:inline-flex; font-weight:900; gap:.45rem; justify-content:center; min-height:42px; padding:.7rem .95rem; width:100%; }.stats { display:flex; flex-wrap:wrap; gap:.55rem; }/* Son cuatro tarjetas: en movil van de a dos por fila, no de a tres con una huerfana. */
-.stats article { display:flex; flex:1 1 calc((100% - .55rem) / 2); flex-direction:column; min-width:0; padding:.75rem; }.stats span { color:var(--admin-muted); font-size:.58rem; font-weight:900; letter-spacing:.05em; overflow-wrap:anywhere; text-transform:uppercase; }.stats strong { color:#235931; font-size:1.55rem; margin-top:.25rem; } @media (min-width:641px) { .hero { align-items:center; flex-direction:row; }.hero button { width:auto; }.stats { gap:.8rem; }.stats article { flex-basis:160px; padding:1rem; }.stats span { font-size:.7rem; }.stats strong { font-size:2rem; } }
-</style>
+<template>
+  <!-- Envoltorio: así el reset del SCSS con scope de esta vista no le quita el padding a AdminLayout. -->
+  <div class="cui-root">
+    <AdminLayout>
+      <main class="cui-page">
+        <PageHead eyebrow="Operación" title="Sucursales" description="Locales, horarios y su conexión con Picker y PayPhone." :facts="facts">
+          <template #actions>
+            <button type="button" class="cui-btn cui-btn--primary" @click="create"><i class="fa-solid fa-plus" /> Nueva sucursal</button>
+          </template>
+        </PageHead>
+        <BranchesList :branches="branches" :loading="loading" @create="create" @edit="edit" @remove="remove" @picker="picker" />
+        <BranchWizard :open="open" :editing="Boolean(editingId)" :saving="saving" :form="form" @close="close" @submit="save" />
+        <BranchPickerLinkModal :open="pickerOpen" :branch="pickerBranch" @close="closePicker" @linked="onPickerLinked" />
+      </main>
+    </AdminLayout>
+  </div>
+</template>

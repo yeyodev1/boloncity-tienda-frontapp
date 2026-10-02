@@ -3,15 +3,19 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import BaseSelect from '@/components/global/BaseSelect.vue'
 import ModalShell from '@/components/global/ModalShell.vue'
 import AvailabilitySchedule from './AvailabilitySchedule.vue'
+import { displayProductName, isCustomerCategory } from '@/utils/productName'
 import type { ProductForm, ProductEditorOptions } from './types'
 const props = defineProps<{ open: boolean; saving: boolean; editing: boolean; form: ProductForm; options: ProductEditorOptions }>()
 const emit = defineEmits<{ close: []; submit: [] }>()
 const step = ref(1)
+const steps = [{ n: 1, label: 'Datos', icon: 'fa-receipt' }, { n: 2, label: 'Visibilidad', icon: 'fa-eye' }, { n: 3, label: 'Locales', icon: 'fa-store' }]
 const stepContent = ref<HTMLElement | null>(null)
 const stepHeight = ref<number | null>(null)
 const categoryOptions = computed(() => props.options.categories.map(({ _id, name }) => ({ value: _id, label: name })))
 const branchOptions = computed(() => props.options.branches.map(({ _id, name }) => ({ value: _id, label: name })))
 const categoryNames = computed(() => new Map(props.options.categories.map(({ _id, name }) => [_id, name])))
+/** En la vista previa solo las categorías que ve el cliente (no los grupos internos del POS). */
+const previewCategories = computed(() => props.form.categories.map((id) => categoryNames.value.get(id) || '').filter((name) => name && isCustomerCategory({ name })))
 function fileChange(event: Event) { const file = (event.target as HTMLInputElement).files?.[0] || null; props.form.imageFile = file; if (file) props.form.imagePreview = URL.createObjectURL(file) }
 function clearImage() { props.form.imageFile = null; props.form.imagePreview = '' }
 function toggle(key: 'isAvailable' | 'isFeatured' | 'sellWithoutStock' | 'isBestSeller') { props.form[key] = !props.form[key] }
@@ -36,51 +40,224 @@ onBeforeUnmount(() => { stepHeight.value = null })
 </script>
 
 <template>
-  <ModalShell :open="open" :title="editing ? 'Editar producto' : 'Nuevo producto'" subtitle="Completa los datos, sube una imagen y elige dónde se vende. Son 3 pasos." size="lg" @close="emit('close')">
+  <ModalShell :open="open" :title="editing ? 'Editar producto' : 'Nuevo producto'" subtitle="Datos, visibilidad y locales donde se vende." size="lg" @close="emit('close')">
     <div class="editor">
-      <aside class="preview panel"><div class="preview-image"><img v-if="form.imagePreview" :src="form.imagePreview" :alt="form.name || 'Vista previa'" /><div v-else>Imagen del producto</div></div><section aria-live="polite"><div><span>{{ form.code || 'SIN CÓDIGO' }}</span><strong>${{ Number(form.price || 0).toFixed(2) }}</strong></div><h2>{{ form.name || 'Nombre del producto' }}</h2><p>{{ form.description || 'La descripción aparecerá aquí mientras editas.' }}</p><div class="tags"><span v-for="id in form.categories" :key="id">{{ categoryNames.get(id) }}</span><span v-if="!form.categories.length">Sin categoría</span></div><b><i :class="form.isAvailable ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-xmark'" /> {{ !form.isAvailable ? 'Producto oculto' : form.branches.length ? `Solo en ${form.branches.length} sucursal${form.branches.length === 1 ? '' : 'es'}` : 'Disponible en todas, salvo excepciones' }}</b><small v-if="form.isAvailable && !form.branches.length && form.unavailableBranches.length">No disponible en {{ form.unavailableBranches.length }} sucursal{{ form.unavailableBranches.length === 1 ? '' : 'es' }}</small></section><label class="upload"><input type="file" accept="image/*" @change="fileChange" /><span>{{ form.imageFile ? 'Cambiar imagen' : 'Subir imagen' }}</span></label><button v-if="form.imagePreview" class="clear" type="button" @click="clearImage">Quitar imagen</button></aside>
-      <form class="form panel" @submit.prevent="emit('submit')"><nav aria-label="Pasos para editar producto"><button v-for="s in [{ n: 1, label: 'Datos', icon: 'fa-receipt' }, { n: 2, label: 'Disponibilidad', icon: 'fa-circle-check' }, { n: 3, label: 'Sucursales', icon: 'fa-building' }]" :key="s.n" type="button" :class="{ active: step === s.n, done: step > s.n }" @click="step = s.n"><i :class="['fa-solid', s.icon]" /><span class="nav-num">{{ s.n }}</span>{{ s.label }}</button></nav><div class="step-frame" :style="{ height: stepHeight ? `${stepHeight}px` : undefined }"><Transition name="product-step" mode="out-in" @after-enter="measureStep"><div ref="stepContent" :key="step" class="step">
-        <template v-if="step === 1"><header><span>Información básica</span><p>Datos visibles para el cliente y operación interna.</p></header><label><span>Código interno <em>Opcional</em></span><input v-model="form.code" placeholder="Ej. BC-001" /><small>Úsalo solo si tu empresa tiene un código interno. Puedes dejarlo vacío.</small></label><label><span>Nombre</span><input v-model="form.name" placeholder="Nombre" /></label><label class="full"><span>Descripción</span><textarea v-model="form.description" placeholder="Descripción" /></label><label><span>Precio</span><input v-model.number="form.price" type="number" step="0.01" /></label><label><span>Puntos por compra <em>Opcional</em></span><input v-model.number="form.pointsValue" type="number" min="0" placeholder="Ej. 10" /><small>Al comprar una unidad, el cliente recibe esta cantidad de puntos. Déjalo vacío si este producto no entrega puntos.</small></label><div class="switch" :class="{ active: form.sellWithoutStock }" role="switch" tabindex="0" :aria-checked="form.sellWithoutStock" @click="toggle('sellWithoutStock')" @keydown.enter.prevent="toggle('sellWithoutStock')"><i class="fa-solid fa-infinity" /><span><strong>Vender sin stock</strong><small>Permite vender aunque no haya unidades registradas</small></span><b><i /></b></div><label v-if="!form.sellWithoutStock"><span>Stock disponible</span><input v-model.number="form.stock" type="number" min="0" /></label><div class="switch" :class="{ active: form.isBestSeller }" role="switch" tabindex="0" :aria-checked="form.isBestSeller" @click="toggle('isBestSeller')" @keydown.enter.prevent="toggle('isBestSeller')"><i class="fa-solid fa-fire" /><span><strong>Best seller</strong><small>Se mostrará primero en el catálogo</small></span><b><i /></b></div></template>
-        <template v-else-if="step === 2"><header><span>Disponibilidad</span><p>¿Se muestra el producto a los clientes?</p></header><div class="switch full" :class="{ active: form.isAvailable }" role="switch" tabindex="0" :aria-checked="form.isAvailable" @click="toggle('isAvailable')" @keydown.enter.prevent="toggle('isAvailable')"><i class="fa-solid fa-circle-check" /><span><strong>Disponible en la tienda</strong><small>{{ form.isAvailable ? 'Los clientes lo pueden ver y pedir' : 'Oculto: nadie lo ve en la tienda' }}</small></span><b><i /></b></div><div class="switch full" :class="{ active: form.isFeatured }" role="switch" tabindex="0" :aria-checked="form.isFeatured" @click="toggle('isFeatured')" @keydown.enter.prevent="toggle('isFeatured')"><i class="fa-solid fa-star" /><span><strong>Destacado</strong><small>Aparece primero en el menú</small></span><b><i /></b></div><AvailabilitySchedule class="full" :activation="form.scheduledActivation" :deactivation="form.scheduledDeactivation" @update:activation="form.scheduledActivation = $event" @update:deactivation="form.scheduledDeactivation = $event" /></template>
-        <template v-else><header><span>Organización</span><p>Categorías y en qué sucursales se vende este producto.</p></header>
-          <label class="full"><span>Categorías</span><BaseSelect v-model="form.categories" :options="categoryOptions" multiple /></label>
-
-          <div class="full branch-mode">
-            <span class="branch-mode__label">¿En qué sucursales se vende?</span>
-            <div class="branch-mode__options">
-              <button type="button" :class="{ active: branchMode === 'all' }" @click="setBranchMode('all')">
-                <i :class="branchMode === 'all' ? 'fa-solid fa-circle-dot' : 'fa-regular fa-circle'" />
-                <span><strong>En todas las sucursales</strong><small>Se vende en todos los locales (puedes excluir algunos)</small></span>
-              </button>
-              <button type="button" :class="{ active: branchMode === 'only' }" @click="setBranchMode('only')">
-                <i :class="branchMode === 'only' ? 'fa-solid fa-circle-dot' : 'fa-regular fa-circle'" />
-                <span><strong>Solo en ciertas sucursales</strong><small>Ej. helados solo en Avalon</small></span>
-              </button>
-            </div>
+      <aside class="preview">
+        <div class="preview__image">
+          <img v-if="form.imagePreview" :src="form.imagePreview" :alt="form.name || 'Vista previa'" />
+          <span v-else><i class="fa-solid fa-image" aria-hidden="true" /> Sin foto</span>
+          <span class="cui-price preview__price">${{ Number(form.price || 0).toFixed(2) }}</span>
+        </div>
+        <div class="preview__copy" aria-live="polite">
+          <small>{{ form.code || 'Sin código' }}</small>
+          <strong>{{ form.name ? displayProductName(form.name) : 'Nombre del producto' }}</strong>
+          <div class="preview__tags">
+            <span v-for="name in previewCategories" :key="name" class="cui-chip">{{ displayProductName(name) }}</span>
+            <span v-if="!previewCategories.length" class="cui-chip">Sin categoría</span>
           </div>
+          <p class="preview__state" :class="{ 'is-off': !form.isAvailable }">
+            <i :class="form.isAvailable ? 'fa-solid fa-circle-check' : 'fa-solid fa-eye-slash'" aria-hidden="true" />
+            {{ !form.isAvailable ? 'Oculto en la tienda' : form.branches.length ? `Solo en ${form.branches.length} local${form.branches.length === 1 ? '' : 'es'}` : form.unavailableBranches.length ? `Todos los locales menos ${form.unavailableBranches.length}` : 'En todos los locales' }}
+          </p>
+        </div>
+        <div class="preview__upload">
+          <label class="cui-btn cui-btn--ghost"><input type="file" accept="image/*" @change="fileChange" /><i class="fa-solid fa-upload" /> {{ form.imagePreview ? 'Cambiar foto' : 'Subir foto' }}</label>
+          <button v-if="form.imagePreview" class="cui-icon-btn is-danger" type="button" aria-label="Quitar foto" title="Quitar foto" @click="clearImage"><i class="fa-solid fa-trash" /></button>
+        </div>
+      </aside>
 
-          <label v-if="branchMode === 'only'" class="full"><span>Disponible ÚNICAMENTE en <em>{{ form.branches.length ? `${form.branches.length} sucursal${form.branches.length === 1 ? '' : 'es'}` : 'elige al menos una' }}</em></span><BaseSelect v-model="form.branches" :options="branchOptions" multiple searchable inline-panel placeholder="Selecciona sucursales" @toggle="measureStep" /><small>El producto se venderá SOLO en estas sucursales y estará oculto en las demás.</small></label>
+      <form class="form" @submit.prevent="emit('submit')">
+        <nav class="cui-segments" aria-label="Pasos">
+          <button v-for="s in steps" :key="s.n" type="button" :class="{ 'is-active': step === s.n }" :aria-current="step === s.n ? 'step' : undefined" @click="step = s.n">
+            <i :class="['fa-solid', step > s.n ? 'fa-check' : s.icon]" aria-hidden="true" />{{ s.label }}
+          </button>
+        </nav>
 
-          <label v-else class="full"><span>Excepciones — no disponible en <em>{{ form.unavailableBranches.length ? `${form.unavailableBranches.length} sucursal${form.unavailableBranches.length === 1 ? '' : 'es'}` : 'ninguna (opcional)' }}</em></span><BaseSelect v-model="form.unavailableBranches" :options="branchOptions" multiple searchable inline-panel placeholder="Selecciona sucursales" @toggle="measureStep" /><small>Se vende en todas las sucursales salvo las que elijas aquí. Déjalo vacío para todas.</small></label>
-        </template>
-       </div></Transition></div><footer><button class="secondary" type="button" @click="emit('close')">Cancelar</button><button v-if="step > 1" class="secondary" type="button" @click="step--"><i class="fa-solid fa-arrow-left" /> Atrás</button><button v-if="step < 3" type="button" @click="step++">Siguiente <i class="fa-solid fa-arrow-right" /></button><button v-else type="submit" :disabled="saving">{{ saving ? 'Guardando...' : editing ? 'Actualizar' : 'Crear' }}</button></footer></form>
+        <div class="step-frame" :style="{ height: stepHeight ? `${stepHeight}px` : undefined }">
+          <Transition name="product-step" mode="out-in" @after-enter="measureStep">
+            <div ref="stepContent" :key="step" class="step">
+              <template v-if="step === 1">
+                <label class="cui-field cui-half"><span>Nombre</span><input v-model="form.name" placeholder="Ej. Bolón mixto de verde" /></label>
+                <label class="cui-field cui-half"><span>Precio</span><input v-model.number="form.price" type="number" step="0.01" min="0" /></label>
+                <label class="cui-field"><span>Descripción <em>opcional</em></span><textarea v-model="form.description" placeholder="Qué lleva, para cuántos alcanza…" /></label>
+                <label class="cui-field cui-half"><span>Código interno <em>opcional</em></span><input v-model="form.code" placeholder="Ej. BC-001" /></label>
+                <label class="cui-field cui-half"><span>Puntos por unidad <em>opcional</em></span><input v-model.number="form.pointsValue" type="number" min="0" placeholder="Ej. 10" /><small>Vacío = no entrega puntos.</small></label>
+                <button type="button" class="cui-switch" :class="{ 'is-on': form.sellWithoutStock }" role="switch" :aria-checked="form.sellWithoutStock" @click="toggle('sellWithoutStock')">
+                  <i class="fa-solid fa-infinity" aria-hidden="true" /><span><strong>Vender sin límite de stock</strong><small>Se puede pedir aunque no haya unidades registradas</small></span><span class="cui-switch__knob" />
+                </button>
+                <label v-if="!form.sellWithoutStock" class="cui-field cui-half"><span>Unidades en stock</span><input v-model.number="form.stock" type="number" min="0" /></label>
+                <button type="button" class="cui-switch" :class="{ 'is-on': form.isBestSeller }" role="switch" :aria-checked="form.isBestSeller" @click="toggle('isBestSeller')">
+                  <i class="fa-solid fa-fire" aria-hidden="true" /><span><strong>Best seller</strong><small>Sale primero en el catálogo</small></span><span class="cui-switch__knob" />
+                </button>
+              </template>
+
+              <template v-else-if="step === 2">
+                <button type="button" class="cui-switch" :class="{ 'is-on': form.isAvailable }" role="switch" :aria-checked="form.isAvailable" @click="toggle('isAvailable')">
+                  <i class="fa-solid fa-eye" aria-hidden="true" /><span><strong>Visible en la tienda</strong><small>{{ form.isAvailable ? 'Los clientes lo ven y lo pueden pedir' : 'Oculto: nadie lo ve en la tienda' }}</small></span><span class="cui-switch__knob" />
+                </button>
+                <button type="button" class="cui-switch" :class="{ 'is-on': form.isFeatured }" role="switch" :aria-checked="form.isFeatured" @click="toggle('isFeatured')">
+                  <i class="fa-solid fa-star" aria-hidden="true" /><span><strong>Destacado</strong><small>Aparece primero en el menú</small></span><span class="cui-switch__knob" />
+                </button>
+                <AvailabilitySchedule :activation="form.scheduledActivation" :deactivation="form.scheduledDeactivation" @update:activation="form.scheduledActivation = $event" @update:deactivation="form.scheduledDeactivation = $event" />
+              </template>
+
+              <template v-else>
+                <label class="cui-field"><span>Categorías</span><BaseSelect v-model="form.categories" :options="categoryOptions" multiple /></label>
+
+                <div class="branch-mode" role="radiogroup" aria-label="Dónde se vende">
+                  <span class="branch-mode__label">Dónde se vende</span>
+                  <button type="button" role="radio" :aria-checked="branchMode === 'all'" :class="{ 'is-active': branchMode === 'all' }" @click="setBranchMode('all')">
+                    <i :class="branchMode === 'all' ? 'fa-solid fa-circle-dot' : 'fa-regular fa-circle'" aria-hidden="true" />
+                    <span><strong>En todos los locales</strong><small>Puedes excluir algunos</small></span>
+                  </button>
+                  <button type="button" role="radio" :aria-checked="branchMode === 'only'" :class="{ 'is-active': branchMode === 'only' }" @click="setBranchMode('only')">
+                    <i :class="branchMode === 'only' ? 'fa-solid fa-circle-dot' : 'fa-regular fa-circle'" aria-hidden="true" />
+                    <span><strong>Solo en algunos</strong><small>Ej. helados solo en Avalon</small></span>
+                  </button>
+                </div>
+
+                <label v-if="branchMode === 'only'" class="cui-field"><span>Se vende únicamente en <em>{{ form.branches.length ? `${form.branches.length} local${form.branches.length === 1 ? '' : 'es'}` : 'elige al menos uno' }}</em></span><BaseSelect v-model="form.branches" :options="branchOptions" multiple searchable inline-panel placeholder="Elige locales" @toggle="measureStep" /><small>En los demás locales queda oculto.</small></label>
+                <label v-else class="cui-field"><span>No se vende en <em>{{ form.unavailableBranches.length ? `${form.unavailableBranches.length} local${form.unavailableBranches.length === 1 ? '' : 'es'}` : 'ninguno' }}</em></span><BaseSelect v-model="form.unavailableBranches" :options="branchOptions" multiple searchable inline-panel placeholder="Elige locales (opcional)" @toggle="measureStep" /><small>Déjalo vacío para venderlo en todos.</small></label>
+              </template>
+            </div>
+          </Transition>
+        </div>
+
+        <footer class="cui-footer form__footer">
+          <button class="cui-btn cui-btn--ghost" type="button" @click="emit('close')">Cancelar</button>
+          <button v-if="step > 1" class="cui-btn" type="button" @click="step--"><i class="fa-solid fa-arrow-left" /> Atrás</button>
+          <button v-if="step < 3" class="cui-btn cui-btn--primary" type="button" @click="step++">Siguiente <i class="fa-solid fa-arrow-right" /></button>
+          <button v-else class="cui-btn cui-btn--primary" type="submit" :disabled="saving"><i class="fa-solid fa-floppy-disk" /> {{ saving ? 'Guardando…' : editing ? 'Guardar cambios' : 'Crear producto' }}</button>
+        </footer>
+      </form>
     </div>
   </ModalShell>
 </template>
 
 <style scoped lang="scss">
-.editor { display: flex; flex-direction: column; gap: .85rem; } .preview,.form { border: 1px solid rgba(8,17,13,.08); border-radius: 20px; box-shadow: none; padding: 1rem; } .preview { background: #edf2ed; } .form { background: #fff; } .preview-image { align-items: center; aspect-ratio: 4 / 3; background: rgba(35,89,49,.1); border-radius: 15px; color: rgba(8,17,13,.58); display: flex; font-size: .8rem; font-weight: 800; justify-content: center; overflow: hidden; text-transform: uppercase; } .preview-image img { height: 100%; object-fit: cover; width: 100%; } aside section { display: flex; flex-direction: column; gap: .5rem; padding: .9rem .2rem .1rem; } aside section > div { display: flex; justify-content: space-between; } aside section div > span, aside small { color: rgba(8,17,13,.52); font-size: .68rem; } aside section div > strong { background: #235931; border-radius: 999px; color: #fff; font-size: .85rem; padding: .35rem .6rem; } aside h2 { font-size: 1.1rem; } aside p { color: rgba(8,17,13,.62); font-size: .78rem; } .tags { display: flex; flex-wrap: wrap; gap: .35rem; } .tags span { background: rgba(35,89,49,.09); border-radius: 999px; color: #235931; font-size: .64rem; padding: .3rem .5rem; } aside b { color: #235931; font-size: .7rem; }.upload { align-items: center; background: transparent; border: 1px dashed rgba(35,89,49,.3); border-radius: 14px; cursor: pointer; display: flex; justify-content: center; margin-top: .8rem; min-height: 44px; position: relative; } .upload input { inset: 0; opacity: 0; position: absolute; } .upload span { color: #235931; font-size: .82rem; font-weight: 800; text-transform: uppercase; }.clear { background: rgba(8,17,13,.08); color: #08110d; margin-top: .75rem; width: 100%; }
-nav { background: #eef3ef; border-radius: 15px; display: flex; gap: .25rem; margin-bottom: 1.15rem; padding: .3rem; } button { align-items: center; background: #235931; border: 0; border-radius: 999px; color: #fff; display: inline-flex; font-weight: 800; gap: .5rem; justify-content: center; min-height: 42px; padding: .8rem 1rem; } nav button { background: transparent; border-radius: 11px; color: rgba(8,17,13,.52); flex: 1 1 0; font-size: .72rem; padding: .5rem; } nav button.active { background: #235931; color: #fff; } nav button.done { color: #235931; } nav button .nav-num { display: none; } nav button i { font-size: .8rem; }.step { align-content: flex-start; display: flex; flex-flow: row wrap; gap: .9rem; }.step > * { flex: 1 1 100%; } header { border-bottom: 1px solid rgba(8,17,13,.08); padding-bottom: .8rem; } header span,label > span { color: #235931; font-size: .78rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; } header p { color: rgba(8,17,13,.62); font-size: .84rem; margin-top: .25rem; } label { background: #fafcf9; border: 1px solid rgba(8,17,13,.09); border-radius: 14px; display: flex; flex-direction: column; gap: .5rem; padding: .75rem; } input,textarea { background: #fff; border: 1px solid rgba(8,17,13,.1); border-radius: 10px; min-height: 46px; padding: .7rem .8rem; } textarea { min-height: 130px; resize: vertical; }.switch { align-items: center; background: #f8fbf8; border: 1px solid rgba(35,89,49,.14); border-radius: 14px; cursor: pointer; display: flex; gap: .65rem; min-height: 68px; padding: .75rem .85rem; } .switch > i { color: #235931; } .switch > span { display: flex; flex: 1; flex-direction: column; } .switch small,label small { color: rgba(8,17,13,.54); font-size: .68rem; } .switch > b { background: rgba(8,17,13,.16); border-radius: 999px; flex: 0 0 42px; height: 24px; padding: 3px; }.switch > b i { background: #fff; border-radius: 50%; display: block; height: 18px; transition: transform .2s; width: 18px; }.switch.active { background: rgba(35,89,49,.08); }.switch.active > b { background: #235931; }.switch.active > b i { transform: translateX(18px); }.legacy { align-items: center; background: rgba(239,213,55,.17); border-radius: 14px; color: #735b00; display: flex; flex-wrap: wrap; font-size: .78rem; gap: .55rem; padding: .75rem; }.legacy button { background: #735b00; font-size: .72rem; margin-left: auto; min-height: 34px; }
-.branch-mode { background: #fafcf9; border: 1px solid rgba(8,17,13,.09); border-radius: 14px; display: flex; flex-direction: column; gap: .6rem; padding: .75rem; }
-.branch-mode__label { color: #235931; font-size: .78rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
-.branch-mode__options { display: flex; flex-direction: column; gap: .5rem; }
-.branch-mode__options button { align-items: center; background: #fff; border: 1px solid rgba(8,17,13,.12); border-radius: 12px; color: #08110d; display: flex; gap: .6rem; justify-content: flex-start; min-height: 58px; padding: .65rem .8rem; text-align: left; }
-.branch-mode__options button.active { background: rgba(35,89,49,.08); border-color: #235931; }
-.branch-mode__options button > i { color: #235931; font-size: 1.05rem; }
-.branch-mode__options button span { display: flex; flex-direction: column; }
-.branch-mode__options button small { color: rgba(8,17,13,.54); font-size: .7rem; font-weight: 500; }
-@media (min-width: 600px) { .branch-mode__options { flex-direction: row; } .branch-mode__options button { flex: 1 1 0; } } footer { display: flex; flex-wrap: wrap; gap: .75rem; justify-content: flex-end; margin-top: 1.15rem; } footer .secondary { background: rgba(26,26,26,.06); color: #08110d; }.product-step-enter-active,.product-step-leave-active { transition: opacity .2s, transform .26s; }.product-step-enter-from { opacity: 0; transform: translateX(14px); }.product-step-leave-to { opacity: 0; transform: translateX(-10px); } @media (min-width: 769px) { .step > label,.step > .switch { flex: 1 1 calc(50% - .45rem); }.step > .full { flex-basis: 100%; } } @media (min-width: 980px) { .editor { align-items: start; flex-direction: row; }.preview { flex: 0 0 min(360px,38%); position: sticky; top: 0; }.form { flex: 1 1 0; } }
-.step-frame { overflow: hidden; transition: height .32s cubic-bezier(.16,1,.3,1); }.tooltip-icon { color: rgba(35,89,49,.62); cursor: help; font-size: .75rem; margin-left: .3rem; position: relative; }.tooltip-icon::after { background: #152019; border-radius: 8px; color: #fff; content: attr(data-tooltip); font-family: inherit; font-size: .68rem; font-style: normal; font-weight: 600; left: 0; line-height: 1.35; opacity: 0; padding: .5rem .6rem; pointer-events: none; position: absolute; text-transform: none; top: calc(100% + 7px); transform: translateY(-3px); transition: opacity .16s ease, transform .16s ease; visibility: hidden; width: 190px; z-index: 5; }.tooltip-icon:hover::after,.tooltip-icon:focus::after { opacity: 1; transform: translateY(0); visibility: visible; }
-.step-frame { overflow: visible; }
-.form label > span em { color: rgba(8,17,13,.5); font-size: .65rem; font-style: normal; font-weight: 700; letter-spacing: .04em; margin-left: .35rem; text-transform: none; }
+.editor { display: flex; flex-direction: column; gap: 0.9rem; }
+
+.preview {
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-line);
+  border-radius: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.75rem;
+}
+
+.preview__image {
+  align-items: center;
+  aspect-ratio: 4 / 3;
+  background: var(--admin-surface-2);
+  border-radius: 14px;
+  color: var(--admin-subtle);
+  display: flex;
+  font-size: 0.8rem;
+  font-weight: 700;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+
+  img { height: 100%; object-fit: cover; width: 100%; }
+  > span:first-child i { margin-right: 0.35rem; }
+}
+
+.preview__price { bottom: 0.6rem; left: 0.6rem; position: absolute; }
+
+.preview__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0 0.2rem;
+
+  small { color: var(--admin-subtle); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.7rem; }
+  strong { color: var(--admin-text); font-size: 1.05rem; line-height: 1.2; }
+}
+
+.preview__tags { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+
+.preview__state {
+  align-items: center;
+  color: var(--admin-success);
+  display: flex;
+  font-size: 0.78rem;
+  font-weight: 700;
+  gap: 0.35rem;
+  margin: 0.15rem 0 0;
+
+  &.is-off { color: var(--admin-warning); }
+}
+
+.preview__upload {
+  display: flex;
+  gap: 0.4rem;
+
+  label { flex: 1 1 auto; position: relative; }
+  input { cursor: pointer; inset: 0; opacity: 0; position: absolute; }
+}
+
+.form {
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-line);
+  border-radius: 18px;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+  padding: 0.9rem;
+}
+
+.step { align-content: flex-start; display: flex; flex-flow: row wrap; gap: 0.85rem; }
+.step > * { flex: 1 1 100%; }
+.step > .cui-half { flex: 1 1 220px; }
+
+.branch-mode {
+  display: flex;
+  flex-flow: row wrap;
+  gap: 0.5rem;
+
+  .branch-mode__label { color: var(--admin-text); flex: 1 1 100%; font-size: 0.78rem; font-weight: 800; }
+
+  button {
+    align-items: center;
+    background: var(--admin-surface-2);
+    border: 1px solid var(--admin-line);
+    border-radius: 14px;
+    color: var(--admin-text);
+    cursor: pointer;
+    display: flex;
+    flex: 1 1 220px;
+    gap: 0.6rem;
+    min-height: 60px;
+    padding: 0.6rem 0.8rem;
+    text-align: left;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+
+    > i { color: var(--admin-accent); font-size: 1rem; }
+    span { display: flex; flex-direction: column; }
+    strong { font-size: 0.86rem; }
+    small { color: var(--admin-muted); font-size: 0.74rem; }
+    &.is-active { background: var(--admin-accent-soft); border-color: var(--admin-accent); }
+    &:focus-visible { outline: 2px solid var(--admin-accent); outline-offset: 2px; }
+  }
+}
+
+.form__footer { border-top: 1px solid var(--admin-line); margin-top: auto; padding-top: 0.85rem; }
+
+.step-frame { overflow: visible; transition: height 0.32s var(--admin-ease, ease); }
+.product-step-enter-active, .product-step-leave-active { transition: opacity 0.2s ease, transform 0.25s ease; }
+.product-step-enter-from { opacity: 0; transform: translateX(12px); }
+.product-step-leave-to { opacity: 0; transform: translateX(-10px); }
+
+@media (min-width: 980px) {
+  .editor { align-items: flex-start; flex-direction: row; }
+  .preview { flex: 0 0 300px; position: sticky; top: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .step-frame, .product-step-enter-active, .product-step-leave-active { transition: none; }
+}
 </style>

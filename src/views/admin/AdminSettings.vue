@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import AdminLayout from '@/components/admin/AdminLayout.vue'
+import PageHead from '@/components/admin/catalog-ui/PageHead.vue'
+import '@/components/admin/catalog-ui/ui.scss'
 import SettingsService, { type SettingsDTO } from '@/services/SettingsService'
 import { useConfirm } from '@/composables/useConfirm'
 import { useToast } from '@/composables/useToast'
@@ -25,6 +27,16 @@ const applying = ref(false)
 const { confirm } = useConfirm()
 const { success, error } = useToast()
 
+/** Foto de lo guardado: si el formulario difiere, aparece la barra de "cambios sin guardar". */
+const savedSnapshot = ref('')
+const snapshot = () => JSON.stringify([ivaRate.value, pricesIncludeIva.value, deliveryPricePerKm.value, pointsEnabled.value, pointsEarnDollars.value, pointsEarnAmount.value, pointsRedeemPerDollar.value, promoEnabled.value, promoPercent.value, promoLabel.value, promoStartsAt.value, promoEndsAt.value])
+const dirty = computed(() => !loading.value && savedSnapshot.value !== '' && snapshot() !== savedSnapshot.value)
+const promoOn = computed(() => promoEnabled.value && Number(promoPercent.value) > 0)
+
+function discard() {
+  if (settings.value) hydrate(settings.value)
+}
+
 function hydrate(data: SettingsDTO) {
   settings.value = data
   ivaRate.value = data.ivaRate ?? 15
@@ -41,6 +53,7 @@ function hydrate(data: SettingsDTO) {
   // Los <input type="datetime-local"> usan hora local sin zona: se recorta la ISO.
   promoStartsAt.value = toLocalInput(data.promoStartsAt)
   promoEndsAt.value = toLocalInput(data.promoEndsAt)
+  savedSnapshot.value = snapshot()
 }
 
 /** ISO del backend -> valor de <input type="datetime-local"> en hora local. */
@@ -110,242 +123,208 @@ onMounted(load)
 </script>
 
 <template>
-  <AdminLayout>
-    <main class="settings">
-      <section class="hero panel">
-        <div>
-          <p>Configuración</p>
-          <h1>Operación de entrega</h1>
-          <span>Define cómo se gestiona el delivery de Boloncity.</span>
-        </div>
-        <div class="provider"><i class="fa-solid fa-bolt" /><span>Integración principal</span><strong>Picker</strong></div>
-      </section>
+  <!-- Envoltorio: así el reset del SCSS con scope de esta vista no le quita el padding a AdminLayout. -->
+  <div class="cui-root">
+    <AdminLayout>
+      <main class="cui-page settings" :class="{ 'has-bar': dirty }">
+        <PageHead eyebrow="Ajustes de la tienda" title="Configuración" description="Promociones, puntos, impuestos y envío. Vale para la web y para WhatsApp." />
 
-      <section class="notice">
-        <i class="fa-solid fa-circle-info" />
-        <p><strong>Picker administra la mayor parte de la operación.</strong> La cotización, asignación de conductor, seguimiento y disponibilidad se resuelven desde Picker para cada sucursal conectada.</p>
-      </section>
-
-      <article class="panel iva-card">
-        <header>
-          <div class="icon"><i class="fa-solid fa-percent" /></div>
-          <div><p>Impuestos</p><h2>IVA del catálogo</h2></div>
-        </header>
-
-        <p class="iva-card__lead">
-          Los precios que ves en la tienda <strong>ya incluyen IVA</strong>. Cambiar la tasa no
-          sube ni baja lo que paga el cliente: ajusta cuánto de ese precio se declara como
-          impuesto en la factura y en el desglose que recibe PayPhone.
-        </p>
-
-        <div class="iva-card__fields">
-          <label>
-            <span>IVA vigente (%)</span>
-            <input v-model.number="ivaRate" type="number" min="0" max="100" step="0.5" :disabled="loading || saving" />
-          </label>
-          <label>
-            <span>Costo de envío por km (USD)</span>
-            <input v-model.number="deliveryPricePerKm" type="number" min="0" step="0.05" :disabled="loading || saving" />
-            <small>Solo se usa cuando Picker no devuelve una cotización.</small>
-          </label>
-        </div>
-
-        <label class="iva-card__toggle" :class="{ active: pricesIncludeIva }">
-          <input v-model="pricesIncludeIva" type="checkbox" :disabled="loading || saving" />
-          <span>
-            <strong>Los precios incluyen IVA</strong>
-            <small>Desactívalo solo si el catálogo pasa a manejar precios sin impuesto.</small>
-          </span>
-        </label>
-
-        <div class="iva-card__actions">
-          <button type="button" class="primary" :disabled="loading || saving" @click="save">
-            <i class="fa-solid fa-floppy-disk" /> {{ saving ? 'GUARDANDO...' : 'GUARDAR' }}
-          </button>
-          <button type="button" class="ghost" :disabled="loading || applying" @click="applyIva">
-            <i class="fa-solid fa-wand-magic-sparkles" /> {{ applying ? 'APLICANDO...' : `APLICAR ${ivaRate}% A TODO EL CATÁLOGO` }}
-          </button>
-        </div>
-        <small class="iva-card__hint">
-          Guardar cambia la tasa por defecto de los productos nuevos. Para reescribir los
-          productos que ya existen, usa el botón de aplicar a todo el catálogo.
-        </small>
-      </article>
-
-      <article class="panel iva-card">
-        <header>
-          <div class="icon"><i class="fa-solid fa-star" /></div>
-          <div><p>Fidelidad</p><h2>Programa de puntos</h2></div>
-        </header>
-
-        <p class="iva-card__lead">
-          El cliente <strong>gana puntos por cada compra</strong> y puede canjearlos como descuento
-          escribiendo su correo en el checkout. Con los valores de abajo:
-          cada <strong>${{ pointsEarnDollars }}</strong> de compra entrega
-          <strong>{{ pointsEarnAmount }} punto(s)</strong>, y
-          <strong>{{ pointsRedeemPerDollar }} puntos valen $1</strong> de descuento.
-        </p>
-
-        <div class="iva-card__fields">
-          <label>
-            <span>Cada cuántos dólares se dan puntos</span>
-            <input v-model.number="pointsEarnDollars" type="number" min="0.01" step="0.5" :disabled="loading || saving" />
-          </label>
-          <label>
-            <span>Puntos que entrega ese bloque</span>
-            <input v-model.number="pointsEarnAmount" type="number" min="0" step="1" :disabled="loading || saving" />
-          </label>
-          <label>
-            <span>Puntos que valen $1 al canjear</span>
-            <input v-model.number="pointsRedeemPerDollar" type="number" min="1" step="10" :disabled="loading || saving" />
-          </label>
-        </div>
-
-        <label class="iva-card__toggle" :class="{ active: pointsEnabled }">
-          <input v-model="pointsEnabled" type="checkbox" :disabled="loading || saving" />
-          <span>
-            <strong>Programa de puntos activo</strong>
-            <small>Al desactivarlo no se ganan ni canjean puntos; los saldos se conservan.</small>
-          </span>
-        </label>
-
-        <div class="iva-card__actions">
-          <button type="button" class="primary" :disabled="loading || saving" @click="save">
-            <i class="fa-solid fa-floppy-disk" /> {{ saving ? 'GUARDANDO...' : 'GUARDAR' }}
-          </button>
-        </div>
-        <small class="iva-card__hint">
-          Los puntos extra por producto (Rewards) se suman a la tarifa por dólar. Los puntos se
-          acreditan al confirmarse el pago y aparecen en el ticket de cada pedido.
-        </small>
-      </article>
-
-      <article class="panel iva-card promo-card">
-        <header>
-          <div class="icon"><i class="fa-solid fa-tag" /></div>
-          <div><p>Promociones</p><h2>Descuento global del catálogo</h2></div>
-          <span class="promo-card__status" :class="{ on: promoEnabled && promoPercent > 0 }">
-            <i class="fa-solid" :class="promoEnabled && promoPercent > 0 ? 'fa-circle-check' : 'fa-circle-pause'" />
-            {{ promoEnabled && promoPercent > 0 ? `Activa · ${promoPercent}%` : 'Sin promo activa' }}
-          </span>
-        </header>
-
-        <p class="iva-card__lead">
-          Aplica un <strong>{{ promoPercent || 0 }}% de descuento a todos los productos</strong> de la tienda,
-          web y WhatsApp. <strong>El envío nunca se descuenta.</strong> El cliente ve el precio tachado en el
-          catálogo y el descuento como una línea en el carrito, el checkout y su correo.
-        </p>
-
-        <div class="iva-card__fields">
-          <label>
-            <span>Descuento (%)</span>
-            <input v-model.number="promoPercent" type="number" min="0" max="100" step="1" :disabled="loading || saving" />
-          </label>
-          <label>
-            <span>Texto que ve el cliente</span>
-            <input v-model="promoLabel" type="text" maxlength="120" placeholder="20% de descuento en todo" :disabled="loading || saving" />
-          </label>
-        </div>
-
-        <div class="iva-card__fields">
-          <label>
-            <span>Empieza (opcional)</span>
-            <input v-model="promoStartsAt" type="datetime-local" :disabled="loading || saving" />
-          </label>
-          <label>
-            <span>Termina (opcional)</span>
-            <input v-model="promoEndsAt" type="datetime-local" :disabled="loading || saving" />
-          </label>
-        </div>
-
-        <label class="iva-card__toggle" :class="{ active: promoEnabled }">
-          <input v-model="promoEnabled" type="checkbox" :disabled="loading || saving" />
-          <span>
-            <strong>Promoción activa</strong>
-            <small>Sin fechas, corre hasta que la desactives. Con fechas, se enciende y apaga sola.</small>
-          </span>
-        </label>
-
-        <div class="iva-card__actions">
-          <button type="button" class="primary" :disabled="loading || saving" @click="save">
-            <i class="fa-solid fa-floppy-disk" /> {{ saving ? 'GUARDANDO...' : 'GUARDAR' }}
-          </button>
-        </div>
-        <small class="iva-card__hint">
-          El descuento se calcula sobre el subtotal de productos al crear el pedido y queda guardado en la
-          orden: cambiar la promo después no altera los pedidos ya hechos. Los puntos se ganan sobre el
-          monto ya rebajado.
-        </small>
-      </article>
-
-      <section class="settings-grid">
-        <article class="panel picker-card">
-          <header><div class="icon"><i class="fa-solid fa-truck-fast" /></div><div><p>Modelo activo</p><h2>Delivery gestionado por Picker</h2></div><span class="status"><i class="fa-solid fa-circle-check" /> Activo</span></header>
-          <div class="capabilities">
-            <div><i class="fa-solid fa-tag" /><span><strong>Cotización automática</strong><small>El valor se calcula según origen, destino y disponibilidad.</small></span></div>
-            <div><i class="fa-solid fa-motorcycle" /><span><strong>Asignación de conductor</strong><small>Picker busca y asigna el repartidor para cada pedido.</small></span></div>
-            <div><i class="fa-solid fa-location-dot" /><span><strong>Seguimiento del pedido</strong><small>El estado de la entrega se actualiza desde la operación de Picker.</small></span></div>
+        <!-- Promoción -->
+        <section class="block cui-panel">
+          <header class="block__head">
+            <span class="block__icon"><i class="fa-solid fa-tag" aria-hidden="true" /></span>
+            <div><h2>Promoción global</h2><p>Descuento en todos los productos. El envío nunca se descuenta.</p></div>
+            <span class="cui-chip" :class="promoOn ? 'cui-chip--yellow' : ''">{{ promoOn ? `Activa · -${promoPercent}%` : 'Apagada' }}</span>
+          </header>
+          <div class="block__body">
+            <button type="button" class="cui-switch" :class="{ 'is-on': promoEnabled }" role="switch" :aria-checked="promoEnabled" :disabled="loading || saving" @click="promoEnabled = !promoEnabled">
+              <i class="fa-solid fa-bolt" aria-hidden="true" /><span><strong>Promoción activa</strong><small>Sin fechas corre hasta que la apagues; con fechas se prende y apaga sola</small></span><span class="cui-switch__knob" />
+            </button>
+            <label class="cui-field half"><span>Descuento (%)</span><input v-model.number="promoPercent" type="number" min="0" max="100" step="1" :disabled="loading || saving" /></label>
+            <label class="cui-field half"><span>Texto para el cliente</span><input v-model="promoLabel" type="text" maxlength="120" placeholder="20% de descuento en todo" :disabled="loading || saving" /></label>
+            <label class="cui-field half"><span>Empieza <em>opcional</em></span><input v-model="promoStartsAt" type="datetime-local" :disabled="loading || saving" /></label>
+            <label class="cui-field half"><span>Termina <em>opcional</em></span><input v-model="promoEndsAt" type="datetime-local" :disabled="loading || saving" /></label>
+            <p class="block__note">Se calcula al crear el pedido y queda guardado: cambiar la promo no altera pedidos ya hechos.</p>
           </div>
-          <footer><i class="fa-solid fa-shield-heart" /> Las sucursales deben tener su cuenta de Picker configurada para operar.</footer>
-        </article>
+        </section>
 
-        <article class="panel internal-card">
-          <div class="internal-card__top"><div class="icon"><i class="fa-solid fa-wallet" /></div><span>Próximamente</span></div>
-          <h2>Cobro y entrega interna</h2>
-          <p>Si Boloncity decide cobrar el delivery directamente o manejar repartidores propios, necesitaremos separar esta operación de la administración general.</p>
-          <div class="requirement"><i class="fa-solid fa-user-gear" /><p><strong>Requiere un perfil adicional de logística.</strong><br />Este perfil podrá definir tarifas, asignar conductores, revisar liquidaciones y gestionar incidencias de entrega.</p></div>
-          <button type="button" disabled><i class="fa-solid fa-lock" /> Requiere perfil de logística</button>
-        </article>
-      </section>
+        <!-- Puntos -->
+        <section class="block cui-panel">
+          <header class="block__head">
+            <span class="block__icon"><i class="fa-solid fa-star" aria-hidden="true" /></span>
+            <div><h2>Programa de puntos</h2><p>El cliente gana puntos al comprar y los canjea como descuento.</p></div>
+            <span class="cui-chip" :class="pointsEnabled ? 'cui-chip--good' : ''">{{ pointsEnabled ? 'Activo' : 'Apagado' }}</span>
+          </header>
+          <div class="block__body">
+            <button type="button" class="cui-switch" :class="{ 'is-on': pointsEnabled }" role="switch" :aria-checked="pointsEnabled" :disabled="loading || saving" @click="pointsEnabled = !pointsEnabled">
+              <i class="fa-solid fa-star" aria-hidden="true" /><span><strong>Puntos activos</strong><small>Al apagarlo no se ganan ni se canjean puntos; los saldos se conservan</small></span><span class="cui-switch__knob" />
+            </button>
+            <label class="cui-field third"><span>Cada cuántos $</span><input v-model.number="pointsEarnDollars" type="number" min="0.01" step="0.5" :disabled="loading || saving" /></label>
+            <label class="cui-field third"><span>Se dan estos puntos</span><input v-model.number="pointsEarnAmount" type="number" min="0" step="1" :disabled="loading || saving" /></label>
+            <label class="cui-field third"><span>Puntos que valen $1</span><input v-model.number="pointsRedeemPerDollar" type="number" min="1" step="10" :disabled="loading || saving" /></label>
+            <p class="block__summary" aria-live="polite">
+              <i class="fa-solid fa-calculator" aria-hidden="true" />
+              Cada <strong>${{ pointsEarnDollars }}</strong> de compra = <strong>{{ pointsEarnAmount }} {{ pointsEarnAmount === 1 ? 'punto' : 'puntos' }}</strong> · <strong>{{ pointsRedeemPerDollar }} puntos</strong> = <strong>$1</strong> de descuento. Los puntos por producto (Rewards) se suman aparte.
+            </p>
+          </div>
+        </section>
 
-      <section class="next panel"><div><p>Antes de activar entrega interna</p><h2>Crear un perfil de logística y sus permisos.</h2></div><span>Evita que usuarios administrativos modifiquen cobros, repartidores o liquidaciones sin autorización.</span></section>
-    </main>
-  </AdminLayout>
+        <!-- IVA y envío -->
+        <section class="block cui-panel">
+          <header class="block__head">
+            <span class="block__icon"><i class="fa-solid fa-percent" aria-hidden="true" /></span>
+            <div><h2>IVA y envío</h2><p>Los precios ya incluyen IVA: cambiar la tasa no cambia lo que paga el cliente.</p></div>
+          </header>
+          <div class="block__body">
+            <label class="cui-field half"><span>IVA vigente (%)</span><input v-model.number="ivaRate" type="number" min="0" max="100" step="0.5" :disabled="loading || saving" /></label>
+            <label class="cui-field half"><span>Envío por km (USD)</span><input v-model.number="deliveryPricePerKm" type="number" min="0" step="0.05" :disabled="loading || saving" /><small>Solo si Picker no devuelve una cotización.</small></label>
+            <button type="button" class="cui-switch" :class="{ 'is-on': pricesIncludeIva }" role="switch" :aria-checked="pricesIncludeIva" :disabled="loading || saving" @click="pricesIncludeIva = !pricesIncludeIva">
+              <i class="fa-solid fa-receipt" aria-hidden="true" /><span><strong>Los precios incluyen IVA</strong><small>Apágalo solo si el catálogo pasa a precios sin impuesto</small></span><span class="cui-switch__knob" />
+            </button>
+            <div class="block__apply">
+              <p>Guardar cambia el IVA de los productos <strong>nuevos</strong>. Para los que ya existen:</p>
+              <button type="button" class="cui-btn cui-btn--ghost" :disabled="loading || applying" @click="applyIva">
+                <i class="fa-solid fa-wand-magic-sparkles" /> {{ applying ? 'Aplicando…' : `Aplicar ${ivaRate}% a todo el catálogo` }}
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Delivery -->
+        <section class="delivery cui-panel">
+          <span class="block__icon"><i class="fa-solid fa-truck-fast" aria-hidden="true" /></span>
+          <div>
+            <h2>Delivery con Picker <span class="cui-chip cui-chip--good">Activo</span></h2>
+            <p>Picker cotiza el envío, asigna el motorizado y da el seguimiento. Cada sucursal necesita su cuenta de Picker conectada (en Sucursales). Repartidores propios: requiere un perfil de logística, todavía no disponible.</p>
+          </div>
+        </section>
+
+        <Transition name="save-bar">
+          <div v-if="dirty" class="save-bar" role="region" aria-label="Cambios sin guardar">
+            <span><i class="fa-solid fa-circle-exclamation" aria-hidden="true" /> Tienes cambios sin guardar</span>
+            <div>
+              <button type="button" class="cui-btn cui-btn--ghost" :disabled="saving" @click="discard">Descartar</button>
+              <button type="button" class="cui-btn cui-btn--primary" :disabled="saving" @click="save"><i class="fa-solid fa-floppy-disk" /> {{ saving ? 'Guardando…' : 'Guardar cambios' }}</button>
+            </div>
+          </div>
+        </Transition>
+      </main>
+    </AdminLayout>
+  </div>
 </template>
 
 <style scoped lang="scss">
-.promo-card__status {
-  align-items: center;
-  background: rgba(8, 17, 13, 0.06);
-  border-radius: 999px;
-  color: rgba(8, 17, 13, 0.6);
-  display: inline-flex;
-  font-size: 0.7rem;
-  font-weight: 900;
-  gap: 0.4rem;
-  margin-left: auto;
-  padding: 0.4rem 0.7rem;
-  text-transform: uppercase;
-}
-.promo-card__status.on { background: rgba(165, 35, 35, 0.12); color: #a52323; }
+.settings { max-width: 980px; }
+.settings.has-bar { padding-bottom: 7rem; }
 
-.settings { display:flex; flex-direction:column; gap:1rem; padding:clamp(.75rem,2vw,1.5rem); }
-.hero { align-items:flex-start; background:linear-gradient(135deg,#173e22,#235931); color:#fff; display:flex; flex-direction:column; gap:1rem; justify-content:space-between; padding:1.25rem; }
-.hero p,.next p { color:#efd537; font-size:.7rem; font-weight:900; letter-spacing:.12em; text-transform:uppercase; }.hero h1 { font-size:clamp(1.7rem,4vw,2.5rem); margin:.35rem 0; }.hero > div > span { color:rgba(255,255,255,.75); }
-.provider { align-items:center; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.16); border-radius:14px; display:flex; flex-wrap:wrap; gap:.45rem; padding:.7rem .85rem; }.provider > i { color:#efd537; }.provider span { color:rgba(255,255,255,.68); font-size:.72rem; }.provider strong { flex-basis:100%; font-size:1rem; }
-.notice { align-items:flex-start; background:#fff9d7; border:1px solid rgba(239,213,55,.7); border-radius:14px; color:#453e0b; display:flex; gap:.7rem; padding:.9rem 1rem; }.notice > i { color:#b59a00; margin-top:.15rem; }.notice p { font-size:.84rem; line-height:1.5; }
-.iva-card { display:flex; flex-direction:column; gap:.9rem; padding:1rem; }
-.iva-card header { align-items:flex-start; display:flex; gap:.7rem; }
-.iva-card__lead { color:var(--admin-muted); font-size:.84rem; line-height:1.5; }
-.iva-card__fields { display:flex; flex-direction:column; gap:.7rem; }
-.iva-card__fields label { display:flex; flex-direction:column; gap:.3rem; flex:1 1 180px; }
-.iva-card__fields label > span { color:#235931; font-size:.7rem; font-weight:900; letter-spacing:.07em; text-transform:uppercase; }
-.iva-card__fields input { background:#fff; border:1px solid rgba(8,17,13,.14); border-radius:12px; color:#152019; font-size:1rem; font-weight:800; min-height:46px; padding:.55rem .7rem; }
-.iva-card__fields small { color:var(--admin-muted); font-size:.72rem; }
-.iva-card__toggle { align-items:flex-start; background:#f8fbf8; border:1px solid rgba(35,89,49,.14); border-radius:14px; cursor:pointer; display:flex; gap:.6rem; padding:.75rem; }
-.iva-card__toggle.active { background:rgba(35,89,49,.08); border-color:rgba(35,89,49,.3); }
-.iva-card__toggle input { accent-color:#235931; margin-top:.2rem; }
-.iva-card__toggle span { display:flex; flex-direction:column; gap:.15rem; }
-.iva-card__toggle strong { font-size:.86rem; }
-.iva-card__toggle small { color:var(--admin-muted); font-size:.74rem; line-height:1.4; }
-.iva-card__actions { display:flex; flex-direction:column; gap:.5rem; }
-.iva-card__actions button { align-items:center; border-radius:12px; display:flex; font-size:.74rem; font-weight:900; gap:.45rem; justify-content:center; letter-spacing:.05em; min-height:46px; padding:.7rem 1rem; }
-.iva-card__actions .primary { background:#235931; border:0; color:#fff; }
-.iva-card__actions .ghost { background:#fff; border:1px solid rgba(35,89,49,.3); color:#235931; }
-.iva-card__actions button:disabled { opacity:.55; }
-.iva-card__hint { color:var(--admin-muted); font-size:.73rem; line-height:1.45; }
-@media (min-width:640px) { .iva-card__fields { flex-direction:row; }.iva-card__actions { flex-direction:row; }.iva-card__actions button { flex:0 0 auto; min-width:180px; } }
-.settings-grid { display:flex; flex-direction:column; gap:1rem; }.settings-grid > article { padding:1rem; }.picker-card header { align-items:flex-start; display:flex; flex-wrap:wrap; gap:.7rem; }.icon { align-items:center; background:rgba(35,89,49,.1); border-radius:12px; color:#235931; display:flex; flex:0 0 42px; height:42px; justify-content:center; width:42px; }.picker-card header > div:nth-child(2) { flex:1; }.picker-card header p,.next span { color:var(--admin-muted); font-size:.72rem; }.picker-card h2,.internal-card h2,.next h2 { font-size:1.1rem; margin-top:.15rem; }.status { background:rgba(0,165,35,.1); border-radius:999px; color:#087c25; font-size:.7rem; font-weight:900; padding:.35rem .5rem; }.capabilities { display:flex; flex-direction:column; gap:.7rem; margin:1rem 0; }.capabilities > div { align-items:flex-start; background:#f8fbf8; border-radius:12px; display:flex; gap:.65rem; padding:.7rem; }.capabilities i { color:#235931; margin-top:.15rem; }.capabilities span { display:flex; flex-direction:column; gap:.15rem; }.capabilities strong { font-size:.82rem; }.capabilities small { color:var(--admin-muted); font-size:.74rem; line-height:1.35; }.picker-card footer { border-top:1px solid rgba(35,89,49,.1); color:rgba(8,17,13,.58); font-size:.73rem; padding-top:.8rem; }.picker-card footer i { color:#235931; margin-right:.35rem; }
-.internal-card { background:linear-gradient(160deg,#fff,#f8f7f1); border:1px solid rgba(8,17,13,.1); }.internal-card__top { align-items:center; display:flex; justify-content:space-between; }.internal-card__top span { background:rgba(8,17,13,.08); border-radius:999px; color:rgba(8,17,13,.55); font-size:.67rem; font-weight:900; padding:.35rem .55rem; text-transform:uppercase; }.internal-card > p { color:var(--admin-muted); font-size:.83rem; line-height:1.5; margin:.65rem 0 1rem; }.requirement { align-items:flex-start; background:#fff; border:1px solid rgba(8,17,13,.1); border-radius:12px; display:flex; gap:.65rem; padding:.75rem; }.requirement > i { color:#235931; margin-top:.1rem; }.requirement p { color:rgba(8,17,13,.62); font-size:.74rem; line-height:1.45; }.requirement strong { color:#152019; }.internal-card button { background:rgba(8,17,13,.08); border:0; border-radius:999px; color:rgba(8,17,13,.45); font-weight:800; margin-top:1rem; min-height:40px; padding:.55rem .8rem; }.next { align-items:flex-start; background:#152019; color:#fff; display:flex; flex-direction:column; gap:.5rem; padding:1rem; }.next span { color:rgba(255,255,255,.65); line-height:1.45; max-width:34rem; }
-@media (min-width:720px) { .hero { align-items:center; flex-direction:row; }.provider { max-width:220px; }.settings-grid { flex-direction:row; }.settings-grid > article { flex:1; }.next { align-items:center; flex-direction:row; justify-content:space-between; } }
+.block { overflow: hidden; }
+
+.block__head {
+  align-items: flex-start;
+  border-bottom: 1px solid var(--admin-line);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 1rem;
+
+  > div { flex: 1 1 220px; min-width: 0; }
+  h2 { font-size: 1.02rem; margin: 0; }
+  p { color: var(--admin-muted); font-size: 0.8rem; line-height: 1.4; margin: 0.15rem 0 0; }
+}
+
+.block__icon {
+  align-items: center;
+  background: var(--admin-accent-soft);
+  border-radius: 12px;
+  color: var(--admin-accent);
+  display: flex;
+  flex: 0 0 40px;
+  height: 40px;
+  justify-content: center;
+}
+
+.block__body {
+  display: flex;
+  flex-flow: row wrap;
+  gap: 0.85rem;
+  padding: 1rem;
+
+  > * { flex: 1 1 100%; }
+  /* De a dos por fila (Descuento + Texto, Empieza + Termina); en celular, uno debajo del otro. */
+  > .half { flex: 1 1 calc(50% - 0.45rem); min-width: 200px; }
+  > .third { flex: 1 1 160px; }
+}
+
+.block__note { color: var(--admin-muted); font-size: 0.76rem; line-height: 1.4; margin: 0; }
+
+.block__summary {
+  align-items: flex-start;
+  background: var(--admin-surface-2);
+  border: 1px dashed var(--admin-line-strong);
+  border-radius: 12px;
+  color: var(--admin-muted);
+  display: flex;
+  font-size: 0.82rem;
+  gap: 0.5rem;
+  line-height: 1.5;
+  margin: 0;
+  padding: 0.7rem 0.85rem;
+
+  i { color: var(--admin-accent); margin-top: 0.2rem; }
+  strong { color: var(--admin-text); }
+}
+
+.block__apply {
+  align-items: center;
+  border-top: 1px solid var(--admin-line);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  justify-content: space-between;
+  padding-top: 0.85rem;
+
+  p { color: var(--admin-muted); flex: 1 1 260px; font-size: 0.8rem; margin: 0; }
+  strong { color: var(--admin-text); }
+}
+
+.delivery {
+  align-items: flex-start;
+  display: flex;
+  gap: 0.75rem;
+  padding: 1rem;
+
+  h2 { align-items: center; display: flex; flex-wrap: wrap; font-size: 0.98rem; gap: 0.45rem; margin: 0; }
+  p { color: var(--admin-muted); font-size: 0.8rem; line-height: 1.5; margin: 0.3rem 0 0; }
+}
+
+.cui-switch:disabled { cursor: not-allowed; opacity: 0.55; }
+
+.save-bar {
+  align-items: center;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-line-strong);
+  border-radius: 18px;
+  bottom: 1rem;
+  box-shadow: var(--admin-shadow-lg);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1rem;
+  justify-content: space-between;
+  left: 50%;
+  max-width: calc(100vw - 1.5rem);
+  padding: 0.7rem 0.75rem 0.7rem 1rem;
+  position: fixed;
+  transform: translateX(-50%);
+  width: 640px;
+  z-index: 60;
+
+  > span { align-items: center; color: var(--admin-text); display: flex; font-size: 0.86rem; font-weight: 700; gap: 0.45rem; }
+  > span i { color: var(--admin-warning); }
+  > div { display: flex; gap: 0.45rem; margin-left: auto; }
+}
+
+.save-bar-enter-active, .save-bar-leave-active { transition: opacity 0.25s ease, transform 0.3s var(--admin-ease, ease); }
+.save-bar-enter-from, .save-bar-leave-to { opacity: 0; transform: translate(-50%, 16px); }
+
+@media (prefers-reduced-motion: reduce) { .save-bar-enter-active, .save-bar-leave-active { transition: opacity 0.15s ease; } .save-bar-enter-from, .save-bar-leave-to { transform: translateX(-50%); } }
 </style>

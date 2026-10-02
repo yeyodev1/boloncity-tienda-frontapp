@@ -1,18 +1,104 @@
 <script setup lang="ts">
 import type { UserDTO } from '@/services/UserService'
-defineProps<{ users: UserDTO[]; loading: boolean; labels: Record<string, string> }>()
+
+defineProps<{ users: UserDTO[]; loading: boolean; labels: Record<string, string>; searching?: boolean }>()
 const emit = defineEmits<{ create: []; edit: [user: UserDTO]; remove: [user: UserDTO] }>()
+
+function access(user: UserDTO) {
+  if (user.accountType === 'customer') return 'Se registró al comprar en la tienda'
+  if (user.allBranches) return 'Todos los locales'
+  const names = user.branches?.map((branch) => branch.name) || []
+  return names.length ? names.join(', ') : 'Sin locales asignados'
+}
+
+function initial(user: UserDTO) {
+  return (user.name || user.email).trim().slice(0, 1).toUpperCase()
+}
 </script>
+
 <template>
-  <section class="users-list panel">
-    <header><div><p>Equipo y acceso</p><h2>Usuarios registrados</h2></div><button type="button" @click="emit('create')"><i class="fa-solid fa-user-plus" /> Nuevo usuario</button></header>
-    <div v-if="loading" class="loading"><i class="fa-solid fa-spinner fa-spin" /><span>Cargando usuarios</span></div>
-    <div v-else-if="users.length" class="list"><article v-for="user in users" :key="user._id" :class="{ 'user-card--customer': user.accountType === 'customer' }"><div class="user-summary"><div class="avatar"><i v-if="user.accountType === 'customer'" class="fa-solid fa-user" /><template v-else>{{ (user.name || user.email).slice(0, 1).toUpperCase() }}</template></div><div class="content"><div><strong>{{ user.name || user.email }}</strong><span>{{ labels[user.accountType] || user.accountType }}</span><em v-if="user.accountType === 'customer'"><i class="fa-solid fa-wand-magic-sparkles" /> Registro automático</em></div><p>{{ user.email }}</p><small><i :class="user.accountType === 'customer' ? 'fa-solid fa-cart-shopping' : 'fa-solid fa-store'" /> {{ user.accountType === 'customer' ? 'Cuenta creada desde la tienda' : user.allBranches ? 'Todas las sucursales' : user.branches?.map((branch) => branch.name).join(', ') || 'Sin sucursales asignadas' }}</small></div></div><div class="actions"><button type="button" @click="emit('edit', user)"><i class="fa-solid fa-pen" /> Editar</button><button class="danger" type="button" :aria-label="`Eliminar ${user.email}`" @click="emit('remove', user)"><i class="fa-solid fa-trash" /></button></div></article></div>
-    <div v-else class="empty"><i class="fa-solid fa-users" /> Aún no hay usuarios registrados.</div>
+  <section class="users cui-panel" aria-live="polite">
+    <ul v-if="loading" class="users__list" aria-hidden="true">
+      <li v-for="n in 5" :key="n" class="user"><span class="sk sk--avatar" /><span class="sk sk--line" /></li>
+    </ul>
+
+    <ul v-else-if="users.length" class="users__list">
+      <li v-for="user in users" :key="user._id" class="user" :data-role="user.accountType">
+        <span class="user__avatar" aria-hidden="true">
+          <i v-if="user.accountType === 'customer'" class="fa-solid fa-user" />
+          <template v-else>{{ initial(user) }}</template>
+        </span>
+        <div class="user__body">
+          <div class="user__title">
+            <strong>{{ user.name || user.email }}</strong>
+            <span class="cui-chip" :class="{ 'cui-chip--accent': user.accountType === 'admin', 'cui-chip--good': user.accountType === 'branch_admin' }">{{ labels[user.accountType] || user.accountType }}</span>
+          </div>
+          <p v-if="user.name">{{ user.email }}</p>
+          <p class="user__access" :class="{ 'is-warn': user.accountType === 'branch_admin' && !user.allBranches && !user.branches?.length }">
+            <i :class="user.accountType === 'customer' ? 'fa-solid fa-bag-shopping' : 'fa-solid fa-store'" aria-hidden="true" /> {{ access(user) }}
+          </p>
+        </div>
+        <div class="user__actions">
+          <button type="button" class="cui-icon-btn" :aria-label="`Editar ${user.email}`" title="Editar" @click="emit('edit', user)"><i class="fa-solid fa-pen" /></button>
+          <button type="button" class="cui-icon-btn is-danger" :aria-label="`Eliminar ${user.email}`" title="Eliminar" @click="emit('remove', user)"><i class="fa-solid fa-trash" /></button>
+        </div>
+      </li>
+    </ul>
+
+    <div v-else class="cui-empty">
+      <i class="fa-solid fa-users" aria-hidden="true" />
+      <strong>{{ searching ? 'Nadie coincide con esa búsqueda' : 'No hay usuarios en este grupo' }}</strong>
+      <p>{{ searching ? 'Prueba con otro nombre o correo.' : 'Crea un usuario para darle acceso al panel.' }}</p>
+      <button v-if="!searching" type="button" class="cui-btn cui-btn--primary" @click="emit('create')"><i class="fa-solid fa-user-plus" /> Nuevo usuario</button>
+    </div>
   </section>
 </template>
+
 <style scoped lang="scss">
-.users-list { padding:1rem; }.users-list header,.users-list article,.user-summary,.content > div,.actions { align-items:center; display:flex; gap:.65rem; }.users-list header { justify-content:space-between; margin-bottom:.85rem; }.users-list header > button { display:none; }.users-list header p { color:#235931; font-size:.7rem; font-weight:900; letter-spacing:.1em; text-transform:uppercase; }.users-list h2 { font-size:1.1rem; margin-top:.2rem; }.users-list button { align-items:center; background:#235931; border:0; border-radius:999px; color:#fff; display:inline-flex; font-weight:800; gap:.4rem; min-height:38px; padding:.55rem .75rem; }.list { display:flex; flex-direction:column; }.list article { border-top:1px solid var(--admin-line); flex-direction:column; padding:.85rem 0; }.user-summary { align-items:flex-start; width:100%; }.avatar { align-items:center; background:#235931; border-radius:50%; color:#fff; display:flex; flex:0 0 44px; font-size:.9rem; font-weight:900; height:44px; justify-content:center; width:44px; }.content { flex:1; min-width:0; }.content > div { align-items:flex-start; flex-wrap:wrap; }.content strong,.content p,.content small { overflow-wrap:anywhere; }.content strong { font-size:.95rem; }.content span { background:rgba(35,89,49,.1); border-radius:999px; color:#235931; font-size:.62rem; font-weight:900; padding:.25rem .4rem; text-transform:uppercase; }.content p,.content small { color:var(--admin-muted); display:block; font-size:.75rem; margin-top:.25rem; }.actions { width:100%; }.actions button:first-child { flex:1; justify-content:center; }.actions button { background:rgba(8,17,13,.07); color:var(--admin-text); }.actions .danger { background:rgba(180,35,24,.1); color:#b42318; }.loading,.empty { align-items:center; color:var(--admin-muted); display:flex; flex-direction:column; gap:.6rem; justify-content:center; min-height:210px; }.loading i { color:#235931; font-size:1.75rem; }.empty i { color:#00a523; font-size:1.5rem; } @media (min-width:641px) { .users-list header > button { display:inline-flex; }.list article { flex-direction:row; }.user-summary { width:auto; }.actions { justify-content:flex-end; width:auto; }.actions button:first-child { flex:none; } }
-@media (min-width:641px) { .user-summary { flex:1 1 auto; }.actions { margin-left:auto; } }
-.content em { background:rgba(239,213,55,.28); border-radius:999px; color:#706000; font-size:.6rem; font-style:normal; font-weight:900; padding:.25rem .4rem; }.user-card--customer { background:linear-gradient(90deg,rgba(239,213,55,.08),transparent); }.user-card--customer .avatar { background:#efd537; color:#5d5100; }.user-card--customer .content span { background:rgba(239,213,55,.23); color:#706000; }
+.users { overflow: hidden; }
+.users__list { display: flex; flex-direction: column; list-style: none; margin: 0; padding: 0; }
+
+.user {
+  align-items: center;
+  border-top: 1px solid var(--admin-line);
+  display: flex;
+  gap: 0.8rem;
+  padding: 0.8rem 1rem;
+  transition: background-color 0.2s ease;
+
+  &:first-child { border-top: 0; }
+  &:hover { background: var(--admin-hover); }
+}
+
+.user__avatar {
+  align-items: center;
+  background: var(--admin-accent);
+  border-radius: 50%;
+  color: var(--admin-on-accent);
+  display: flex;
+  flex: 0 0 42px;
+  font-size: 0.9rem;
+  font-weight: 800;
+  height: 42px;
+  justify-content: center;
+}
+
+.user[data-role='customer'] .user__avatar { background: var(--admin-surface-2); color: var(--admin-subtle); }
+.user[data-role='admin'] .user__avatar { background: var(--admin-yellow); color: var(--admin-on-yellow); }
+
+.user__body { display: flex; flex: 1 1 auto; flex-direction: column; gap: 0.1rem; min-width: 0; }
+.user__title { align-items: center; display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.user__title strong { font-size: 0.94rem; overflow-wrap: anywhere; }
+.user__body p { color: var(--admin-muted); font-size: 0.76rem; margin: 0; overflow-wrap: anywhere; }
+.user__access i { font-size: 0.68rem; margin-right: 0.15rem; }
+.user__access.is-warn { color: var(--admin-warning); font-weight: 700; }
+
+.user__actions { display: flex; flex: 0 0 auto; gap: 0.35rem; }
+
+.sk { animation: sk 1.2s ease-in-out infinite; background: var(--admin-hover); border-radius: 8px; display: block; }
+.sk--avatar { border-radius: 50%; flex: 0 0 42px; height: 42px; }
+.sk--line { flex: 0 1 45%; height: 14px; }
+@keyframes sk { 50% { opacity: 0.45; } }
+
+@media (prefers-reduced-motion: reduce) { .sk { animation: none; } }
 </style>

@@ -42,244 +42,172 @@ function horario(branch: BranchDTO) {
 </script>
 
 <template>
-  <section class="branches-list panel">
-    <header>
-      <div>
-        <p>Red operativa</p>
-        <h2>Sucursales registradas</h2>
-      </div>
-      <span class="entorno"><i class="fa-solid fa-server" /> Entorno: {{ entornoLabel }}</span>
+  <section class="branches cui-panel">
+    <header class="branches__head">
+      <div><h2>Locales</h2><p>Lo que falta configurar aparece en amarillo.</p></div>
+      <span class="cui-chip"><i class="fa-solid fa-server" aria-hidden="true" /> Entorno de {{ entornoLabel }}</span>
     </header>
 
-    <div v-if="loading" class="empty"><i class="fa-solid fa-spinner fa-spin" /> Cargando sucursales</div>
+    <ul v-if="loading" class="branches__list" aria-hidden="true">
+      <li v-for="n in 4" :key="n" class="branch"><span class="sk sk--avatar" /><span class="sk sk--line" /></li>
+    </ul>
 
-    <div v-else-if="!branches.length" class="empty">
-      <i class="fa-solid fa-store-slash" />
+    <div v-else-if="!branches.length" class="cui-empty">
+      <i class="fa-solid fa-store" aria-hidden="true" />
       <strong>Aún no hay sucursales</strong>
-      <button type="button" @click="emit('create')"><i class="fa-solid fa-plus" /> Crear la primera</button>
+      <p>Crea el primer local para empezar a recibir pedidos.</p>
+      <button type="button" class="cui-btn cui-btn--primary" @click="emit('create')"><i class="fa-solid fa-plus" /> Crear sucursal</button>
     </div>
 
-    <div v-else class="list">
-      <article v-for="branch in branches" :key="branch._id">
-        <div class="cabecera">
-          <div class="avatar">
-            <img v-if="branch.imageUrl" :src="branch.imageUrl" :alt="branch.name" />
-            <i v-else class="fa-solid fa-store" />
-          </div>
-          <div class="titulo">
+    <ul v-else class="branches__list">
+      <li v-for="branch in branches" :key="branch._id" class="branch" :class="{ 'is-off': !branch.isActive }">
+        <span class="branch__avatar">
+          <img v-if="branch.imageUrl" :src="branch.imageUrl" :alt="branch.name" loading="lazy" />
+          <i v-else class="fa-solid fa-store" aria-hidden="true" />
+        </span>
+
+        <div class="branch__body">
+          <div class="branch__title">
             <strong>{{ branch.name }}</strong>
-            <small>{{ branch.city || 'Ciudad sin definir' }}</small>
+            <span class="cui-chip" :class="branch.isActive ? 'cui-chip--good' : 'cui-chip--bad'">{{ branch.isActive ? 'Activa' : 'Inactiva' }}</span>
           </div>
-          <span class="estado" :class="branch.isActive ? 'estado--on' : 'estado--off'">
-            {{ branch.isActive ? 'Activa' : 'Inactiva' }}
-          </span>
+          <p class="branch__meta">
+            <span><i class="fa-solid fa-location-dot" aria-hidden="true" /> {{ branch.address || branch.city || 'Sin dirección' }}</span>
+            <span><i class="fa-regular fa-clock" aria-hidden="true" /> {{ horario(branch) }}</span>
+          </p>
+          <p v-if="faltantes(branch).length" class="branch__status is-warn">
+            <i class="fa-solid fa-triangle-exclamation" aria-hidden="true" /> Falta: {{ faltantes(branch).join(' · ') }}
+          </p>
+          <p v-else class="branch__status is-ok"><i class="fa-solid fa-circle-check" aria-hidden="true" /> Lista para cobrar y despachar</p>
+          <!-- La tira de integraciones solo aparece si falta algo: con todo listo basta la línea verde. -->
+          <ul v-if="faltantes(branch).length" class="branch__checks" aria-label="Integraciones">
+            <li v-for="c in checks(branch)" :key="c.key" :class="{ off: !c.ok }" :title="c.ok ? `${c.label}: listo` : `${c.label}: falta`">
+              <i class="fa-solid" :class="c.ok ? 'fa-check' : 'fa-xmark'" aria-hidden="true" /> {{ c.label }}
+            </li>
+          </ul>
         </div>
 
-        <p class="dato"><i class="fa-solid fa-location-dot" /> {{ branch.address || 'Sin dirección' }}</p>
-        <p class="dato"><i class="fa-regular fa-clock" /> {{ horario(branch) }}</p>
-
-        <p v-if="faltantes(branch).length" class="aviso">
-          <i class="fa-solid fa-triangle-exclamation" />
-          Falta configurar: <strong>{{ faltantes(branch).join(' · ') }}</strong>
-        </p>
-        <p v-else class="listo">
-          <i class="fa-solid fa-circle-check" /> Lista para cobrar y despachar
-        </p>
-
-        <ul class="checks">
-          <li v-for="c in checks(branch)" :key="c.key" :class="{ off: !c.ok }">
-            <i class="fa-solid" :class="c.ok ? 'fa-check' : 'fa-xmark'" />
-            <i class="fa-solid" :class="c.icon" />
-            <span>{{ c.label }}</span>
-          </li>
-        </ul>
-
-        <div class="actions">
-          <button type="button" class="ghost" @click="emit('edit', branch)">
-            <i class="fa-solid fa-pen" /> Editar
-          </button>
-          <button type="button" class="ghost" @click="emit('picker', branch)">
+        <div class="branch__actions">
+          <button type="button" class="cui-btn cui-btn--ghost" @click="emit('picker', branch)">
             <i class="fa-solid fa-plug" /> {{ branch.pickerStore?.hasProdKey || branch.pickerStore?.hasDevKey ? 'Picker' : 'Conectar Picker' }}
           </button>
-          <button type="button" class="danger" :aria-label="`Eliminar ${branch.name}`" @click="emit('remove', branch)">
-            <i class="fa-solid fa-trash" />
-          </button>
+          <button type="button" class="cui-icon-btn" :aria-label="`Editar ${branch.name}`" title="Editar" @click="emit('edit', branch)"><i class="fa-solid fa-pen" /></button>
+          <button type="button" class="cui-icon-btn is-danger" :aria-label="`Eliminar ${branch.name}`" title="Eliminar" @click="emit('remove', branch)"><i class="fa-solid fa-trash" /></button>
         </div>
-      </article>
-    </div>
+      </li>
+    </ul>
   </section>
 </template>
 
 <style scoped lang="scss">
-.branches-list { padding: 1rem; }
+.branches { overflow: hidden; }
 
-.branches-list header {
+.branches__head {
   align-items: flex-start;
+  border-bottom: 1px solid var(--admin-line);
   display: flex;
-  gap: .65rem;
+  flex-wrap: wrap;
+  gap: 0.6rem;
   justify-content: space-between;
-  margin-bottom: .85rem;
+  padding: 1rem;
+
+  h2 { font-size: 1rem; margin: 0; }
+  p { color: var(--admin-muted); font-size: 0.8rem; margin: 0.15rem 0 0; }
 }
 
-.branches-list header p { color: #235931; font-size: .7rem; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
-.branches-list h2 { font-size: 1.1rem; margin-top: .2rem; }
+.branches__list { display: flex; flex-direction: column; list-style: none; margin: 0; padding: 0; }
 
-.entorno {
-  background: rgba(8, 17, 13, .06);
-  border-radius: 999px;
-  color: var(--admin-muted);
-  flex: 0 0 auto;
-  font-size: .66rem;
-  font-weight: 800;
-  padding: .3rem .55rem;
-  white-space: nowrap;
-}
-
-.list { display: flex; flex-direction: column; }
-
-.list article {
+.branch {
+  align-items: flex-start;
   border-top: 1px solid var(--admin-line);
   display: flex;
-  flex-direction: column;
-  gap: .45rem;
-  padding: .9rem 0;
+  flex-wrap: wrap;
+  gap: 0.75rem 0.9rem;
+  padding: 0.9rem 1rem;
+  transition: background-color 0.2s ease;
+
+  &:first-child { border-top: 0; }
+  &:hover { background: var(--admin-hover); }
+  &.is-off .branch__avatar { filter: grayscale(1); opacity: 0.6; }
 }
 
-.cabecera { align-items: center; display: flex; gap: .65rem; }
-
-.avatar {
+.branch__avatar {
   align-items: center;
-  background: rgba(35, 89, 49, .1);
-  border-radius: 12px;
-  color: #235931;
+  background: var(--admin-accent-soft);
+  border-radius: 14px;
+  color: var(--admin-accent);
   display: flex;
-  flex: 0 0 46px;
-  height: 46px;
+  flex: 0 0 52px;
+  height: 52px;
   justify-content: center;
   overflow: hidden;
-  width: 46px;
+
+  img { height: 100%; object-fit: cover; width: 100%; }
 }
 
-.avatar img { height: 100%; object-fit: cover; width: 100%; }
+.branch__body { display: flex; flex: 1 1 calc(100% - 70px); flex-direction: column; gap: 0.3rem; min-width: 0; }
+.branch__title { align-items: center; display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.branch__title strong { font-size: 0.98rem; }
 
-.titulo { display: flex; flex: 1; flex-direction: column; min-width: 0; }
-.titulo strong { font-size: .95rem; overflow-wrap: anywhere; }
-.titulo small { color: var(--admin-muted); font-size: .72rem; }
-
-.estado {
-  border-radius: 999px;
-  flex: 0 0 auto;
-  font-size: .6rem;
-  font-weight: 900;
-  letter-spacing: .04em;
-  padding: .28rem .5rem;
-  text-transform: uppercase;
-}
-
-.estado--on { background: rgba(35, 89, 49, .1); color: #235931; }
-.estado--off { background: rgba(180, 35, 24, .1); color: #b42318; }
-
-.dato {
-  align-items: flex-start;
+.branch__meta {
   color: var(--admin-muted);
   display: flex;
-  font-size: .76rem;
-  gap: .4rem;
-  line-height: 1.4;
-  overflow-wrap: anywhere;
+  flex-wrap: wrap;
+  font-size: 0.76rem;
+  gap: 0.15rem 0.9rem;
+  margin: 0;
+
+  i { margin-right: 0.15rem; opacity: 0.7; width: 12px; }
 }
 
-.dato i { color: rgba(35, 89, 49, .55); margin-top: .15rem; width: 13px; }
-
-// El estado resumido va primero y en una sola línea: es lo accionable.
-.aviso,
-.listo {
-  align-items: flex-start;
-  border-radius: 10px;
+.branch__status {
+  align-items: center;
   display: flex;
-  font-size: .76rem;
-  gap: .4rem;
-  line-height: 1.4;
-  padding: .45rem .55rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  gap: 0.35rem;
+  margin: 0.1rem 0 0;
+
+  &.is-warn { color: var(--admin-warning); }
+  &.is-ok { color: var(--admin-success); }
 }
 
-.aviso { background: rgba(180, 35, 24, .08); color: #b42318; }
-.aviso strong { font-weight: 900; }
-.listo { background: rgba(0, 165, 35, .1); color: #087c25; font-weight: 700; }
-
-// Los cuatro checks siempre visibles, pero como tira discreta: informan sin gritar.
-.checks { display: flex; flex-wrap: wrap; gap: .3rem; list-style: none; margin: 0; padding: 0; }
-
-.checks li {
-  align-items: center;
-  background: rgba(35, 89, 49, .08);
-  border-radius: 999px;
-  color: #235931;
+.branch__checks {
   display: flex;
-  font-size: .64rem;
-  font-weight: 800;
-  gap: .28rem;
-  padding: .26rem .5rem;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  list-style: none;
+  margin: 0.15rem 0 0;
+  padding: 0;
+
+  li {
+    align-items: center;
+    background: var(--admin-success-soft);
+    border-radius: 999px;
+    color: var(--admin-success);
+    display: inline-flex;
+    font-size: 0.68rem;
+    font-weight: 700;
+    gap: 0.25rem;
+    padding: 0.2rem 0.55rem;
+  }
+
+  li.off { background: var(--admin-hover); color: var(--admin-muted); }
+  i { font-size: 0.6rem; }
 }
 
-.checks li.off { background: rgba(180, 35, 24, .08); color: #b42318; }
-.checks li i:first-child { font-size: .6rem; }
-.checks li i + i { opacity: .65; }
+.branch__actions { align-items: center; display: flex; gap: 0.35rem; margin-left: auto; }
 
-.actions { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .2rem; }
+.sk { animation: sk 1.2s ease-in-out infinite; background: var(--admin-hover); border-radius: 8px; display: block; }
+.sk--avatar { border-radius: 14px; flex: 0 0 52px; height: 52px; }
+.sk--line { align-self: center; flex: 0 1 45%; height: 14px; }
+@keyframes sk { 50% { opacity: 0.45; } }
 
-.actions button {
-  align-items: center;
-  border: 0;
-  border-radius: 999px;
-  display: inline-flex;
-  font-size: .76rem;
-  font-weight: 800;
-  gap: .4rem;
-  justify-content: center;
-  min-height: 40px;
-  padding: .55rem .8rem;
-  transition: background-color .2s ease;
+@media (min-width: 900px) {
+  .branch { flex-wrap: nowrap; }
+  .branch__body { flex: 1 1 auto; }
+  .branch__actions { align-self: center; }
 }
 
-.actions .ghost { background: rgba(8, 17, 13, .07); color: var(--admin-text); flex: 1; }
-.actions .ghost:hover { background: rgba(8, 17, 13, .12); }
-.actions .danger { background: rgba(180, 35, 24, .1); color: #b42318; flex: 0 0 auto; }
-.actions .danger:hover { background: rgba(180, 35, 24, .16); }
-
-.empty {
-  align-items: center;
-  color: var(--admin-muted);
-  display: flex;
-  flex-direction: column;
-  gap: .55rem;
-  padding: 2rem;
-  text-align: center;
-}
-
-.empty i { color: #235931; font-size: 1.5rem; }
-
-.empty button {
-  align-items: center;
-  background: #235931;
-  border: 0;
-  border-radius: 999px;
-  color: #fff;
-  display: inline-flex;
-  font-weight: 800;
-  gap: .4rem;
-  min-height: 40px;
-  padding: .55rem .9rem;
-}
-
-@media (min-width: 641px) {
-  // En pantalla ancha la ficha se lee en dos columnas: datos a la izquierda, acciones a la derecha.
-  .list article { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; }
-  .cabecera { flex: 1 1 260px; }
-  .dato { flex: 1 1 100%; }
-  .aviso, .listo { flex: 1 1 auto; }
-  .checks { flex: 1 1 auto; }
-  .actions { flex: 0 0 auto; margin-left: auto; margin-top: 0; }
-  .actions .ghost { flex: 0 0 auto; }
-}
+@media (prefers-reduced-motion: reduce) { .sk { animation: none; } }
 </style>

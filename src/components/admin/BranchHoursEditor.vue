@@ -10,9 +10,109 @@ function update(index: number, key: keyof OpeningHours, value: string | boolean)
 </script>
 
 <template>
-  <section class="hours"><header><i class="fa-solid fa-clock" /><div><strong>Horario de atención</strong><small>Los pedidos solo se aceptan dentro de estos horarios.</small></div></header><article v-for="(day, index) in modelValue" :key="day.day"><button type="button" class="day-toggle" :class="{ active: day.isOpen }" :aria-pressed="day.isOpen" @click="update(index, 'isOpen', !day.isOpen)"><span>{{ labels[day.day] }}</span><i class="fa-solid fa-power-off" /></button><div v-if="day.isOpen" class="times"><BaseSelect :model-value="day.opensAt" :options="timeOptions" bare @update:model-value="update(index, 'opensAt', $event as string)" /><b>a</b><BaseSelect :model-value="day.closesAt" :options="timeOptions" bare @update:model-value="update(index, 'closesAt', $event as string)" /></div><small v-else>Cerrada</small></article></section>
+  <section class="hours">
+    <header class="hours__head">
+      <i class="fa-regular fa-clock" aria-hidden="true" />
+      <div><strong>Horario de atención</strong><small>Fuera de este horario no se aceptan pedidos para ya.</small></div>
+    </header>
+    <ul class="hours__days">
+      <li v-for="(day, index) in modelValue" :key="day.day" class="day" :class="{ 'is-closed': !day.isOpen }">
+        <button type="button" class="day__toggle" role="switch" :aria-checked="day.isOpen" :aria-label="`${labels[day.day]}: ${day.isOpen ? 'abierto' : 'cerrado'}`" @click="update(index, 'isOpen', !day.isOpen)">
+          <span class="day__knob" aria-hidden="true" />
+          <span>{{ labels[day.day] }}</span>
+        </button>
+        <div v-if="day.isOpen" class="day__times">
+          <BaseSelect :model-value="day.opensAt" :options="timeOptions" bare @update:model-value="update(index, 'opensAt', $event as string)" />
+          <b>a</b>
+          <BaseSelect :model-value="day.closesAt" :options="timeOptions" bare @update:model-value="update(index, 'closesAt', $event as string)" />
+        </div>
+        <small v-else class="day__closed">Cerrado</small>
+      </li>
+    </ul>
+  </section>
 </template>
 
 <style scoped lang="scss">
-.hours { background:#f8fbf8; border:1px solid rgba(35,89,49,.14); border-radius:16px; display:flex; flex-direction:column; gap:.45rem; padding:.85rem; }.hours header { align-items:center; display:flex; gap:.6rem; margin-bottom:.2rem; }.hours header > i { color:#235931; }.hours header div { display:flex; flex-direction:column; }.hours strong { color:#235931; font-size:.82rem; }.hours small { color:rgba(8,17,13,.56); font-size:.7rem; }.hours article { align-items:center; border-top:1px solid rgba(8,17,13,.07); display:flex; flex-wrap:wrap; gap:.55rem; justify-content:space-between; padding:.55rem 0; }.day-toggle { align-items:center; background:transparent; border:0; color:#152019; display:flex; font:inherit; font-size:.78rem; font-weight:800; gap:.45rem; padding:0; }.day-toggle i { color:rgba(8,17,13,.3); }.day-toggle.active i { color:#00a523; }.times { align-items:center; display:flex; flex:1 1 230px; gap:.35rem; justify-content:flex-end; }.times :deep(.base-select) { flex:1 1 100px; }.times :deep(.base-select__trigger) { min-height:36px; padding:.45rem .55rem; }.hours b { color:rgba(8,17,13,.45); font-size:.7rem; }
+.hours {
+  background: var(--admin-surface-2);
+  border: 1px solid var(--admin-line);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.85rem;
+}
+
+.hours__head {
+  align-items: center;
+  display: flex;
+  gap: 0.65rem;
+
+  > i { color: var(--admin-accent); }
+  div { display: flex; flex-direction: column; }
+  strong { color: var(--admin-text); font-size: 0.86rem; }
+  small { color: var(--admin-muted); font-size: 0.74rem; }
+}
+
+.hours__days { display: flex; flex-direction: column; list-style: none; margin: 0; padding: 0; }
+
+.day {
+  align-items: center;
+  border-top: 1px solid var(--admin-line);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: space-between;
+  min-height: 52px;
+  padding: 0.45rem 0;
+}
+
+.day__toggle {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--admin-text);
+  cursor: pointer;
+  display: flex;
+  font-size: 0.84rem;
+  font-weight: 800;
+  gap: 0.6rem;
+  min-width: 120px;
+  padding: 0.2rem 0;
+
+  &:focus-visible { outline: 2px solid var(--admin-accent); outline-offset: 2px; border-radius: 8px; }
+}
+
+.day__knob {
+  background: var(--admin-accent);
+  border-radius: 999px;
+  flex: 0 0 36px;
+  height: 22px;
+  padding: 3px;
+  transition: background-color 0.25s ease;
+
+  &::after {
+    background: var(--admin-surface);
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+    content: '';
+    display: block;
+    height: 16px;
+    transform: translateX(14px);
+    transition: transform 0.25s var(--admin-ease, ease);
+    width: 16px;
+  }
+}
+
+.day.is-closed .day__knob { background: var(--admin-line-strong); }
+.day.is-closed .day__knob::after { transform: translateX(0); }
+.day.is-closed .day__toggle span:last-child { color: var(--admin-muted); }
+
+.day__times { align-items: center; display: flex; flex: 1 1 220px; gap: 0.4rem; justify-content: flex-end; }
+.day__times :deep(.base-select) { flex: 1 1 100px; }
+.day__times :deep(.base-select__trigger) { min-height: 38px; padding: 0.4rem 0.6rem; }
+.day__times b { color: var(--admin-subtle); font-size: 0.75rem; font-weight: 700; }
+.day__closed { color: var(--admin-muted); font-size: 0.78rem; font-weight: 700; }
+
+@media (prefers-reduced-motion: reduce) { .day__knob, .day__knob::after { transition: none; } }
 </style>
