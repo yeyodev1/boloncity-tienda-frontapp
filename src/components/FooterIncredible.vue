@@ -2,7 +2,8 @@
 import { onMounted } from 'vue';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import logoImg from '../assets/logos/logo.png';
+// Versión para fondo oscuro: 'CITY' en blanco (la original es verde oscuro y se perdía sobre el verde del footer).
+import logoImg from '../assets/logos/logo-light.png';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -55,6 +56,16 @@ onMounted(() => {
 
     <div class="footer-bottom">
       <p>© 2016 - 2026 Boloncity. Todos los derechos reservados por la Alcaldía del Sabor.</p>
+      <p class="footer-credits">
+        <span class="footer-credits__label">Creado por</span>
+        <a href="https://yeyo.dev" target="_blank" rel="noopener" class="footer-credits__link hover-target">
+          yeyo.dev <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true" />
+        </a>
+        <span class="footer-credits__x" aria-hidden="true">×</span>
+        <a href="https://bakano.ec" target="_blank" rel="noopener" class="footer-credits__link hover-target">
+          bakano.ec <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true" />
+        </a>
+      </p>
       <div class="footer-legal">
         <a href="#" class="hover-target">Términos</a>
         <a href="#" class="hover-target">Privacidad</a>
@@ -179,6 +190,75 @@ $text-dark: #1A1A1A;
     position: relative;
     text-align: center;
     z-index: 2;
+
+    .footer-credits {
+      align-items: center;
+      background: rgba($white, 0.06);
+      border: 1px solid rgba($white, 0.14);
+      border-radius: 999px;
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 0.35rem 0.55rem;
+      justify-content: center;
+      margin: 0;
+      padding: 0.45rem 0.6rem 0.45rem 1rem;
+    }
+
+    .footer-credits__label {
+      color: rgba($white, 0.55);
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    .footer-credits__link {
+      align-items: center;
+      border-radius: 999px;
+      color: $white;
+      display: inline-flex;
+      font-size: 0.92rem;
+      font-weight: 800;
+      gap: 0.4rem;
+      letter-spacing: -0.01em;
+      padding: 0.3rem 0.7rem;
+      text-decoration: none;
+      transition: background 0.25s ease, color 0.25s ease, transform 0.2s ease;
+
+      i {
+        font-size: 0.65rem;
+        opacity: 0.55;
+        transition: opacity 0.25s ease, transform 0.25s ease;
+      }
+
+      &:hover,
+      &:focus-visible {
+        background: $yellow;
+        color: $green-dark;
+
+        i { opacity: 1; transform: translate(1px, -1px); }
+      }
+
+      &:focus-visible { outline: 2px solid $yellow; outline-offset: 2px; }
+    }
+
+    .footer-credits__x {
+      color: $yellow;
+      font-weight: 800;
+    }
+
+    /* Celular: la firma entra en una sola línea. */
+    @media (max-width: 768px) {
+      .footer-credits { flex-wrap: nowrap; gap: 0.2rem; padding: 0.35rem 0.4rem 0.35rem 0.8rem; }
+      .footer-credits__label { font-size: 0.6rem; letter-spacing: 0.12em; white-space: nowrap; }
+      .footer-credits__link { font-size: 0.85rem; padding: 0.3rem 0.5rem; white-space: nowrap; }
+      .footer-credits__link i { display: none; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .footer-credits__link,
+      .footer-credits__link i { transition: none; }
+    }
 
     .footer-legal {
       display: flex;
