@@ -130,8 +130,9 @@ export function useCatalog(pageSize = 12) {
   })
 
   onMounted(async () => {
-    const [categoriesResponse] = await Promise.all([CategoryService.getAll(), loadProducts()])
-    categories.value = categoriesResponse.data
+    // Sin categorías el menú igual se muestra (pestaña "Todo"): un fallo aquí no puede romper la vista.
+    const [categoriesResponse] = await Promise.all([CategoryService.getAll().catch(() => null), loadProducts()])
+    categories.value = categoriesResponse?.data || []
   })
   onBeforeUnmount(() => clearTimeout(searchTimer))
 
