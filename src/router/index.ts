@@ -140,6 +140,12 @@ const routes: Array<RouteRecordRaw> = [
     meta: { title: 'Rewards | Boloncity', requiresAuth: true, requiresAdmin: true },
   },
   {
+    path: '/admin/bot',
+    name: 'admin-bot-chats',
+    component: () => import('../views/admin/AdminBotChats.vue'),
+    meta: { title: 'Chats del bot | Boloncity', requiresAuth: true, requiresAdmin: true },
+  },
+  {
     path: '/admin/carritos',
     name: 'AdminAbandonedCarts',
     component: () => import('../views/admin/AdminAbandonedCarts.vue'),

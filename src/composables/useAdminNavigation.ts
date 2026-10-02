@@ -15,9 +15,11 @@ export function useAdminNavigation() {
   const items = computed<AdminNavItem[]>(() => userStore.accountType === 'branch_admin' ? [
     { label: 'Mi operación', path: '/admin/operacion', icon: 'fa-solid fa-kitchen-set' },
     { label: 'Disponibilidad', path: '/admin/disponibilidad', icon: 'fa-solid fa-list-check' },
+    { label: 'Chats del bot', path: '/admin/bot', icon: 'fa-brands fa-whatsapp' },
   ] : [
     { label: 'Resumen', path: '/admin', icon: 'fa-solid fa-chart-pie' },
     { label: 'Órdenes', path: '/admin/ordenes', icon: 'fa-solid fa-clipboard-list' },
+    { label: 'Chats del bot', path: '/admin/bot', icon: 'fa-brands fa-whatsapp' },
     { label: 'Productos', path: '/admin/productos', icon: 'fa-solid fa-box-open' },
     { label: 'Disponibilidad', path: '/admin/disponibilidad', icon: 'fa-solid fa-list-check' },
     { label: 'Rewards', path: '/admin/rewards', icon: 'fa-solid fa-gift' },
