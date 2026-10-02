@@ -122,7 +122,7 @@ onBeforeUnmount(() => cancelAnimationFrame(frame))
 <style scoped lang="scss">
 .cancel-overlay {
   align-items: center;
-  background: rgba(8, 17, 13, 0.55);
+  background: rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(4px);
   display: flex;
   inset: 0;
@@ -134,9 +134,11 @@ onBeforeUnmount(() => cancelAnimationFrame(frame))
 
 .cancel-modal {
   align-items: center;
-  background: #fff;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-line);
   border-radius: 24px;
-  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--admin-shadow-lg);
+  color: var(--admin-text);
   display: flex;
   flex-direction: column;
   gap: 0.9rem;
@@ -152,9 +154,9 @@ onBeforeUnmount(() => cancelAnimationFrame(frame))
 
 .cancel-modal__icon {
   align-items: center;
-  background: rgba(165, 35, 35, 0.12);
+  background: var(--admin-danger-soft);
   border-radius: 50%;
-  color: #a52323;
+  color: var(--admin-danger);
   display: flex;
   font-size: 1.6rem;
   height: 64px;
@@ -163,13 +165,13 @@ onBeforeUnmount(() => cancelAnimationFrame(frame))
 }
 
 .cancel-modal h2 { font-size: 1.25rem; letter-spacing: -0.02em; }
-.cancel-modal p { color: rgba(8, 17, 13, 0.68); font-size: 0.9rem; line-height: 1.5; }
+.cancel-modal p { color: var(--admin-muted); font-size: 0.9rem; line-height: 1.5; }
 
 .cancel-modal__hold {
-  background: #a52323;
+  background: var(--admin-danger);
   border: 0;
   border-radius: 14px;
-  color: #fff;
+  color: var(--admin-surface);
   cursor: pointer;
   min-height: 56px;
   overflow: hidden;
@@ -183,14 +185,14 @@ onBeforeUnmount(() => cancelAnimationFrame(frame))
   width: 100%;
 }
 
-.cancel-modal__hold.holding { background: #8a1d1d; }
-.cancel-modal__hold.disabled { background: rgba(8, 17, 13, 0.25); cursor: not-allowed; }
+.cancel-modal__hold.holding { filter: brightness(0.85); }
+.cancel-modal__hold.disabled { background: var(--admin-line-strong); color: var(--admin-muted); cursor: not-allowed; }
 
 .cancel-modal__picker {
   align-items: flex-start;
-  background: rgba(35, 89, 49, 0.07);
+  background: var(--admin-info-soft);
   border-radius: 12px;
-  color: #1b3f26;
+  color: var(--admin-text);
   display: flex;
   font-size: 0.84rem;
   gap: 0.5rem;
@@ -203,10 +205,10 @@ onBeforeUnmount(() => cancelAnimationFrame(frame))
 
 .cancel-modal__warning {
   align-items: flex-start;
-  background: #fff8d6;
-  border: 1px solid rgba(239, 213, 55, 0.7);
+  background: var(--admin-warning-soft);
+  border: 1px solid color-mix(in srgb, var(--admin-warning) 40%, transparent);
   border-radius: 12px;
-  color: #6a4e05 !important;
+  color: var(--admin-text) !important;
   display: flex;
   font-size: 0.82rem;
   gap: 0.5rem;
@@ -225,27 +227,28 @@ onBeforeUnmount(() => cancelAnimationFrame(frame))
   width: 100%;
 }
 
-.cancel-modal__reason label { color: rgba(8, 17, 13, 0.62); font-size: 0.72rem; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; }
-.cancel-modal__reason small { color: rgba(8, 17, 13, 0.55); font-size: 0.72rem; }
+.cancel-modal__reason label { color: var(--admin-muted); font-size: 0.72rem; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; }
+.cancel-modal__reason small { color: var(--admin-subtle); font-size: 0.72rem; }
 
 .cancel-modal__chips { display: flex; flex-wrap: wrap; gap: 0.35rem; }
 .cancel-modal__chips button {
-  background: #fff;
-  border: 1px solid rgba(8, 17, 13, 0.14);
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-line-strong);
   border-radius: 999px;
-  color: #18211b;
+  color: var(--admin-text);
+  min-height: 36px;
   cursor: pointer;
   font-size: 0.72rem;
   font-weight: 800;
   padding: 0.35rem 0.6rem;
 }
-.cancel-modal__chips button.active { background: rgba(165, 35, 35, 0.1); border-color: #a52323; color: #a52323; }
+.cancel-modal__chips button.active { background: var(--admin-danger-soft); border-color: var(--admin-danger); color: var(--admin-danger); }
 
 .cancel-modal__reason textarea {
-  background: #fbf8ef;
-  border: 1px solid rgba(8, 17, 13, 0.14);
+  background: var(--admin-input-bg);
+  border: 1px solid var(--admin-line-strong);
   border-radius: 12px;
-  color: #18211b;
+  color: var(--admin-text);
   font: inherit;
   font-size: 0.88rem;
   padding: 0.6rem 0.75rem;
@@ -275,10 +278,10 @@ onBeforeUnmount(() => cancelAnimationFrame(frame))
 
 .cancel-modal__keep {
   align-items: center;
-  background: rgba(35, 89, 49, 0.08);
+  background: var(--admin-accent-soft);
   border: 0;
   border-radius: 12px;
-  color: #235931;
+  color: var(--admin-accent);
   cursor: pointer;
   display: flex;
   font-weight: 800;
@@ -297,4 +300,10 @@ onBeforeUnmount(() => cancelAnimationFrame(frame))
 .cancel-modal-leave-to { opacity: 0; }
 .cancel-modal-enter-from .cancel-modal { opacity: 0; transform: translateY(24px) scale(0.95); }
 .cancel-modal-leave-to .cancel-modal { opacity: 0; transform: translateY(10px) scale(0.97); }
+.cancel-modal__reason textarea:focus { border-color: var(--admin-danger); outline: none; }
+.cancel-modal__chips button:focus-visible, .cancel-modal__keep:focus-visible, .cancel-modal__hold:focus-visible { outline: 2px solid var(--admin-accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  .cancel-modal-enter-active .cancel-modal, .cancel-modal-leave-active .cancel-modal { transition: opacity 0.2s ease; }
+  .cancel-modal-enter-from .cancel-modal, .cancel-modal-leave-to .cancel-modal { transform: none; }
+}
 </style>
