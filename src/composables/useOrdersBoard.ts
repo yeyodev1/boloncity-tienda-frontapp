@@ -226,6 +226,9 @@ export function useOrdersBoard() {
       // con el motorizado en la puerta del local.
       const pickerWarning = response.data?.pickerCancelWarning
       if (pickerWarning) warning(pickerWarning)
+      // Regresar a cocina un delivery cancela su motorizado: el local tiene que
+      // saber que ya no viene nadie y que se pedirá otro al marcarlo «Lista».
+      else if (response.data?.pickerReleased) info('Motorizado cancelado en Picker. Se pedirá otro cuando vuelvas a marcarlo como listo.')
       else success('Estado actualizado')
       playStatus(status)
       await load(true)
