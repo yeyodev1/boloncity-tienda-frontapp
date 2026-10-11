@@ -1,6 +1,6 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import OrderService, { type OrderDTO } from '@/services/OrderService'
+import OrderService, { isFinalOrder, type OrderDTO } from '@/services/OrderService'
 import { useToast } from '@/composables/useToast'
 
 export function useOrderDetail() {
@@ -63,16 +63,28 @@ export function useOrderDetail() {
 
   function startRealtime() {
     stopRealtime()
+    // Un pedido entregado o cancelado ya no cambia; con la pestaña oculta tampoco
+    // reconectamos (iOS corta la conexión y cada reintento era una función de Vercel).
+    if (isFinalOrder(order.value) || document.hidden) return
     streamAbort = OrderService.subscribeToMine(route.params.id as string, applyOrderUpdate, () => {
       reconnectTimer = setTimeout(startRealtime, 3000)
     })
   }
 
+  function handleVisibilityChange() {
+    if (document.hidden) stopRealtime()
+    else if (!streamAbort) startRealtime()
+  }
+
   onMounted(async () => {
     await fetchOrder()
     startRealtime()
+    document.addEventListener('visibilitychange', handleVisibilityChange)
   })
-  onUnmounted(stopRealtime)
+  onUnmounted(() => {
+    stopRealtime()
+    document.removeEventListener('visibilitychange', handleVisibilityChange)
+  })
 
   return { order, loading, retrying, statusFlash, showRetryButton, retryPicker }
 }
