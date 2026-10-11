@@ -250,4 +250,8 @@ class OrderService extends APIBase {
   }
 }
 
+export function isFinalOrder(order: OrderDTO | null | undefined) {
+  return order?.status === 'delivered' || order?.status === 'cancelled'
+}
+
 export default new OrderService()

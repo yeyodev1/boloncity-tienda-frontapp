@@ -3,7 +3,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import StoreHeader from '@/components/store/StoreHeader.vue'
 import StoreFooter from '@/components/store/StoreFooter.vue'
-import OrderService, { type OrderDTO } from '@/services/OrderService'
+import OrderService, { isFinalOrder, type OrderDTO } from '@/services/OrderService'
 import SkeletonLoader from '@/components/global/SkeletonLoader.vue'
 
 function centsToDollars(cents: number): number {
@@ -158,7 +158,7 @@ function applyOrderUpdate(order: OrderDTO) {
 
 function startRealtime() {
   stopRealtime()
-  if (!selectedOrder.value || !email.value) return
+  if (!selectedOrder.value || !email.value || isFinalOrder(selectedOrder.value) || document.hidden) return
   streamAbort = OrderService.subscribeToPublic(selectedOrder.value.orderNumber, email.value.trim().toLowerCase(), applyOrderUpdate, () => {
     reconnectTimer = setTimeout(startRealtime, 3000)
   })
@@ -199,7 +199,16 @@ onMounted(() => {
   }
 })
 
-onUnmounted(stopRealtime)
+function handleVisibilityChange() {
+  if (document.hidden) stopRealtime()
+  else if (!streamAbort && selectedOrder.value) startRealtime()
+}
+
+document.addEventListener('visibilitychange', handleVisibilityChange)
+onUnmounted(() => {
+  stopRealtime()
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
+})
 </script>
 
 <template>
