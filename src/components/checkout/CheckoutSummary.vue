@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useCartStore } from '@/stores/cart'
+import { describeOptions, useCartStore } from '@/stores/cart'
 
 defineProps<{
   deliveryType: 'delivery' | 'pickup'
@@ -30,13 +30,14 @@ const cart = useCartStore()
     </div>
 
     <div class="checkout-summary__items">
-      <article v-for="item in cart.items" :key="item.productId" class="checkout-summary__item">
+      <article v-for="item in cart.items" :key="item.key" class="checkout-summary__item">
         <div class="checkout-summary__media">
           <img v-if="item.image" :src="item.image" :alt="item.name" loading="lazy" />
           <span v-else><i class="fa-solid fa-utensils" /></span>
         </div>
         <div class="checkout-summary__copy">
           <strong>{{ item.name }}</strong>
+          <small v-if="item.options?.length" class="checkout-summary__options">{{ describeOptions(item.options) }}</small>
           <span class="checkout-summary__qty">x{{ item.quantity }}</span>
         </div>
         <strong class="checkout-summary__price">${{ (item.price * item.quantity).toFixed(2) }}</strong>
@@ -180,6 +181,7 @@ const cart = useCartStore()
 .checkout-summary__media > span { align-items: center; color: #235931; display: flex; font-size: 1.1rem; height: 100%; justify-content: center; }
 .checkout-summary__copy { flex: 1 1 0; min-width: 0; }
 .checkout-summary__copy strong { display: block; font-size: 0.9rem; font-weight: 800; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.checkout-summary__options { color: #235931; font-size: 0.75rem; font-weight: 700; margin-top: 0.15rem; }
 .checkout-summary__qty { color: rgba(26, 26, 26, 0.5); font-size: 0.75rem; font-weight: 600; margin-top: 0.15rem; }
 .checkout-summary__price { color: #235931; flex: 0 0 auto; font-size: 0.9rem; }
 

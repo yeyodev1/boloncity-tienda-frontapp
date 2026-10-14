@@ -6,6 +6,7 @@ import StoreFooter from '@/components/store/StoreFooter.vue'
 import SkeletonLoader from '@/components/global/SkeletonLoader.vue'
 import ProductCard from '@/components/catalog/ProductCard.vue'
 import ProductQuickView from '@/components/catalog/ProductQuickView.vue'
+import ProductOptionPicker from '@/components/catalog/ProductOptionPicker.vue'
 import ProductService, { type PaginatedProductsDTO, type ProductDTO } from '@/services/ProductService'
 import CategoryService, { type CategoryDTO } from '@/services/CategoryService'
 import { useCartStore } from '@/stores/cart'
@@ -27,6 +28,16 @@ const quantity = ref(1)
 const adding = ref(false)
 const addedModalOpen = ref(false)
 const selectedProduct = ref<ProductDTO | null>(null)
+// Opciones obligatorias (ej. la masa de los combos): sin elegirlas no se agrega.
+const selectedOptions = ref<Record<string, string>>({})
+const showOptionErrors = ref(false)
+const productOptions = computed(() => product.value?.options || [])
+const chosenOptions = computed(() =>
+  productOptions.value
+    .filter((group) => selectedOptions.value[group.name])
+    .map((group) => ({ name: group.name, value: selectedOptions.value[group.name]! })),
+)
+const missingOption = computed(() => productOptions.value.find((group) => group.required && !selectedOptions.value[group.name]))
 const slug = computed(() => String(route.params.slug || ''))
 const total = computed(() => (product.value?.price || 0) * quantity.value)
 // Promo global: se muestra el precio ya rebajado; el carrito guarda el de catálogo y
@@ -106,6 +117,8 @@ async function loadProduct() {
   companions.value = []
   drinks.value = []
   quantity.value = 1
+  selectedOptions.value = {}
+  showOptionErrors.value = false
   adding.value = false
   addedModalOpen.value = false
   imageLoaded.value = false
@@ -135,6 +148,11 @@ async function loadProduct() {
 
 async function addToCart() {
   if (!product.value || adding.value) return
+  if (missingOption.value) {
+    showOptionErrors.value = true
+    document.querySelector('.product-detail .option-picker')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    return
+  }
   adding.value = true
   await new Promise((resolve) => setTimeout(resolve, 320))
   cart.addItem({
@@ -144,6 +162,7 @@ async function addToCart() {
     price: product.value.price,
     quantity: quantity.value,
     image: product.value.images[0]?.url,
+    options: chosenOptions.value,
   })
   // Se reporta el precio de catálogo, igual que lo guarda el carrito: la promo se
   // descuenta del subtotal más adelante y recién ahí cambia el valor real.
@@ -214,6 +233,8 @@ onBeforeUnmount(() => {
               <span><i class="fa-solid fa-kitchen-set" /> Preparación fresca</span>
             </div>
 
+            <ProductOptionPicker v-if="productOptions.length" v-model="selectedOptions" class="product-detail__options" :options="productOptions" :show-errors="showOptionErrors" />
+
             <div class="product-detail__order">
               <div class="product-detail__price">
                 <span>Precio</span>
@@ -236,6 +257,7 @@ onBeforeUnmount(() => {
 
               <button class="product-detail__add" type="button" :disabled="adding" @click="addToCart">
                 <template v-if="adding"><i class="fa-solid fa-spinner fa-spin" /> Agregando a tu pedido...</template>
+                <template v-else-if="missingOption && showOptionErrors"><i class="fa-solid fa-hand-pointer" /> Elige {{ missingOption.name.toLowerCase() }}</template>
                 <template v-else><i class="fa-solid fa-cart-plus" /> Agregar al pedido · ${{ promoTotal.toFixed(2) }}</template>
               </button>
             </div>
@@ -289,7 +311,7 @@ onBeforeUnmount(() => {
             <div class="product-added-modal__icon"><i class="fa-solid fa-check" /></div>
             <p class="product-added-modal__eyebrow">Agregado correctamente</p>
             <h2>¡Ya está en tu pedido!</h2>
-            <p>Agregamos {{ quantity }} {{ quantity === 1 ? 'unidad' : 'unidades' }} de <strong>{{ product.name }}</strong>. Ahora puedes completar tu pedido con algo que combine.</p>
+            <p>Agregamos {{ quantity }} {{ quantity === 1 ? 'unidad' : 'unidades' }} de <strong>{{ product.name }}</strong><template v-if="chosenOptions.length"> ({{ chosenOptions.map((option) => `${option.name.toLowerCase()} ${option.value.toLowerCase()}`).join(', ') }})</template>. Ahora puedes completar tu pedido con algo que combine.</p>
 
             <div class="product-added-modal__summary">
               <span>{{ quantity }} × ${{ (promo.active ? promoUnitPrice : product.price).toFixed(2) }}</span>
@@ -424,6 +446,8 @@ onBeforeUnmount(() => {
 }
 
 .product-detail__categories,
+.product-detail__options { margin: 0.6rem 0; }
+
 .product-detail__benefits {
   display: flex;
   flex-wrap: wrap;

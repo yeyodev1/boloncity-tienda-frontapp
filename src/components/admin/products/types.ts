@@ -21,6 +21,8 @@ export interface ProductForm {
   scheduledDeactivation: string
   sortOrder: number
   isBestSeller: boolean
+  /** Opciones que el cliente elige al agregar (ej. Masa). `choicesText` = "Pintón, Verde". */
+  options: Array<{ name: string; required: boolean; choicesText: string }>
   imageFile: File | null
   imagePreview: string
   existingImagePublicId: string

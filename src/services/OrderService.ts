@@ -1,7 +1,7 @@
 import APIBase from './httpBase'
 
 export interface CreateOrderInput {
-  items: Array<{ productId: string; quantity: number }>
+  items: Array<{ productId: string; quantity: number; options?: Array<{ name: string; value: string }> }>
   customerEmail: string
   customerName?: string
   customerPhone?: string
@@ -54,7 +54,7 @@ export interface OrderDTO {
   promo?: { percent: number; label: string; amount: number } | null
   /** Quién canceló el pedido y por qué (lo llena el backend al pasar a «cancelled»). */
   cancellation?: { byEmail?: string; byName?: string; reason?: string; at?: string }
-  items?: Array<{ name: string; quantity: number; price: number; image?: string }>
+  items?: Array<{ name: string; quantity: number; price: number; image?: string; options?: Array<{ name: string; value: string }> }>
   payphone?: {
     clientTransactionId?: string
     /** "test" = pedido del bot cobrado con la app de PRUEBAS de PayPhone (no cobra de verdad). */

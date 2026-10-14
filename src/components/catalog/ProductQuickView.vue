@@ -6,6 +6,7 @@ import { useCartStore } from '@/stores/cart'
 import { useSettingsStore } from '@/stores/settings'
 import { trackMetaEvent } from '@/services/metaPixel'
 import { displayDescription, displayProductName, isCustomerCategory } from '@/utils/productName'
+import ProductOptionPicker from './ProductOptionPicker.vue'
 
 const props = defineProps<{ product: ProductDTO | null }>()
 const emit = defineEmits<{ (event: 'close'): void }>()
@@ -31,12 +32,28 @@ const promo = computed(() => settings.promo)
 const promoUnitPrice = computed(() => settings.promoPrice(props.product?.price || 0))
 const promoTotal = computed(() => Math.round(total.value * (100 - (promo.value.active ? promo.value.percent : 0))) / 100)
 
+// Opciones obligatorias (ej. la masa de los combos): sin elegirlas no se agrega.
+const selectedOptions = ref<Record<string, string>>({})
+const showOptionErrors = ref(false)
+const productOptions = computed(() => props.product?.options || [])
+const chosenOptions = computed(() =>
+  productOptions.value
+    .filter((group) => selectedOptions.value[group.name])
+    .map((group) => ({ name: group.name, value: selectedOptions.value[group.name]! })),
+)
+const missingOption = computed(() => productOptions.value.some((group) => group.required && !selectedOptions.value[group.name]))
+
 function close() {
   emit('close')
 }
 
 async function addToCart() {
   if (!props.product || adding.value) return
+  if (missingOption.value) {
+    showOptionErrors.value = true
+    document.querySelector('.quick-view .option-picker')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    return
+  }
   adding.value = true
   await new Promise((resolve) => setTimeout(resolve, 360))
   cart.addItem({
@@ -46,6 +63,7 @@ async function addToCart() {
     price: props.product.price,
     quantity: quantity.value,
     image: props.product.images[0]?.url,
+    options: chosenOptions.value,
   })
   trackMetaEvent('AddToCart', {
     customData: {
@@ -85,6 +103,8 @@ watch(
       })
     }
     quantity.value = 1
+    selectedOptions.value = {}
+    showOptionErrors.value = false
     imageLoaded.value = false
     imageFailed.value = false
     added.value = false
@@ -134,6 +154,8 @@ onBeforeUnmount(() => {
               <span><i class="fa-solid fa-bowl-food" /> Preparado al momento</span>
             </div>
 
+            <ProductOptionPicker v-if="productOptions.length" v-model="selectedOptions" :options="productOptions" :show-errors="showOptionErrors" />
+
             <div class="quick-view__quantity">
               <div><strong>Cantidad</strong><span>Elige cuántos deseas</span></div>
               <div class="quick-view__stepper">
@@ -147,6 +169,7 @@ onBeforeUnmount(() => {
               <RouterLink :to="`/producto/${product.slug}`" @click="close"><i class="fa-solid fa-arrow-up-right-from-square" /> Ver ficha completa</RouterLink>
               <button type="button" :disabled="adding" @click="addToCart">
                 <template v-if="adding"><i class="fa-solid fa-spinner fa-spin" /> Agregando al carrito...</template>
+                <template v-else-if="missingOption && showOptionErrors"><i class="fa-solid fa-hand-pointer" /> Elige {{ productOptions.find((group) => group.required && !selectedOptions[group.name])?.name.toLowerCase() }}</template>
                 <template v-else><i class="fa-solid fa-cart-plus" /> Agregar · ${{ promoTotal.toFixed(2) }}</template>
               </button>
             </footer>
@@ -156,7 +179,7 @@ onBeforeUnmount(() => {
             <span class="quick-view__success-icon"><i class="fa-solid fa-check" /></span>
             <p class="quick-view__success-eyebrow">Agregado a tu pedido</p>
             <h2>Buena elección!</h2>
-            <p>Tu {{ name.toLowerCase() }} ya está en el carrito. Puedes seguir explorando y sumar más sabores.</p>
+            <p>Tu {{ name.toLowerCase() }}<template v-if="chosenOptions.length"> ({{ chosenOptions.map((option) => `${option.name.toLowerCase()} ${option.value.toLowerCase()}`).join(', ') }})</template> ya está en el carrito. Puedes seguir explorando y sumar más sabores.</p>
 
             <div class="quick-view__success-summary">
               <div><span>Cantidad</span><strong>{{ addedQuantity }}</strong></div>

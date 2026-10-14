@@ -495,7 +495,7 @@ export function useCheckout() {
         billingAddress: billingAddress.value.trim(),
       } : {}
       const response = await OrderService.create({
-        items: cart.items.map((item) => ({ productId: item.productId, quantity: item.quantity })),
+        items: cart.items.map((item) => ({ productId: item.productId, quantity: item.quantity, options: item.options })),
         customerName: `${customerFirstName.value.trim()} ${customerLastName.value.trim()}`,
         customerEmail: customerEmail.value,
         customerPhone: composedPhone.value,

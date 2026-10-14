@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { describeOptions } from '@/stores/cart'
 import type { OrderDTO } from '@/services/OrderService'
 
 defineProps<{ order: OrderDTO }>()
@@ -10,7 +11,7 @@ function formatDate(iso: string) { return new Date(iso).toLocaleString('es-EC', 
   <div class="info-grid">
     <section class="info-card"><span><i class="fa-solid fa-receipt" /> Costos</span><div><p>Subtotal <strong>${{ (order.subtotal / 100).toFixed(2) }}</strong></p><p v-if="order.promo?.amount" class="promo">{{ order.promo.label || `Promo ${order.promo.percent}%` }} <strong>-${{ (order.promo.amount / 100).toFixed(2) }}</strong></p><p v-if="order.deliveryType === 'delivery'">Envío <strong>${{ ((order.deliveryCost || 0) / 100).toFixed(2) }}</strong></p><p class="total">Total <strong>${{ (order.total / 100).toFixed(2) }}</strong></p></div></section>
 
-    <section v-if="order.items?.length" class="info-card"><span><i class="fa-solid fa-utensils" /> Productos</span><div class="products"><p v-for="item in order.items" :key="item.name"><i class="fa-solid fa-utensils" /><b>{{ item.name }}</b><small>x{{ item.quantity }}</small><strong>${{ (item.price * item.quantity).toFixed(2) }}</strong></p></div></section>
+    <section v-if="order.items?.length" class="info-card"><span><i class="fa-solid fa-utensils" /> Productos</span><div class="products"><p v-for="item in order.items" :key="item.name"><i class="fa-solid fa-utensils" /><b>{{ item.name }}<template v-if="item.options?.length"> · {{ describeOptions(item.options) }}</template></b><small>x{{ item.quantity }}</small><strong>${{ (item.price * item.quantity).toFixed(2) }}</strong></p></div></section>
 
     <section class="info-card"><span><i class="fa-solid fa-truck" /> {{ order.deliveryType === 'delivery' ? 'Delivery' : 'Recoger en sucursal' }}</span><div v-if="order.deliveryType === 'delivery'"><p>Dirección <strong>{{ order.deliveryAddress || '—' }}</strong></p><p v-if="order.deliveryDistance">Distancia <strong>{{ order.deliveryDistance.toFixed(1) }} km</strong></p><a v-if="order.deliveryGoogleMapsUrl" :href="order.deliveryGoogleMapsUrl" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-map" /> Ver en Google Maps</a><a v-if="order.picker?.smrURL" :href="order.picker.smrURL" target="_blank" rel="noopener noreferrer" class="track"><i class="fa-solid fa-location-crosshairs" /> Seguir en vivo</a></div><div v-else><p>Pedido para recoger en sucursal.</p></div></section>
 

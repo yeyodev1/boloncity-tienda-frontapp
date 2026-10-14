@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useCartStore } from '@/stores/cart'
+import { cartLineKey, useCartStore } from '@/stores/cart'
 import CartTrackingService from '@/services/CartTrackingService'
 
 /**
@@ -37,12 +37,14 @@ onMounted(async () => {
 
     // Se reemplaza el carrito, no se suma: el cliente espera encontrar lo que dejó, no el doble.
     cart.items = data.items.map((i) => ({
+      key: cartLineKey(String(i.product || ''), i.options),
       productId: String(i.product || ''),
       slug: '',
       name: i.name,
       price: i.price,
       quantity: i.quantity,
       image: i.image,
+      options: i.options,
     }))
     cart.persist()
     router.replace('/checkout')

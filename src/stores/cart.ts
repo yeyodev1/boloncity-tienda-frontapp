@@ -1,12 +1,33 @@
 import { defineStore } from 'pinia'
 
+/** Lo que el cliente eligió en las opciones del producto (ej. Masa: Verde). */
+export interface CartItemOption {
+  name: string
+  value: string
+}
+
 export interface CartItem {
+  /**
+   * Identifica el renglón: producto + opciones. Un combo con masa pintón y el
+   * mismo combo con masa verde son dos renglones distintos.
+   */
+  key: string
   productId: string
   slug: string
   name: string
   price: number
   quantity: number
   image?: string
+  options?: CartItemOption[]
+}
+
+export function cartLineKey(productId: string, options: CartItemOption[] = []) {
+  return [productId, ...options.map((option) => `${option.name}=${option.value}`)].join('|')
+}
+
+/** "Masa: Verde · Salsa: Queso" para mostrar debajo del nombre. */
+export function describeOptions(options: CartItemOption[] = []) {
+  return options.map((option) => `${option.name}: ${option.value}`).join(' · ')
 }
 
 export const useCartStore = defineStore('cart', {
@@ -23,7 +44,9 @@ export const useCartStore = defineStore('cart', {
     hydrate() {
       try {
         const raw = localStorage.getItem('cart_items')
-        this.items = raw ? JSON.parse(raw) : []
+        const items = raw ? (JSON.parse(raw) as CartItem[]) : []
+        // Carritos guardados antes de que existieran las opciones no traen `key`.
+        this.items = items.map((item) => ({ ...item, key: item.key || cartLineKey(item.productId, item.options) }))
       } catch {
         this.items = []
       }
@@ -31,40 +54,41 @@ export const useCartStore = defineStore('cart', {
     persist() {
       localStorage.setItem('cart_items', JSON.stringify(this.items))
     },
-    addItem(item: CartItem) {
-      const existing = this.items.find((current) => current.productId === item.productId)
+    addItem(item: Omit<CartItem, 'key'>) {
+      const key = cartLineKey(item.productId, item.options)
+      const existing = this.items.find((current) => current.key === key)
       if (existing) {
         existing.quantity += item.quantity
       } else {
-        this.items.push(item)
+        this.items.push({ ...item, key })
       }
       this.persist()
     },
-    updateQuantity(productId: string, quantity: number) {
-      const item = this.items.find((current) => current.productId === productId)
+    updateQuantity(key: string, quantity: number) {
+      const item = this.items.find((current) => current.key === key)
       if (!item) return
 
       if (quantity <= 0) {
-        this.removeItem(productId)
+        this.removeItem(key)
         return
       }
 
       item.quantity = quantity
       this.persist()
     },
-    increment(productId: string) {
-      const item = this.items.find((current) => current.productId === productId)
+    increment(key: string) {
+      const item = this.items.find((current) => current.key === key)
       if (!item) return
       item.quantity += 1
       this.persist()
     },
-    decrement(productId: string) {
-      const item = this.items.find((current) => current.productId === productId)
+    decrement(key: string) {
+      const item = this.items.find((current) => current.key === key)
       if (!item) return
-      this.updateQuantity(productId, item.quantity - 1)
+      this.updateQuantity(key, item.quantity - 1)
     },
-    removeItem(productId: string) {
-      this.items = this.items.filter((item) => item.productId !== productId)
+    removeItem(key: string) {
+      this.items = this.items.filter((item) => item.key !== key)
       this.persist()
     },
     clear() {

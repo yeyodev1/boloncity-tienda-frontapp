@@ -4,7 +4,7 @@ import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import StoreHeader from '@/components/store/StoreHeader.vue'
 import StoreFooter from '@/components/store/StoreFooter.vue'
-import { useCartStore } from '@/stores/cart'
+import { describeOptions, useCartStore } from '@/stores/cart'
 import { useConfirm } from '@/composables/useConfirm'
 import { useSettingsStore } from '@/stores/settings'
 import { displayProductName } from '@/utils/productName'
@@ -23,15 +23,15 @@ const promoDiscount = computed(() => settings.promoDiscountOn(cart.subtotal))
 const cartTotal = computed(() => Math.max(0, cart.subtotal - promoDiscount.value))
 const money = (value: number) => `$${value.toFixed(2)}`
 
-function hasImage(item: { productId: string; image?: string }) {
-  return Boolean(item.image) && !brokenImages.value.has(item.productId)
+function hasImage(item: { key: string; image?: string }) {
+  return Boolean(item.image) && !brokenImages.value.has(item.key)
 }
 
-function markBroken(productId: string) {
-  brokenImages.value = new Set(brokenImages.value).add(productId)
+function markBroken(key: string) {
+  brokenImages.value = new Set(brokenImages.value).add(key)
 }
 
-async function confirmRemove(itemName: string, productId: string) {
+async function confirmRemove(itemName: string, key: string) {
   const ok = await confirm({
     title: 'Quitar producto',
     message: `Quitamos "${displayProductName(itemName)}" de tu pedido?`,
@@ -39,13 +39,13 @@ async function confirmRemove(itemName: string, productId: string) {
     type: 'danger',
   })
   if (!ok) return
-  cart.removeItem(productId)
+  cart.removeItem(key)
 }
 
 /** Con 1 unidad, restar es quitar: se pide confirmación en vez de borrar de golpe. */
-function decrease(item: { productId: string; name: string; quantity: number }) {
-  if (item.quantity <= 1) return confirmRemove(item.name, item.productId)
-  cart.decrement(item.productId)
+function decrease(item: { key: string; name: string; quantity: number }) {
+  if (item.quantity <= 1) return confirmRemove(item.name, item.key)
+  cart.decrement(item.key)
 }
 
 // Registra el carrito vivo para poder recuperarlo si el cliente se va sin comprar.
@@ -89,9 +89,9 @@ useCartTracking('cart')
       <section v-else class="cart-layout">
         <div class="cart-items">
           <TransitionGroup name="cart-list" tag="ul" class="cart-list">
-            <li v-for="item in cart.items" :key="item.productId" class="cart-item">
+            <li v-for="item in cart.items" :key="item.key" class="cart-item">
               <RouterLink class="cart-item__media" :to="`/producto/${item.slug}`" :aria-label="`Ver ${displayProductName(item.name)}`">
-                <img v-if="hasImage(item)" :src="item.image" :alt="displayProductName(item.name)" loading="lazy" @error="markBroken(item.productId)" />
+                <img v-if="hasImage(item)" :src="item.image" :alt="displayProductName(item.name)" loading="lazy" @error="markBroken(item.key)" />
                 <span v-else class="cart-item__fallback" aria-hidden="true"><i class="fa-solid fa-utensils" /></span>
               </RouterLink>
 
@@ -100,6 +100,7 @@ useCartTracking('cart')
                   <RouterLink class="cart-item__name" :to="`/producto/${item.slug}`">{{ displayProductName(item.name) }}</RouterLink>
                   <strong class="cart-item__line">{{ money(item.price * item.quantity) }}</strong>
                 </div>
+                <p v-if="item.options?.length" class="cart-item__options">{{ describeOptions(item.options) }}</p>
                 <p class="cart-item__unit">{{ money(item.price) }} c/u</p>
 
                 <div class="cart-item__controls">
@@ -113,11 +114,11 @@ useCartTracking('cart')
                       <i :class="item.quantity <= 1 ? 'fa-solid fa-trash-can' : 'fa-solid fa-minus'" aria-hidden="true" />
                     </button>
                     <strong aria-live="polite">{{ item.quantity }}</strong>
-                    <button type="button" :aria-label="`Sumar ${displayProductName(item.name)}`" @click="cart.increment(item.productId)">
+                    <button type="button" :aria-label="`Sumar ${displayProductName(item.name)}`" @click="cart.increment(item.key)">
                       <i class="fa-solid fa-plus" aria-hidden="true" />
                     </button>
                   </div>
-                  <button v-if="item.quantity > 1" type="button" class="cart-item__remove" @click="confirmRemove(item.name, item.productId)">
+                  <button v-if="item.quantity > 1" type="button" class="cart-item__remove" @click="confirmRemove(item.name, item.key)">
                     Quitar
                   </button>
                 </div>
@@ -351,6 +352,13 @@ useCartTracking('cart')
   font-size: 1rem;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+.cart-item__options {
+  color: #235931;
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin-top: 0.2rem;
 }
 
 .cart-item__unit {

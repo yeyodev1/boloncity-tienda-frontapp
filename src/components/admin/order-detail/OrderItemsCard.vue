@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import type { OrderDTO } from '@/services/OrderService'
 import { displayProductName } from '@/utils/productName'
+import { describeOptions } from '@/stores/cart'
 
 const props = defineProps<{ order: OrderDTO }>()
 
@@ -33,7 +34,7 @@ function formatDollars(amount: number) {
         <span class="items__qty">{{ item.quantity }}×</span>
         <img v-if="item.image" :src="item.image" :alt="displayProductName(item.name)" loading="lazy" />
         <span v-else class="items__ph" aria-hidden="true"><i class="fa-solid fa-utensils" /></span>
-        <strong class="items__name">{{ displayProductName(item.name) }}</strong>
+        <strong class="items__name">{{ displayProductName(item.name) }}<span v-if="item.options?.length" class="items__options">{{ describeOptions(item.options) }}</span></strong>
         <span class="items__price">{{ formatDollars(item.price * item.quantity) }}</span>
       </li>
     </ul>
@@ -91,6 +92,9 @@ function formatDollars(amount: number) {
 }
 
 .items__name { flex: 1 1 auto; font-size: 0.88rem; line-height: 1.3; min-width: 0; }
+/* La masa la lee cocina: tiene que saltar a la vista. */
+.items__options { background: #fff4c2; border-radius: 6px; color: #5c4a00; display: inline-block; font-size: 0.78rem; font-weight: 800; margin-top: 0.2rem; padding: 0.1rem 0.45rem; }
+.items__name .items__options { display: table; }
 .items__price { font-size: 0.88rem; font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; }
 
 .items__totals { border-top: 1px dashed var(--admin-line-strong); padding-top: 0.75rem; }
