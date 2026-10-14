@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { describeOptions } from '@/stores/cart'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import StoreHeader from '@/components/store/StoreHeader.vue'
@@ -358,6 +359,7 @@ onUnmounted(() => {
                   </div>
                   <div class="track-detail__product-copy">
                     <strong>{{ item.name }}</strong>
+              <small v-if="item.options?.length" class="item-options">{{ describeOptions(item.options) }}</small>
                     <span class="track-detail__product-qty">x{{ item.quantity }}</span>
                   </div>
                   <span class="track-detail__product-price">${{ (item.price * item.quantity).toFixed(2) }}</span>
@@ -1037,4 +1039,5 @@ onUnmounted(() => {
 @media (min-width: 1180px) {
   .track-hero, .track-shell { padding: 2.75rem; }
 }
+.item-options { color: #235931; display: block; font-size: 0.75rem; font-weight: 700; }
 </style>

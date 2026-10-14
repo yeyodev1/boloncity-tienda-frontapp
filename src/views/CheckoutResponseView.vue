@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { describeOptions } from '@/stores/cart'
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import OrderService from '@/services/OrderService'
@@ -130,6 +131,7 @@ onMounted(async () => {
             </div>
             <div class="rpage__item-info">
               <strong>{{ item.name }}</strong>
+              <small v-if="item.options?.length" class="item-options">{{ describeOptions(item.options) }}</small>
               <span class="rpage__item-qty">x{{ item.quantity }}</span>
             </div>
             <span class="rpage__item-price">${{ (item.price * item.quantity).toFixed(2) }}</span>
@@ -495,4 +497,5 @@ onMounted(async () => {
   .rpage__card { border-radius: 28px; padding: 1.35rem 1.5rem; }
   .rpage__actions { flex-direction: row; }
 }
+.item-options { color: #235931; display: block; font-size: 0.75rem; font-weight: 700; }
 </style>

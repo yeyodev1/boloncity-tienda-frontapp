@@ -1,6 +1,13 @@
 import APIBase from './httpBase'
 import type { CategoryDTO } from './CategoryService'
 
+/** Grupo de opciones a elegir antes de agregar (ej. Masa: Pintón / Verde). */
+export interface ProductOptionDTO {
+  name: string
+  required: boolean
+  choices: string[]
+}
+
 export interface ProductDTO {
   _id: string
   code?: string
@@ -22,6 +29,7 @@ export interface ProductDTO {
   sellWithoutStock?: boolean
   pointsValue?: number | null
   isBestSeller?: boolean
+  options?: ProductOptionDTO[]
 }
 
 export interface PaginatedProductsDTO {

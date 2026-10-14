@@ -42,7 +42,7 @@ export interface RecoveredCart {
   customerEmail: string
   customerPhone: string
   subtotal: number
-  items: { product: string | null; name: string; price: number; quantity: number; image?: string }[]
+  items: { product: string | null; name: string; price: number; quantity: number; image?: string; options?: { name: string; value: string }[] }[]
   yaComprado: boolean
 }
 

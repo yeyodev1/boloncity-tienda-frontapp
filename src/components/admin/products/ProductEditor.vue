@@ -18,6 +18,8 @@ const categoryNames = computed(() => new Map(props.options.categories.map(({ _id
 const previewCategories = computed(() => props.form.categories.map((id) => categoryNames.value.get(id) || '').filter((name) => name && isCustomerCategory({ name })))
 function fileChange(event: Event) { const file = (event.target as HTMLInputElement).files?.[0] || null; props.form.imageFile = file; if (file) props.form.imagePreview = URL.createObjectURL(file) }
 function clearImage() { props.form.imageFile = null; props.form.imagePreview = '' }
+function addOptionGroup() { props.form.options.push({ name: '', required: true, choicesText: '' }); measureStep() }
+function removeOptionGroup(index: number) { props.form.options.splice(index, 1); measureStep() }
 function toggle(key: 'isAvailable' | 'isFeatured' | 'sellWithoutStock' | 'isBestSeller') { props.form[key] = !props.form[key] }
 
 // Modo de disponibilidad por sucursal:
@@ -89,6 +91,18 @@ onBeforeUnmount(() => { stepHeight.value = null })
                 <button type="button" class="cui-switch" :class="{ 'is-on': form.isBestSeller }" role="switch" :aria-checked="form.isBestSeller" @click="toggle('isBestSeller')">
                   <i class="fa-solid fa-fire" aria-hidden="true" /><span><strong>Best seller</strong><small>Sale primero en el catálogo</small></span><span class="cui-switch__knob" />
                 </button>
+
+                <div class="option-groups">
+                  <span class="option-groups__label">Opciones para elegir <em>opcional</em></span>
+                  <div v-for="(group, index) in form.options" :key="index" class="option-groups__row">
+                    <label class="cui-field cui-half"><span>Nombre</span><input v-model="group.name" placeholder="Ej. Masa" /></label>
+                    <label class="cui-field cui-half"><span>Opciones (separadas por coma)</span><input v-model="group.choicesText" placeholder="Ej. Pintón, Verde" /></label>
+                    <label class="option-groups__required"><input v-model="group.required" type="checkbox" /> Obligatorio</label>
+                    <button type="button" class="cui-btn cui-btn--ghost" @click="removeOptionGroup(index)"><i class="fa-solid fa-trash-can" /> Quitar</button>
+                  </div>
+                  <button type="button" class="cui-btn" @click="addOptionGroup"><i class="fa-solid fa-plus" /> Agregar opción</button>
+                  <small>El cliente la elige antes de agregar al carrito y sale en el pedido y en la comanda.</small>
+                </div>
               </template>
 
               <template v-else-if="step === 2">
@@ -135,6 +149,13 @@ onBeforeUnmount(() => { stepHeight.value = null })
 </template>
 
 <style scoped lang="scss">
+.option-groups { display: flex; flex-direction: column; gap: 0.6rem; width: 100%; }
+.option-groups__label { font-size: 0.82rem; font-weight: 700; }
+.option-groups__label em { font-style: normal; font-weight: 500; opacity: 0.6; }
+.option-groups__row { align-items: flex-end; border: 1px dashed currentColor; border-radius: 12px; display: flex; flex-wrap: wrap; gap: 0.6rem; padding: 0.7rem; }
+.option-groups__required { align-items: center; display: inline-flex; font-size: 0.82rem; gap: 0.35rem; }
+.option-groups small { opacity: 0.65; }
+
 .editor { display: flex; flex-direction: column; gap: 0.9rem; }
 
 .preview {

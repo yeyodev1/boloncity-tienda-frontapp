@@ -32,6 +32,9 @@ export interface MetaEventPayload {
   /** Cookies del pixel; Meta las usa para emparejar la sesión. */
   fbp?: string
   fbc?: string
+  /** Cookie `_ttp` y clic del anuncio de TikTok: el backend reenvía el evento a TikTok. */
+  ttp?: string
+  ttclid?: string
 }
 
 class MetaPixelService extends APIBase {

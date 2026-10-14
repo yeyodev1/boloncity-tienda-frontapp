@@ -1,4 +1,5 @@
 import MetaPixelService, { type MetaCustomData } from './MetaPixelService'
+import { initTikTokPixel, isTikTokPixelEnabled, tiktokIdentifiers, trackTikTokEvent } from './tiktokPixel'
 
 /**
  * Meta Pixel del navegador.
@@ -81,6 +82,9 @@ function loadPixelScript() {
 }
 
 export function initMetaPixel() {
+  // TikTok viaja con Meta: mismos eventos, mismos ids. Se inicia aparte porque
+  // cada pixel puede estar configurado sin el otro.
+  initTikTokPixel()
   if (initialized || !PIXEL_ID) return
   initialized = true
 
@@ -105,13 +109,16 @@ export interface TrackOptions {
  * No espera al backend: la UI nunca se queda esperando por medición.
  */
 export function trackMetaEvent(eventName: MetaEventName, options: TrackOptions = {}) {
-  if (!PIXEL_ID) return
+  if (!PIXEL_ID && !isTikTokPixelEnabled()) return
 
   const eventId = options.eventId || newEventId(eventName.toLowerCase())
   const customData = options.customData || {}
 
-  const args: FbqArgs = ['track', eventName, customData as Record<string, unknown>, { eventID: eventId }]
-  window.fbq?.(...args)
+  if (PIXEL_ID) {
+    const args: FbqArgs = ['track', eventName, customData as Record<string, unknown>, { eventID: eventId }]
+    window.fbq?.(...args)
+  }
+  trackTikTokEvent(eventName, eventId, customData)
 
   void MetaPixelService.track({
     eventName,
@@ -125,6 +132,7 @@ export function trackMetaEvent(eventName: MetaEventName, options: TrackOptions =
     externalId: options.email,
     fbp: readCookie('_fbp'),
     fbc: resolveFbc(),
+    ...tiktokIdentifiers(),
   })
 }
 

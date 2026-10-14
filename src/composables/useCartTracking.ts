@@ -35,6 +35,7 @@ export function useCartTracking(stage: CartStage, contacto: Contacto = {}) {
         price: i.price,
         quantity: i.quantity,
         image: i.image,
+        options: i.options,
       })),
       subtotal: cart.subtotal,
       // Que haya dejado sus datos es un escalón distinto del embudo: son los leads recuperables.
@@ -53,7 +54,7 @@ export function useCartTracking(stage: CartStage, contacto: Contacto = {}) {
 
   watch(
     () => [
-      cart.items.map((i) => `${i.productId}x${i.quantity}`).join(','),
+      cart.items.map((i) => `${i.key}x${i.quantity}`).join(','),
       contacto.name?.value,
       contacto.email?.value,
       contacto.phone?.value,
