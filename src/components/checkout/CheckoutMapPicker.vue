@@ -32,12 +32,23 @@ const emit = defineEmits<{
   (e: 'confirm', coords: { lat: number; lng: number }): void
 }>()
 
-/** Guayaquil. Solo el encuadre inicial cuando no hay nada mejor. */
-const FALLBACK = { lat: -2.1709, lng: -79.9224 }
+/**
+ * Ecuador entero. Sin una ubicación conocida no se asume ninguna ciudad: el
+ * encuadre inicial anterior (un punto de Guayaquil cerca de Urdesa) cotizaba
+ * solo y dejaba «Confirmar» habilitado, y clientes de Quito y La Aurora
+ * confirmaron ese pin sin moverlo (ORD-00758 y ORD-00785 entraron con las
+ * coordenadas EXACTAS del centro por defecto y se cocinaron en Urdesa).
+ */
+const ECUADOR = { lat: -1.55, lng: -78.9 }
+const ECUADOR_ZOOM = 7
+
+/** Con menos zoom que esto no se distingue una puerta: ni se cotiza ni se confirma. */
+const MIN_CONFIRM_ZOOM = 16
 
 const mapEl = ref<HTMLElement | null>(null)
 const map = shallowRef<L.Map | null>(null)
-const centre = ref<{ lat: number; lng: number }>({ ...FALLBACK })
+const centre = ref<{ lat: number; lng: number }>({ ...ECUADOR })
+const zoom = ref(ECUADOR_ZOOM)
 const address = ref('')
 const isLocating = ref(false)
 const isNaming = ref(false)
@@ -50,7 +61,10 @@ const quote = ref<{ branchName: string; distance: number; fee: number; eta: numb
 const outOfRange = ref('')
 const isQuoting = ref(false)
 
-const canConfirm = computed(() => Boolean(quote.value) && !isQuoting.value && !isMoving.value)
+/** Lejos todavía: el cliente ve una ciudad (o el país), no su calle. */
+const needsZoom = computed(() => zoom.value < MIN_CONFIRM_ZOOM)
+
+const canConfirm = computed(() => Boolean(quote.value) && !isQuoting.value && !isMoving.value && !needsZoom.value)
 
 let quoteTimer: ReturnType<typeof setTimeout> | undefined
 let quoteSeq = 0
@@ -65,6 +79,14 @@ let quoteSeq = 0
 function quoteCentre() {
   clearTimeout(quoteTimer)
   const seq = ++quoteSeq
+  // A vista de ciudad el pin no señala ninguna puerta: cotizarlo mostraba un envío
+  // real para un punto que el cliente nunca eligió.
+  if (needsZoom.value) {
+    quote.value = null
+    outOfRange.value = ''
+    isQuoting.value = false
+    return
+  }
   isQuoting.value = true
   quoteTimer = setTimeout(async () => {
     const { lat, lng } = centre.value
@@ -106,6 +128,11 @@ let nameSeq = 0
 function nameCentre() {
   clearTimeout(nameTimer)
   const seq = ++nameSeq
+  if (needsZoom.value) {
+    address.value = ''
+    isNaming.value = false
+    return
+  }
   isNaming.value = true
   nameTimer = setTimeout(async () => {
     try {
@@ -133,14 +160,15 @@ async function mount() {
   await nextTick()
   if (!mapEl.value || map.value) return
 
-  const start = props.initial ?? FALLBACK
+  const start = props.initial ?? ECUADOR
   centre.value = { ...start }
 
   const m = L.map(mapEl.value, {
     center: [start.lat, start.lng],
-    zoom: props.initial ? 17 : 13,
+    zoom: props.initial ? 17 : ECUADOR_ZOOM,
     zoomControl: false,
   })
+  zoom.value = m.getZoom()
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
@@ -164,6 +192,11 @@ async function mount() {
     nameCentre()
     quoteCentre()
   })
+  m.on('zoomend', () => {
+    zoom.value = m.getZoom()
+    nameCentre()
+    quoteCentre()
+  })
 
   map.value = m
   // Leaflet mide el contenedor al crearse; dentro de un modal recién mostrado esa
@@ -171,6 +204,10 @@ async function mount() {
   setTimeout(() => m.invalidateSize(), 60)
   nameCentre()
   quoteCentre()
+  // Sin un punto previo, el camino feliz es la ubicación del dispositivo: se pide
+  // de una. Si el cliente la niega, queda el país completo y tiene que acercarse
+  // él mismo hasta su calle — nunca más un pin ya puesto en una ciudad ajena.
+  if (!props.initial) locateMe()
 }
 
 function destroy() {
@@ -266,9 +303,12 @@ onBeforeUnmount(destroy)
 
           <div
             class="mp__fee"
-            :class="isQuoting || isMoving ? 'mp__fee--pending' : outOfRange ? 'mp__fee--warn' : 'mp__fee--ok'"
+            :class="needsZoom && !isMoving ? 'mp__fee--pending' : isQuoting || isMoving ? 'mp__fee--pending' : outOfRange ? 'mp__fee--warn' : 'mp__fee--ok'"
           >
-            <template v-if="isQuoting || isMoving">
+            <template v-if="needsZoom && !isMoving">
+              <i class="fa-solid fa-magnifying-glass-plus" /> <span>Acércate hasta ver tu calle para fijar el pin</span>
+            </template>
+            <template v-else-if="isQuoting || isMoving">
               <i class="fa-solid fa-spinner fa-spin" /> <span>Calculando tu envío…</span>
             </template>
             <template v-else-if="outOfRange">
@@ -281,7 +321,7 @@ onBeforeUnmount(destroy)
 
           <button class="mp__confirm" type="button" :disabled="!canConfirm" @click="emit('confirm', { ...centre })">
             <i class="fa-solid fa-check" />
-            {{ outOfRange ? 'Elige otro punto' : 'Confirmar esta ubicación' }}
+            {{ needsZoom ? 'Acércate hasta ver tu puerta' : outOfRange ? 'Elige otro punto' : 'Confirmar esta ubicación' }}
           </button>
         </footer>
        </div>
